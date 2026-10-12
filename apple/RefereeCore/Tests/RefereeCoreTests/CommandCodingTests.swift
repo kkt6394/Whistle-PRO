@@ -9,9 +9,15 @@ struct CommandCodingTests {
 
     @Test func decodesSimpleCommandWithoutId() throws {
         let c = try decode(#"{"type": "startPeriod", "t": 12.5}"#)
-        #expect(c.id == "")
+        #expect(!c.id.isEmpty)
         #expect(c.timestamp == 12.5)
         #expect(c.kind == .startPeriod)
+    }
+
+    @Test func missingIdsAreUnique() throws {
+        let a = try decode(#"{"type": "startPeriod", "t": 0}"#)
+        let b = try decode(#"{"type": "startPeriod", "t": 0}"#)
+        #expect(a.id != b.id)
     }
 
     @Test func decodesRecordGoal() throws {

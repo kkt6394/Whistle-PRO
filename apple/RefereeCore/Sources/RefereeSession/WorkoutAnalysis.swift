@@ -20,10 +20,10 @@ public enum WorkoutAnalysis {
     public static let maximumAccuracy = 20.0
     /// 이보다 길게 지점이 비면 구간을 끊는다 (초)
     public static let maximumGap = 3.0
-    /// 이보다 짧은 고속 구간은 GPS 튐으로 보고 세지 않는다 (초)
-    public static let minimumSprintDuration = 1.0
+    /// 이보다 짧은 고속 구간은 GPS 튐으로 보고 세지 않는다 (초, 1Hz에서 3지점)
+    public static let minimumSprintDuration = 2.0
 
-    /// 20km/h 이상이 1초 이상 이어진 구간 수. route는 시간순이어야 한다.
+    /// 20km/h 이상이 2초 이상 이어진 구간 수. route는 시간순이어야 한다.
     public static func sprintCount(_ route: [RoutePoint]) -> Int {
         var count = 0
         var runStart: Double?
@@ -65,11 +65,11 @@ public enum WorkoutAnalysis {
     private static func stats(_ log: WorkoutLog, ranges: [(Double, Double)], label: String?) -> WorkoutStats {
         func inRanges(_ t: Double) -> Bool { ranges.contains { t >= $0.0 && t <= $0.1 } }
         let heartRates = log.heartRate.filter { inRanges($0.t) }.map(\.value)
-        let average = heartRates.isEmpty ? nil : Int((heartRates.reduce(0, +) / Double(heartRates.count)).rounded())
+        let average = heartRates.isEmpty ? nil : wholeSeconds(heartRates.reduce(0, +) / Double(heartRates.count), rounding: .toNearestOrAwayFromZero)
         return WorkoutStats(
             label: label,
             averageHeartRate: average,
-            maxHeartRate: heartRates.max().map { Int($0.rounded()) },
+            maxHeartRate: heartRates.max().map { wholeSeconds($0, rounding: .toNearestOrAwayFromZero) },
             distance: ranges.reduce(0) { $0 + delta(log.distance, from: $1.0, to: $1.1) },
             energy: ranges.reduce(0) { $0 + delta(log.energy, from: $1.0, to: $1.1) },
             sprints: ranges.reduce(0) { total, range in
@@ -77,13 +77,15 @@ public enum WorkoutAnalysis {
             })
     }
 
-    /// 누적값 샘플에서 구간 동안 늘어난 양
+    /// 누적값 샘플에서 구간 동안 늘어난 양. 값이 줄어들면 운동 세션이 다시 시작돼 0부터 쌓인 것으로 본다.
     private static func delta(_ samples: [WorkoutSample], from start: Double, to end: Double) -> Double {
-        max(0, cumulative(samples, at: end) - cumulative(samples, at: start))
-    }
-
-    /// t 시점의 누적값 (t 이전 마지막 샘플, 없으면 0)
-    private static func cumulative(_ samples: [WorkoutSample], at t: Double) -> Double {
-        samples.last { $0.t <= t }?.value ?? 0
+        var previous = 0.0
+        var total = 0.0
+        for sample in samples {
+            let increment = sample.value >= previous ? sample.value - previous : sample.value
+            if sample.t > start && sample.t <= end { total += increment }
+            previous = sample.value
+        }
+        return total
     }
 }

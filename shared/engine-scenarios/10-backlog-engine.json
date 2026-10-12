@@ -1,0 +1,26 @@
+{
+  "name": "승부차기 라벨 PK, 승부차기 시작 시 일시 퇴장 종료, 결정 킥 삭제 시 승부차기 재개",
+  "config": { "penalties": true, "sinBin": true },
+  "commands": [
+    { "type": "startPeriod", "t": 0 },
+    { "type": "endPeriod", "t": 2700 },
+    { "type": "startPeriod", "t": 3600 },
+    { "type": "recordCard", "t": 6200, "team": "home", "number": 5, "kind": "sinBin" },
+    { "type": "endPeriod", "t": 6300 },
+    { "type": "setShootoutFirstTeam", "t": 6400, "team": "home" },
+    { "type": "recordPenaltyKick", "t": 6410, "team": "home", "scored": true },
+    { "type": "recordPenaltyKick", "t": 6420, "team": "away", "scored": false },
+    { "type": "recordPenaltyKick", "t": 6430, "team": "home", "scored": true },
+    { "type": "recordPenaltyKick", "t": 6440, "team": "away", "scored": false },
+    { "type": "recordPenaltyKick", "t": 6450, "team": "home", "scored": true },
+    { "type": "recordPenaltyKick", "t": 6460, "team": "away", "scored": false },
+    { "type": "deleteEvent", "t": 6500, "eventId": "#11" }
+  ],
+  "expect": [
+    { "at": 6250, "phase": "period", "period": "2H",
+      "sinBins": [ { "eventId": "#3", "team": "home", "number": 5, "remaining": 550 } ] },
+    { "at": 6300, "phase": "penalties", "period": "PK", "sinBins": [], "playersOnField": [11, 11] },
+    { "at": 6460, "phase": "finished", "period": "PK", "shootoutScore": [3, 0], "nextShootoutTeam": null },
+    { "at": 6500, "phase": "penalties", "period": "PK", "shootoutScore": [3, 0], "nextShootoutTeam": "away", "ignored": [] }
+  ]
+}

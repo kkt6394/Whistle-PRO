@@ -81,7 +81,7 @@ public struct MatchReport: Equatable, Sendable {
 
         let stoppages = state.stoppageTotals(at: end)
         periods = state.periods.enumerated().map { index, p in
-            let played = Int(max(0, (p.endedAt ?? end) - p.startedAt).rounded(.down))
+            let played = max(0, wholeSeconds((p.endedAt ?? end) - p.startedAt))
             return PeriodSummary(
                 label: p.ref.label(periodCount: setup.rules.periodCount),
                 played: played,

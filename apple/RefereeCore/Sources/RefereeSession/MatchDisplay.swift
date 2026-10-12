@@ -71,7 +71,7 @@ public struct MatchDisplay: Equatable, Sendable {
             stoppageRunning = false
         }
         if state.phase == .preExtraTime, let end = state.periods.last?.endedAt {
-            intervalClock = Self.format(Int(max(0, now - end)))
+            intervalClock = Self.format(max(0, wholeSeconds(now - end)))
         } else {
             intervalClock = state.intervalRemaining(at: now).map(Self.format)
         }

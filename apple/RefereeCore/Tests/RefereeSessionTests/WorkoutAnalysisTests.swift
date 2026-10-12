@@ -11,8 +11,8 @@ private let halves: [(CommandKind, Double)] = [(.startPeriod, 0), (.endPeriod, 2
 
 struct WorkoutAnalysisTests {
     @Test func sprintCountsSeparateRuns() {
-        let route = [point(0, kmh: 10), point(1, kmh: 22), point(2, kmh: 23), point(3, kmh: 10),
-                     point(4, kmh: 25), point(5, kmh: 26), point(6, kmh: 10)]
+        let route = [point(0, kmh: 10), point(1, kmh: 22), point(2, kmh: 23), point(3, kmh: 24), point(4, kmh: 10),
+                     point(5, kmh: 25), point(6, kmh: 26), point(7, kmh: 27), point(8, kmh: 10)]
         #expect(WorkoutAnalysis.sprintCount(route) == 2)
     }
 
@@ -26,7 +26,7 @@ struct WorkoutAnalysisTests {
     }
 
     @Test func longGapSplitsRuns() {
-        let route = [point(0, kmh: 25), point(1, kmh: 25), point(6, kmh: 25), point(7, kmh: 25)]
+        let route = [point(0, kmh: 25), point(1, kmh: 25), point(2, kmh: 25), point(7, kmh: 25), point(8, kmh: 25), point(9, kmh: 25)]
         #expect(WorkoutAnalysis.sprintCount(route) == 2)
     }
 
@@ -50,7 +50,8 @@ struct WorkoutAnalysisTests {
         log.distance = [WorkoutSample(t: 0, value: 0), WorkoutSample(t: 2700, value: 5000),
                         WorkoutSample(t: 3600, value: 5200), WorkoutSample(t: 6300, value: 10200)]
         log.heartRate = [WorkoutSample(t: 100, value: 120), WorkoutSample(t: 3000, value: 90), WorkoutSample(t: 4000, value: 150)]
-        log.route = [point(100, kmh: 25), point(101, kmh: 25), point(3000, kmh: 25), point(3001, kmh: 25)]
+        log.route = [point(100, kmh: 25), point(101, kmh: 25), point(102, kmh: 25),
+                     point(3000, kmh: 25), point(3001, kmh: 25), point(3002, kmh: 25)]
         let overall = WorkoutAnalysis.overall(log, state: makeState(halves), now: 7000)
         #expect(overall.label == nil)
         #expect(overall.distance == 10000)

@@ -6,7 +6,7 @@ public struct ActiveSinBin: Equatable, Sendable {
     public var remainingSeconds: Double
 
     /// 화면 표시용 (올림)
-    public var remaining: Int { Int(remainingSeconds.rounded(.up)) }
+    public var remaining: Int { wholeSeconds(remainingSeconds, rounding: .up) }
 }
 
 extension MatchState {
@@ -20,6 +20,11 @@ extension MatchState {
     }
 
     public func activeSinBins(at now: Double) -> [ActiveSinBin] {
+        // 승부차기·종료 후에는 일시 퇴장이 이어지지 않는다 (Law 10.3: 일시 퇴장 중인 선수도 키커 자격)
+        switch phase {
+        case .penalties, .finished: return []
+        default: break
+        }
         let resolved = resolvedEvents
         return resolved.enumerated().compactMap { index, r in
             guard r.kind == .sinBin, case .card(let team, let number, _) = r.event.payload else { return nil }

@@ -56,6 +56,16 @@ public enum SyncPayload {
     public static let matchIDKey = "matchID"
     public static let presetsKey = "presets"
     public static let entitlementKey = "entitlement"
+    public static let unsupportedKey = "unsupported"
+
+    /// 폰이 읽을 수 없는 형식의 경기 (앱 버전 차이). 워치는 다시 보내지 않고 보관한다.
+    public static func unsupported(_ matchID: UUID) -> [String: Any] {
+        [matchIDKey: matchID.uuidString, unsupportedKey: true]
+    }
+
+    public static func isUnsupported(_ info: [String: Any]) -> Bool {
+        info[unsupportedKey] as? Bool == true
+    }
 
     /// 폰이 경기를 저장했다는 확인 (transferUserInfo), 파일 전송 메타데이터로도 쓴다
     public static func ack(_ matchID: UUID) -> [String: Any] {
@@ -91,6 +101,12 @@ public struct MatchLibrary: Sendable {
     }
 
     private static let summarySuffix = ".summary.json"
+    private var deletedURL: URL { directory.appendingPathComponent("deleted.json") }
+
+    private func deletedIDs() -> Set<UUID> {
+        guard let data = try? Data(contentsOf: deletedURL) else { return [] }
+        return (try? JSONDecoder().decode(Set<UUID>.self, from: data)) ?? []
+    }
 
     private func url(for id: UUID) -> URL {
         directory.appendingPathComponent("\(id.uuidString).json")
@@ -101,10 +117,14 @@ public struct MatchLibrary: Sendable {
     }
 
     /// 같은 경기가 다시 오면 덮어쓴다 (중복 전송에 안전). 요약도 함께 쓴다.
-    public func upsert(_ bundle: MatchBundle) throws {
+    /// 사용자가 지운 경기는 다시 저장하지 않고 false를 돌려준다 (확인은 그대로 보낸다).
+    @discardableResult
+    public func upsert(_ bundle: MatchBundle) throws -> Bool {
+        guard !deletedIDs().contains(bundle.id) else { return false }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try JSONEncoder().encode(bundle).write(to: url(for: bundle.id), options: .atomic)
         try JSONEncoder().encode(MatchSummary(record: bundle.record)).write(to: summaryURL(for: bundle.id), options: .atomic)
+        return true
     }
 
     /// 목록용 요약 (최신순). 요약 없이 저장된 이전 경기는 한 번 읽어 요약을 만들어 둔다.
@@ -114,7 +134,7 @@ public struct MatchLibrary: Sendable {
         let names = Set(files.map(\.lastPathComponent))
         let decoder = JSONDecoder()
         var result: [MatchSummary] = []
-        for file in files where file.pathExtension == "json" {
+        for file in files where file.pathExtension == "json" && file.lastPathComponent != "deleted.json" {
             let name = file.lastPathComponent
             if name.hasSuffix(Self.summarySuffix) {
                 if let summary = try? decoder.decode(MatchSummary.self, from: Data(contentsOf: file)) {
@@ -136,7 +156,7 @@ public struct MatchLibrary: Sendable {
         let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
         let decoder = JSONDecoder()
         return files
-            .filter { $0.pathExtension == "json" && !$0.lastPathComponent.hasSuffix(Self.summarySuffix) }
+            .filter { $0.pathExtension == "json" && !$0.lastPathComponent.hasSuffix(Self.summarySuffix) && $0.lastPathComponent != "deleted.json" }
             .compactMap { try? decoder.decode(MatchBundle.self, from: Data(contentsOf: $0)) }
             .sorted { $0.record.createdAt > $1.record.createdAt }
     }
@@ -151,5 +171,9 @@ public struct MatchLibrary: Sendable {
         for file in [url(for: id), summaryURL(for: id)] where FileManager.default.fileExists(atPath: file.path) {
             try FileManager.default.removeItem(at: file)
         }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        var deleted = deletedIDs()
+        deleted.insert(id)
+        try JSONEncoder().encode(deleted).write(to: deletedURL, options: .atomic)
     }
 }
