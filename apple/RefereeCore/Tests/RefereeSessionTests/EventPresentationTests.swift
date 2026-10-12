@@ -56,7 +56,7 @@ struct EventPresentationTests {
                                   (.recordEvent(.card(team: .away, number: 8, kind: .sinBin)), 100),
                                   (.recordEvent(.card(team: .away, number: 5, kind: .red)), 120)])
         let d = MatchDisplay(state: s, now: 160, clockDisplay: .elapsed)
-        #expect(d.sinBins == [SinBinBadge(team: .away, number: 8, remaining: "9:00")])
+        #expect(d.sinBins == [SinBinBadge(team: .away, number: 8, remaining: "9:00", seconds: 540)])
         #expect(d.shortHandedTeams == [.away])
     }
 
@@ -65,13 +65,13 @@ struct EventPresentationTests {
         let halves: [(CommandKind, Double)] = [(.startPeriod, 0), (.endPeriod, 2700), (.startPeriod, 3600), (.endPeriod, 6300)]
         let waiting = MatchDisplay(state: makeState(rules, halves), now: 6400, clockDisplay: .elapsed)
         #expect(waiting.screen == .penalties)
-        #expect(waiting.shootout == ShootoutDisplay(score: TeamPair(home: 0, away: 0), next: nil, needsFirstTeam: true))
+        #expect(waiting.shootout == ShootoutDisplay(score: TeamPair(home: 0, away: 0), next: nil, needsFirstTeam: true, results: TeamPair(home: [], away: []), kicksPerTeam: 5))
 
         let kicked = MatchDisplay(
             state: makeState(rules, halves + [(.setShootoutFirstTeam(.home), 6400),
                                               (.recordEvent(.penaltyKick(team: .home, number: nil, scored: true)), 6410)]),
             now: 6420, clockDisplay: .elapsed)
-        #expect(kicked.shootout == ShootoutDisplay(score: TeamPair(home: 1, away: 0), next: .away, needsFirstTeam: false))
+        #expect(kicked.shootout == ShootoutDisplay(score: TeamPair(home: 1, away: 0), next: .away, needsFirstTeam: false, results: TeamPair(home: [true], away: []), kicksPerTeam: 5))
         #expect(MatchDisplay(state: makeState(halves), now: 6400, clockDisplay: .elapsed).shootout == nil)
     }
 
