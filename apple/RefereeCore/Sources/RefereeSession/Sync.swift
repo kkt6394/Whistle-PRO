@@ -55,6 +55,7 @@ public struct PresetStore: Sendable {
 public enum SyncPayload {
     public static let matchIDKey = "matchID"
     public static let presetsKey = "presets"
+    public static let entitlementKey = "entitlement"
 
     /// 폰이 경기를 저장했다는 확인 (transferUserInfo), 파일 전송 메타데이터로도 쓴다
     public static func ack(_ matchID: UUID) -> [String: Any] {
@@ -65,9 +66,14 @@ public enum SyncPayload {
         (info[matchIDKey] as? String).flatMap(UUID.init(uuidString:))
     }
 
-    /// 폰 → 워치 프리셋 (updateApplicationContext)
-    public static func context(presets: [MatchPreset]) throws -> [String: Any] {
-        [presetsKey: try JSONEncoder().encode(presets)]
+    /// 폰 → 워치 (updateApplicationContext). 컨텍스트는 통째로 바뀌므로 프리셋과 구독 상태를 항상 함께 보낸다.
+    public static func context(presets: [MatchPreset], entitlement: Entitlement) throws -> [String: Any] {
+        [presetsKey: try JSONEncoder().encode(presets), entitlementKey: try JSONEncoder().encode(entitlement)]
+    }
+
+    public static func entitlement(from context: [String: Any]) -> Entitlement? {
+        guard let data = context[entitlementKey] as? Data else { return nil }
+        return try? JSONDecoder().decode(Entitlement.self, from: data)
     }
 
     public static func presets(from context: [String: Any]) -> [MatchPreset]? {

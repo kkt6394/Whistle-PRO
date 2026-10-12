@@ -21,7 +21,7 @@ struct SyncTests {
 
     @Test func presetsContextRoundTrips() throws {
         let preset = MatchPreset(id: UUID(), name: "조기축구", setup: MatchSetup(rules: RuleSet(periodCount: 4, periodLength: 1500)))
-        let context = try SyncPayload.context(presets: [preset])
+        let context = try SyncPayload.context(presets: [preset], entitlement: .none)
         #expect(SyncPayload.presets(from: context) == [preset])
     }
 
