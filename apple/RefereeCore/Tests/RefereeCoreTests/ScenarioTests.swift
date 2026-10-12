@@ -26,7 +26,7 @@ enum Scenarios {
 
 struct ScenarioTests {
     @Test func scenarioDirectoryIsFound() {
-        #expect(Scenarios.files.count >= 8, "시나리오 디렉터리: \(Scenarios.directory.path)")
+        #expect(Scenarios.files.count >= 9, "시나리오 디렉터리: \(Scenarios.directory.path)")
     }
 
     @Test(arguments: Scenarios.files)

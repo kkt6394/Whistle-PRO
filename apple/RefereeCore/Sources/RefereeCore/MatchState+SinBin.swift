@@ -20,8 +20,15 @@ extension MatchState {
     }
 
     public func activeSinBins(at now: Double) -> [ActiveSinBin] {
-        resolvedEvents.compactMap { r in
+        let resolved = resolvedEvents
+        return resolved.enumerated().compactMap { index, r in
             guard r.kind == .sinBin, case .card(let team, let number, _) = r.event.payload else { return nil }
+            // 일시 퇴장 중 퇴장당하면 일시 퇴장은 끝나고 퇴장 인원으로만 센다
+            if let number, resolved[(index + 1)...].contains(where: {
+                $0.isSendingOff && $0.event.payload.team == team && $0.event.payload.shirtNumbers.first == number
+            }) {
+                return nil
+            }
             let left = Double(rules.sinBinLength) - playedSeconds(from: r.event.timestamp, to: now)
             guard left > 0 else { return nil }
             return ActiveSinBin(eventId: r.event.id, team: team, number: number, remainingSeconds: left)

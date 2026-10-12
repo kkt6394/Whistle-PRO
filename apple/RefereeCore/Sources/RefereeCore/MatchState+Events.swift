@@ -1,4 +1,9 @@
 extension EventPayload {
+    /// 골이면 득점이 인정되는 팀, 아니면 nil
+    var scoringSide: Team? {
+        if case .goal(let team, _, let ownGoal) = self { ownGoal ? team.opponent : team } else { nil }
+    }
+
     var shirtNumbers: [Int] {
         switch self {
         case .goal(_, let n, _), .card(_, let n, _), .penaltyKick(_, let n, _): [n].compactMap { $0 }
@@ -25,6 +30,7 @@ extension MatchState {
         if payload.isPenaltyKick {
             guard phase == .penalties, events[i].payload.team == payload.team else { throw .invalidInPhase }
         }
+        if events[i].payload.scoringSide != payload.scoringSide { try ensureScoreIsStillOpen() }
         events[i].payload = payload
         finishShootoutIfDecided()
     }
@@ -36,7 +42,14 @@ extension MatchState {
             let lastKick = events.lastIndex { $0.payload.isPenaltyKick }
             guard phase == .penalties, lastKick == i else { throw .invalidInPhase }
         }
+        if events[i].payload.scoringSide != nil { try ensureScoreIsStillOpen() }
         events.remove(at: i)
+    }
+
+    /// 점수가 바뀌는 골 수정·삭제는 기간 진행 중이나 휴식 중에만 허용한다.
+    /// 마지막 기간이 끝난 뒤에는 이미 점수로 연장·승부차기·종료가 결정됐으므로, 고치면 기록이 모순된다.
+    private func ensureScoreIsStillOpen() throws(EngineError) {
+        guard phase.isPeriod || phase.isInterval else { throw .invalidInPhase }
     }
 
     private func validateContent(_ payload: EventPayload) throws(EngineError) {

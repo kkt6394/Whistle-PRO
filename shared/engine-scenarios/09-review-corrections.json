@@ -1,0 +1,29 @@
+{
+  "name": "일시 퇴장 후 퇴장, 경고 2장 뒤 레드 중복 기록, 종료 후 골 삭제 거부",
+  "config": { "sinBin": true },
+  "commands": [
+    { "type": "startPeriod", "t": 0 },
+    { "type": "recordCard", "t": 100, "team": "home", "number": 5, "kind": "sinBin" },
+    { "type": "recordCard", "t": 160, "team": "home", "number": 5, "kind": "red" },
+    { "type": "recordCard", "t": 200, "team": "away", "number": 4, "kind": "yellow" },
+    { "type": "recordCard", "t": 300, "team": "away", "number": 4, "kind": "yellow" },
+    { "type": "recordCard", "t": 301, "team": "away", "number": 4, "kind": "red" },
+    { "type": "recordGoal", "t": 400, "team": "home", "number": 9 },
+    { "type": "endPeriod", "t": 2700 },
+    { "type": "startPeriod", "t": 3600 },
+    { "type": "endPeriod", "t": 6300 },
+    { "type": "deleteEvent", "t": 6400, "eventId": "#6" }
+  ],
+  "expect": [
+    { "at": 500, "playersOnField": [10, 10], "sinBins": [],
+      "events": [
+        { "id": "#1", "type": "sinBin", "team": "home", "number": 5, "matchSecond": 100, "warnings": [] },
+        { "id": "#2", "type": "red", "team": "home", "number": 5, "matchSecond": 160, "warnings": [] },
+        { "id": "#3", "type": "yellow", "team": "away", "number": 4, "matchSecond": 200, "warnings": [] },
+        { "id": "#4", "type": "secondYellow", "team": "away", "number": 4, "matchSecond": 300, "warnings": [] },
+        { "id": "#5", "type": "red", "team": "away", "number": 4, "matchSecond": 301, "warnings": ["playerAlreadySentOff"] },
+        { "id": "#6", "type": "goal", "team": "home", "number": 9, "matchSecond": 400, "warnings": [] }
+      ] },
+    { "at": 6400, "phase": "finished", "score": [1, 0], "ignored": ["#10"] }
+  ]
+}

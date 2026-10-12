@@ -3,13 +3,18 @@ public enum ResolvedEventKind: String, Sendable {
 }
 
 public enum EventWarning: String, Sendable {
-    case substitutionLimitExceeded, repeatPenaltyKicker
+    case substitutionLimitExceeded, repeatPenaltyKicker, playerAlreadySentOff
 }
 
 public struct ResolvedEvent: Equatable, Sendable {
     public var event: RecordedEvent
     public var kind: ResolvedEventKind
     public var warnings: [EventWarning]
+
+    /// 인원을 줄이는 퇴장 (이미 퇴장한 선수에게 다시 기록된 카드는 제외)
+    public var isSendingOff: Bool {
+        (kind == .red || kind == .secondYellow) && !warnings.contains(.playerAlreadySentOff)
+    }
 }
 
 public enum MatchWarning: Equatable, Sendable {
@@ -33,6 +38,7 @@ extension MatchState {
         var cautioned: Set<PlayerKey> = []
         var subs = TeamPair(home: 0, away: 0)
         var sentOff = TeamPair(home: 0, away: 0)
+        var dismissed: Set<PlayerKey> = []
         var kickers = TeamPair<Set<Int>>(home: [], away: [])
         let extraStart = extraTimeReachedAt
         return events.map { e in
@@ -42,18 +48,31 @@ extension MatchState {
             case .goal(_, _, let ownGoal):
                 kind = ownGoal ? .ownGoal : .goal
             case .card(let team, let number, let card):
-                switch card {
-                case .red: kind = .red
-                case .sinBin: kind = .sinBin
-                case .yellow:
-                    if rules.secondYellowSendOff, let number,
-                       !cautioned.insert(PlayerKey(team: team, number: number)).inserted {
-                        kind = .secondYellow
-                    } else {
-                        kind = .yellow
+                let player = number.map { PlayerKey(team: team, number: $0) }
+                if let player, dismissed.contains(player) {
+                    // 이미 퇴장한 선수: 경고 2장 뒤 레드를 따로 기록했거나 등번호를 잘못 넣은 경우. 인원에 다시 반영하지 않는다.
+                    kind = switch card {
+                    case .red: .red
+                    case .sinBin: .sinBin
+                    case .yellow: .yellow
+                    }
+                    warnings.append(.playerAlreadySentOff)
+                } else {
+                    switch card {
+                    case .red: kind = .red
+                    case .sinBin: kind = .sinBin
+                    case .yellow:
+                        if rules.secondYellowSendOff, let player, !cautioned.insert(player).inserted {
+                            kind = .secondYellow
+                        } else {
+                            kind = .yellow
+                        }
+                    }
+                    if kind == .red || kind == .secondYellow {
+                        sentOff[team] += 1
+                        if let player { dismissed.insert(player) }
                     }
                 }
-                if kind == .red || kind == .secondYellow { sentOff[team] += 1 }
             case .substitution(let team, _, _):
                 kind = .substitution
                 subs[team] += 1
@@ -86,7 +105,7 @@ extension MatchState {
     /// 퇴장(레드, 경고 누적) 인원
     public var sentOffCounts: TeamPair<Int> {
         var counts = TeamPair(home: 0, away: 0)
-        for r in resolvedEvents where r.kind == .red || r.kind == .secondYellow {
+        for r in resolvedEvents where r.isSendingOff {
             counts[r.event.payload.team] += 1
         }
         return counts

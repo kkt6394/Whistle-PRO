@@ -62,8 +62,48 @@ Swift(`apple/RefereeCore`)와 Kotlin(`android/core`) 경기 엔진이 **똑같�
 | kickoffTeam | 진행 중이거나 다음 기간의 킥오프 팀 (모르면 없음) |
 | playersOnField | `[home, away]` 시작 인원 − 퇴장 − 진행 중 일시 퇴장 |
 | substitutions | `[home, away]` 교체 횟수 |
-| events | 이벤트 배열: `{id, type, team, number?, numberOut?, numberIn?, matchSecond, warnings}`. type은 `goal`·`ownGoal`·`yellow`·`secondYellow`·`red`·`sinBin`·`substitution`·`penaltyKick`, warnings 원소는 `substitutionLimitExceeded`·`repeatPenaltyKicker` |
+| events | 이벤트 배열: `{id, type, team, number?, numberOut?, numberIn?, matchSecond, warnings}`. type은 `goal`·`ownGoal`·`yellow`·`secondYellow`·`red`·`sinBin`·`substitution`·`penaltyKick`, warnings 원소는 `substitutionLimitExceeded`·`repeatPenaltyKicker`·`playerAlreadySentOff` |
 | sinBins | 진행 중 일시 퇴장: `{eventId, team, number?, remaining}` (remaining 올림) |
 | warnings | 경기 경고: `belowMinimumPlayers:home` 형식 |
 | nextAlert | `{kind, at}` — kind는 `warningBeforeEnd`·`periodEnd`·`breakEndingSoon`·`breakEnd`·`sinBinEnd`. `at`보다 뒤의 첫 알림 |
 | ignored | 적용되지 못한 명령 id 배열 |
+
+## 엔진 규칙 (스냅샷만으로 드러나지 않는 것)
+
+다른 언어로 엔진을 옮길 때 `ignored`와 `events` 결과가 같아지려면 아래 규칙을 그대로 따라야 한다.
+
+### 재생과 undo
+- 명령은 **로그 순서대로** 적용한다(타임스탬프로 정렬하지 않는다). 시나리오의 `t`는 단조 증가해야 한다.
+- `undo`는 적용 전에 처리한다. 로그를 앞에서부터 읽으며 `undo`를 만나면 **직전에 남아 있는 명령 하나**를 지운다(그 명령이 무시된 명령이어도 지운다). 빈 상태에서의 `undo`는 아무 일도 하지 않는다. `undo` 자신은 `ignored`에 들어가지 않는다.
+- 적용할 수 없는 명령은 상태를 바꾸지 않고 `ignored`에 id를 남긴다. 명령 하나는 전부 적용되거나 전혀 적용되지 않는다.
+
+### 상태별 허용 명령
+| 명령 | 허용 상태 |
+|---|---|
+| setKickoffTeam | notStarted(정규 킥오프), preExtraTime(연장 킥오프) |
+| startPeriod | notStarted, interval, preExtraTime |
+| endPeriod, toggleStoppage | period |
+| adjustPeriodLength | notStarted·interval·period·preExtraTime. `seconds`는 60~5400. 현재(또는 다음) 기간이 연장이면 연장 길이, 아니면 정규 길이를 바꾸고, period 중이면 진행 중인 기간에도 바로 적용 |
+| setShootoutFirstTeam | penalties이고 아직 킥이 없을 때 |
+| recordGoal | period |
+| recordCard | period, interval, preExtraTime, penalties. `sinBin`은 규칙 `sinBin`이 켜져 있을 때만 |
+| recordSubstitution | period, interval, preExtraTime |
+| recordPenaltyKick | penalties, 선축 팀 지정 후, 차례인 팀만 |
+| abandonMatch | finished가 아닌 모든 상태 |
+
+등번호는 0~99만 허용한다.
+
+### 수정·삭제
+- `editEvent`는 같은 종류(`goal`·`card`·`substitution`·`penaltyKick`) 안에서만 가능하다. 시각은 원래 기록 시각을 유지한다.
+- 골의 **득점 팀이 바뀌는 수정**(팀 변경, 자책골 여부 변경)과 골 삭제는 period·interval에서만 허용한다. 마지막 기간이 끝난 뒤에는 점수로 이미 연장·승부차기·종료가 정해졌기 때문이다. 득점 팀이 같은 수정(등번호 정정)은 언제나 가능하다.
+- 승부차기 킥은 penalties 중에만 수정할 수 있고 팀은 바꿀 수 없다. 삭제는 penalties 중 **마지막 킥**만 가능하다. 수정 후 승부가 나면 즉시 finished가 된다.
+
+### 이벤트 해석
+- `matchSecond` = 기록 시점의 마지막 기간 `offset` + 그 기간 경과 초(내림). 휴식 중 기록이면 기간이 끝난 시점에서 멈춘 경과 초를 쓴다.
+- 경고 누적: `secondYellowSendOff`가 켜져 있고 등번호가 있을 때, 같은 팀·같은 번호의 두 번째 yellow는 `secondYellow`.
+- 이미 퇴장한(`red` 또는 `secondYellow`) 선수에게 다시 기록된 카드는 원래 종류(`yellow`·`red`·`sinBin`)로 두고 `playerAlreadySentOff` 경고를 붙이며, 퇴장 인원에 다시 세지 않는다.
+- 일시 퇴장 중인 선수가 이후 퇴장당하면 그 일시 퇴장은 즉시 끝난다(`sinBins`·알림에서 빠짐).
+- 교체 한도 = `substitutionLimit` + (연장에 들어간 뒤 기록된 교체라면 `extraTimeExtraSubs`). `returnSubstitutions`이거나 한도가 null이면 검사하지 않는다.
+
+### 숫자 비교
+- 모든 숫자는 **값으로** 비교한다. `2400`과 `2400.0`은 같다.
