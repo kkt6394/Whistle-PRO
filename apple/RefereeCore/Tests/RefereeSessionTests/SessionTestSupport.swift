@@ -39,6 +39,11 @@ final class MemoryStore: MatchLogStore, @unchecked Sendable {
     func loadActiveWorkout() throws -> WorkoutLog? { activeWorkout }
 
     func archivedWorkout(for matchID: UUID) throws -> WorkoutLog? { finishedWorkouts[matchID] }
+
+    func deleteArchived(_ matchID: UUID) throws {
+        finished.removeAll { $0.id == matchID }
+        finishedWorkouts[matchID] = nil
+    }
 }
 
 final class FakeClock {
@@ -56,4 +61,16 @@ func makeState(_ commands: [(CommandKind, Double)]) -> MatchState {
 
 func tempDirectory() -> URL {
     FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+}
+
+/// 명령 목록으로 경기 기록을 만든다 (명령 id는 c0, c1, ...)
+func makeRecord(_ setup: MatchSetup, _ commands: [(CommandKind, Double)], createdAt: Double = 0) -> MatchRecord {
+    MatchRecord(
+        id: UUID(), createdAt: createdAt, setup: setup,
+        commands: commands.enumerated().map { Command(id: "c\($0.offset)", timestamp: $0.element.1, kind: $0.element.0) })
+}
+
+/// 기본 설정(FIFA 표준)으로 경기 기록을 만든다
+func makeRecord(_ commands: [(CommandKind, Double)], createdAt: Double = 0) -> MatchRecord {
+    makeRecord(MatchSetup(), commands, createdAt: createdAt)
 }
