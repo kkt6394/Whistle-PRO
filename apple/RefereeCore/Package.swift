@@ -7,11 +7,14 @@ let package = Package(
     products: [
         .library(name: "RefereeCore", targets: ["RefereeCore"]),
         .library(name: "RefereeSession", targets: ["RefereeSession"]),
+        .library(name: "WhistleDesign", targets: ["WhistleDesign"]),
     ],
     targets: [
         .target(name: "RefereeCore"),
         .target(name: "RefereeSession", dependencies: ["RefereeCore"]),
+        .target(name: "WhistleDesign", dependencies: ["RefereeCore", "RefereeSession"]),
         .testTarget(name: "RefereeCoreTests", dependencies: ["RefereeCore"]),
         .testTarget(name: "RefereeSessionTests", dependencies: ["RefereeSession", "RefereeCore"]),
+        .testTarget(name: "WhistleDesignTests", dependencies: ["WhistleDesign", "RefereeSession", "RefereeCore"]),
     ]
 )
