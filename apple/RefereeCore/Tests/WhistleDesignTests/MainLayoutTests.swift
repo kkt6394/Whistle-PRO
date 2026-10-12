@@ -54,12 +54,20 @@ struct MainLayoutTests {
         #expect(l.ringCenter.y - outer >= 0, "\(size)")
     }
 
-    /// 스펙 §3.2: 시계는 40mm 약 36pt ~ 49mm 약 46pt
+    /// 스펙 §3.2: 앱은 위쪽 안전 영역(시스템 시각, 약 30pt)을 뺀 높이에서 배치한다.
+    /// 높이가 링 크기를 정하므로 시계는 40mm 약 29pt ~ 49mm 약 40pt
     @Test func clockScalesFromSmallestToLargestWatch() {
-        let small = MainLayout(size: CGSize(width: 162, height: 197)).clockFontSize
-        let large = MainLayout(size: CGSize(width: 205, height: 251)).clockFontSize
-        #expect((34...38).contains(small), "\(small)")
-        #expect((43...47).contains(large), "\(large)")
+        let small = MainLayout(size: CGSize(width: 162, height: 197 - 30)).clockFontSize
+        let large = MainLayout(size: CGSize(width: 205, height: 251 - 30)).clockFontSize
+        #expect((28...31).contains(small), "\(small)")
+        #expect((38...42).contains(large), "\(large)")
+    }
+
+    /// 가장 작은 워치에서도 상단 줄·상태 줄 글자(줄 높이의 0.8)가 10pt 이상
+    @Test func secondaryRowsReadableOnSmallestWatch() {
+        let rows = MainLayout(size: CGSize(width: 162, height: 197 - 30)).rows
+        #expect(rows[0].height * 0.8 >= 10, "\(rows[0].height)")
+        #expect(rows[4].height * 0.8 >= 10, "\(rows[4].height)")
     }
 
     @Test func zeroSizeDoesNotCrash() {
@@ -67,5 +75,11 @@ struct MainLayoutTests {
         #expect(l.rows.count == 5)
         #expect(l.ringRadius >= 0)
         #expect(l.rows.allSatisfy { $0.width >= 0 && $0.height >= 0 })
+    }
+
+    /// Always-On: 시계·추가시간·점수는 남기고 상단 줄·상태 줄은 숨긴다 (추가시간 중엔 시계가 멈춰 있으므로 +M:SS가 필요)
+    @Test func alwaysOnKeepsClockAddedTimeAndScore() {
+        #expect((0..<5).filter { MainLayout.showsRow($0, reduced: true) } == [1, 2, 3])
+        #expect((0..<5).filter { MainLayout.showsRow($0, reduced: false) } == [0, 1, 2, 3, 4])
     }
 }

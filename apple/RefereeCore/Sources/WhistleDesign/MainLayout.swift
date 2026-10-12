@@ -12,8 +12,14 @@ public struct MainLayout: Equatable, Sendable {
     public var buttons: CGRect
     public var clockFontSize: CGFloat
 
+    /// Always-On(reduced)에서도 보이는 줄인지. 시계·추가시간·점수는 남기고 상단 줄·상태 줄은 숨긴다.
+    /// 추가시간 중에는 큰 시계가 규정 시간에서 멈춰 있으므로 +M:SS 줄이 있어야 한다.
+    public static func showsRow(_ index: Int, reduced: Bool) -> Bool {
+        !reduced || (1...3).contains(index)
+    }
+
     /// 링 안쪽 지름에 대한 각 줄 높이 비율
-    static let rowShares: [CGFloat] = [0.12, 0.28, 0.12, 0.14, 0.10]
+    static let rowShares: [CGFloat] = [0.12, 0.28, 0.11, 0.13, 0.12]
 
     public init(size: CGSize) {
         let width = max(0, size.width)
