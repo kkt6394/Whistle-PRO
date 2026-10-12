@@ -6,6 +6,8 @@ public struct SinBinBadge: Equatable, Sendable {
     public var number: Int?
     /// 남은 시간 "4:12"
     public var remaining: String
+    /// 남은 시간(초). 가장 먼저 끝나는 일시 퇴장을 고를 때 쓴다.
+    public var seconds: Int
 }
 
 public struct ShootoutDisplay: Equatable, Sendable {
@@ -14,6 +16,21 @@ public struct ShootoutDisplay: Equatable, Sendable {
     public var next: Team?
     /// 아직 먼저 찰 팀을 고르지 않았다
     public var needsFirstTeam: Bool
+    /// 팀별 킥 성공 여부 (찬 순서)
+    public var results: TeamPair<[Bool]>
+    /// 기본 키커 수
+    public var kicksPerTeam: Int
+}
+
+/// 링 표시용 진행값 (초)
+public struct ClockProgress: Equatable, Sendable {
+    public var elapsed: Int
+    public var length: Int
+
+    public init(elapsed: Int, length: Int) {
+        self.elapsed = elapsed
+        self.length = length
+    }
 }
 
 /// 워치 화면에 그대로 찍을 값. 뷰는 계산 없이 이것만 표시한다.
@@ -43,6 +60,10 @@ public struct MatchDisplay: Equatable, Sendable {
     public var shortHandedTeams: [Team]
     /// 승부차기 중이거나 승부차기가 있었던 경기
     public var shootout: ShootoutDisplay?
+    /// 기간 진행 중일 때 경과·규정 길이
+    public var periodProgress: ClockProgress?
+    /// 휴식 중일 때 경과·휴식 길이
+    public var intervalProgress: ClockProgress?
 
     public init(state: MatchState, now: Double, clockDisplay: ClockDisplay) {
         screen = switch state.phase {
@@ -64,21 +85,33 @@ public struct MatchDisplay: Equatable, Sendable {
             addedTime = reading.addedTime > 0 ? "+" + Self.formatShort(reading.addedTime) : nil
             stoppage = reading.stoppageTotal > 0 || reading.stoppageRunning ? Self.formatShort(reading.stoppageTotal) : nil
             stoppageRunning = reading.stoppageRunning
+            if case .period = state.phase {
+                periodProgress = ClockProgress(elapsed: reading.elapsed, length: reading.elapsed - reading.addedTime + reading.remaining)
+            } else {
+                periodProgress = nil
+            }
         } else {
             mainClock = Self.format(clockDisplay == .elapsed ? 0 : state.regularPeriodLength)
             addedTime = nil
             stoppage = nil
             stoppageRunning = false
+            periodProgress = nil
         }
         if state.phase == .preExtraTime, let end = state.periods.last?.endedAt {
             intervalClock = Self.format(max(0, wholeSeconds(now - end)))
         } else {
             intervalClock = state.intervalRemaining(at: now).map(Self.format)
         }
+        if case .interval(let after) = state.phase, let remaining = state.intervalRemaining(at: now) {
+            let total = state.intervalLength(after: after)
+            intervalProgress = ClockProgress(elapsed: max(0, total - remaining), length: total)
+        } else {
+            intervalProgress = nil
+        }
         score = state.score
         kickoffTeam = state.kickoffTeam
         sinBins = state.activeSinBins(at: now).map {
-            SinBinBadge(team: $0.team, number: $0.number, remaining: Self.formatShort($0.remaining))
+            SinBinBadge(team: $0.team, number: $0.number, remaining: Self.formatShort($0.remaining), seconds: $0.remaining)
         }
         shortHandedTeams = state.matchWarnings(at: now).map {
             switch $0 {
@@ -87,10 +120,16 @@ public struct MatchDisplay: Equatable, Sendable {
         }
         let status = state.shootout
         if state.phase == .penalties || status.kicks.home + status.kicks.away > 0 {
+            var results = TeamPair<[Bool]>(home: [], away: [])
+            for e in state.events {
+                if case .penaltyKick(let team, _, let scored) = e.payload { results[team].append(scored) }
+            }
             shootout = ShootoutDisplay(
                 score: status.goals,
                 next: state.phase == .penalties ? status.next : nil,
-                needsFirstTeam: state.phase == .penalties && state.shootoutFirstTeam == nil)
+                needsFirstTeam: state.phase == .penalties && state.shootoutFirstTeam == nil,
+                results: results,
+                kicksPerTeam: state.rules.penaltyKicksPerTeam)
         } else {
             shootout = nil
         }

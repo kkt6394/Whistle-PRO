@@ -64,4 +64,31 @@ struct MatchDisplayTests {
         #expect(d.screen == .finished)
         #expect(d.periodLabel == "2H")
     }
+
+    @Test func periodProgressDuringPeriodOnly() {
+        let s = makeState([(.startPeriod, 0)])
+        #expect(MatchDisplay(state: s, now: 754, clockDisplay: .elapsed).periodProgress == ClockProgress(elapsed: 754, length: 2700))
+        #expect(MatchDisplay(state: s, now: 2833, clockDisplay: .remaining).periodProgress == ClockProgress(elapsed: 2833, length: 2700))
+        #expect(MatchDisplay(state: makeState([]), now: 0, clockDisplay: .elapsed).periodProgress == nil)
+    }
+
+    @Test func intervalProgressDuringBreakOnly() {
+        let s = makeState([(.startPeriod, 0), (.endPeriod, 2760)])
+        let d = MatchDisplay(state: s, now: 2760 + 300, clockDisplay: .elapsed)
+        #expect(d.intervalProgress == ClockProgress(elapsed: 300, length: 900))
+        #expect(d.periodProgress == nil)
+        #expect(MatchDisplay(state: makeState([(.startPeriod, 0)]), now: 10, clockDisplay: .elapsed).intervalProgress == nil)
+    }
+
+    @Test func shootoutResultsInKickOrder() {
+        let rules = RuleSet(penalties: true, penaltyKicksPerTeam: 3)
+        let s = makeState(rules, [(.startPeriod, 0), (.endPeriod, 2700), (.startPeriod, 3600), (.endPeriod, 6300),
+                                  (.setShootoutFirstTeam(.home), 6400),
+                                  (.recordEvent(.penaltyKick(team: .home, number: nil, scored: true)), 6410),
+                                  (.recordEvent(.penaltyKick(team: .away, number: nil, scored: false)), 6420),
+                                  (.recordEvent(.penaltyKick(team: .home, number: nil, scored: false)), 6430)])
+        let shootout = MatchDisplay(state: s, now: 6440, clockDisplay: .elapsed).shootout
+        #expect(shootout?.results == TeamPair(home: [true, false], away: [false]))
+        #expect(shootout?.kicksPerTeam == 3)
+    }
 }
