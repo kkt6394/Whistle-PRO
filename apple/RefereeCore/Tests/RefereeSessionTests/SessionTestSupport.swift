@@ -30,8 +30,13 @@ final class FakeClock {
     var t: Double = 0
 }
 
-func makeState(_ rules: RuleSet = .fifaStandard, _ commands: [(CommandKind, Double)]) -> MatchState {
+func makeState(_ rules: RuleSet, _ commands: [(CommandKind, Double)]) -> MatchState {
     MatchEngine.reduce(rules: rules, commands: commands.map { Command(timestamp: $0.1, kind: $0.0) })
+}
+
+/// FIFA 표준 규칙으로 재생
+func makeState(_ commands: [(CommandKind, Double)]) -> MatchState {
+    makeState(.fifaStandard, commands)
 }
 
 func tempDirectory() -> URL {

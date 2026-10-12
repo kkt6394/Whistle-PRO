@@ -1,0 +1,67 @@
+import Testing
+import RefereeCore
+@testable import RefereeSession
+
+struct MatchDisplayTests {
+    @Test func notStartedShowsZeroOrFullLength() {
+        let s = makeState([])
+        let elapsed = MatchDisplay(state: s, now: 0, clockDisplay: .elapsed)
+        #expect(elapsed.screen == .notStarted)
+        #expect(elapsed.mainClock == "00:00")
+        #expect(MatchDisplay(state: s, now: 0, clockDisplay: .remaining).mainClock == "45:00")
+    }
+
+    @Test func runningClockInBothModes() {
+        let s = makeState([(.startPeriod, 0)])
+        let d = MatchDisplay(state: s, now: 754, clockDisplay: .elapsed)
+        #expect(d.screen == .period)
+        #expect(d.periodLabel == "1H")
+        #expect(d.mainClock == "12:34")
+        #expect(d.addedTime == nil)
+        #expect(MatchDisplay(state: s, now: 754, clockDisplay: .remaining).mainClock == "32:26")
+    }
+
+    @Test func addedTimeFreezesMainClockAtRegulation() {
+        let s = makeState([(.startPeriod, 0)])
+        let d = MatchDisplay(state: s, now: 2833, clockDisplay: .elapsed)
+        #expect(d.mainClock == "45:00")
+        #expect(d.addedTime == "+2:13")
+        #expect(MatchDisplay(state: s, now: 2833, clockDisplay: .remaining).mainClock == "00:00")
+    }
+
+    @Test func secondHalfContinuesFromFirstHalfLength() {
+        let s = makeState([(.startPeriod, 0), (.endPeriod, 2760), (.startPeriod, 3660)])
+        #expect(MatchDisplay(state: s, now: 3720, clockDisplay: .elapsed).mainClock == "46:00")
+    }
+
+    @Test func stoppageShownWhileRunningOrAccumulated() {
+        let running = makeState([(.startPeriod, 0), (.toggleStoppage, 100)])
+        let d = MatchDisplay(state: running, now: 130, clockDisplay: .elapsed)
+        #expect(d.stoppage == "0:30")
+        #expect(d.stoppageRunning)
+        #expect(MatchDisplay(state: makeState([(.startPeriod, 0)]), now: 130, clockDisplay: .elapsed).stoppage == nil)
+    }
+
+    @Test func intervalShowsCountdownAndNextPeriod() {
+        let s = makeState([(.setKickoffTeam(.home), 0), (.startPeriod, 0), (.endPeriod, 2700)])
+        let d = MatchDisplay(state: s, now: 2760, clockDisplay: .elapsed)
+        #expect(d.screen == .interval)
+        #expect(d.intervalClock == "14:00")
+        #expect(d.nextPeriodLabel == "2H")
+        #expect(d.kickoffTeam == .away)
+        #expect(MatchDisplay(state: s, now: 9999, clockDisplay: .elapsed).intervalClock == "00:00")
+    }
+
+    @Test func longMatchesKeepThreeDigitMinutes() {
+        #expect(MatchDisplay.format(6000) == "100:00")
+        #expect(MatchDisplay.format(65) == "01:05")
+        #expect(MatchDisplay.formatShort(65) == "1:05")
+    }
+
+    @Test func finishedScreen() {
+        let s = makeState([(.startPeriod, 0), (.endPeriod, 2700), (.startPeriod, 3600), (.endPeriod, 6300)])
+        let d = MatchDisplay(state: s, now: 7000, clockDisplay: .elapsed)
+        #expect(d.screen == .finished)
+        #expect(d.periodLabel == "2H")
+    }
+}
