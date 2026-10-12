@@ -1,0 +1,34 @@
+{
+  "name": "7인제: 경고 누적 퇴장, 레드, 일시 퇴장(휴식 중 정지), 최소 인원 경고",
+  "config": { "periodLength": 1800, "halfTimeLength": 300, "playersPerTeam": 7, "minimumPlayers": 5,
+              "sinBin": true, "sinBinLength": 600 },
+  "commands": [
+    { "type": "startPeriod", "t": 0 },
+    { "type": "recordCard", "t": 100, "team": "home", "number": 4, "kind": "yellow" },
+    { "type": "recordCard", "t": 200, "team": "home", "number": 4, "kind": "yellow" },
+    { "type": "recordCard", "t": 300, "team": "away", "number": 8, "kind": "sinBin" },
+    { "type": "recordCard", "t": 400, "team": "home", "number": 6, "kind": "red" },
+    { "type": "recordCard", "t": 500, "team": "home", "kind": "yellow" },
+    { "type": "recordCard", "t": 1500, "team": "away", "number": 9, "kind": "sinBin" },
+    { "type": "endPeriod", "t": 1800 },
+    { "type": "startPeriod", "t": 2100 },
+    { "type": "recordCard", "t": 2200, "team": "home", "number": 10, "kind": "red" }
+  ],
+  "expect": [
+    { "at": 400, "playersOnField": [5, 6], "warnings": [],
+      "sinBins": [ { "eventId": "#3", "team": "away", "number": 8, "remaining": 500 } ] },
+    { "at": 500, "events": [
+        { "id": "#1", "type": "yellow", "team": "home", "number": 4, "matchSecond": 100, "warnings": [] },
+        { "id": "#2", "type": "secondYellow", "team": "home", "number": 4, "matchSecond": 200, "warnings": [] },
+        { "id": "#3", "type": "sinBin", "team": "away", "number": 8, "matchSecond": 300, "warnings": [] },
+        { "id": "#4", "type": "red", "team": "home", "number": 6, "matchSecond": 400, "warnings": [] },
+        { "id": "#5", "type": "yellow", "team": "home", "matchSecond": 500, "warnings": [] }
+      ] },
+    { "at": 1950, "phase": "interval", "playersOnField": [5, 6],
+      "sinBins": [ { "eventId": "#6", "team": "away", "number": 9, "remaining": 300 } ] },
+    { "at": 2250, "playersOnField": [4, 6], "warnings": ["belowMinimumPlayers:home"],
+      "sinBins": [ { "eventId": "#6", "team": "away", "number": 9, "remaining": 150 } ],
+      "nextAlert": { "kind": "sinBinEnd", "at": 2400 } },
+    { "at": 2400, "playersOnField": [4, 7], "sinBins": [] }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "경기 중 합의로 전반 길이를 30분으로 변경",
+  "config": {},
+  "commands": [
+    { "type": "startPeriod", "t": 0 },
+    { "type": "adjustPeriodLength", "t": 60, "seconds": 1800 },
+    { "type": "endPeriod", "t": 1800 },
+    { "type": "startPeriod", "t": 2700 },
+    { "type": "abandonMatch", "t": 3000, "reason": "폭우" }
+  ],
+  "expect": [
+    { "at": 60, "remaining": 1740 },
+    { "at": 2700, "period": "2H", "matchSecond": 1800, "remaining": 1800 },
+    { "at": 3000, "phase": "finished", "finishReason": "abandoned", "abandonReason": "폭우", "elapsed": 300 }
+  ]
+}

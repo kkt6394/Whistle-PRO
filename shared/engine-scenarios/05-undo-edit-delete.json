@@ -1,0 +1,24 @@
+{
+  "name": "실행 취소·수정·삭제",
+  "config": {},
+  "commands": [
+    { "type": "startPeriod", "t": 0 },
+    { "type": "recordGoal", "t": 100, "team": "home", "number": 9 },
+    { "type": "recordGoal", "t": 200, "team": "away", "number": 5 },
+    { "type": "undo", "t": 210 },
+    { "type": "editEvent", "t": 300, "eventId": "#1", "event": { "type": "goal", "team": "home", "number": 11 } },
+    { "type": "recordCard", "t": 400, "team": "away", "number": 3, "kind": "yellow" },
+    { "type": "deleteEvent", "t": 410, "eventId": "#5" },
+    { "type": "endPeriod", "t": 500 },
+    { "type": "undo", "t": 510 },
+    { "type": "deleteEvent", "t": 520, "eventId": "#99" }
+  ],
+  "expect": [
+    { "at": 300, "score": [1, 0],
+      "events": [ { "id": "#1", "type": "goal", "team": "home", "number": 11, "matchSecond": 100, "warnings": [] } ] },
+    { "at": 410, "events": [ { "id": "#1", "type": "goal", "team": "home", "number": 11, "matchSecond": 100, "warnings": [] } ] },
+    { "at": 500, "phase": "interval" },
+    { "at": 510, "phase": "period" },
+    { "at": 520, "ignored": ["#9"] }
+  ]
+}

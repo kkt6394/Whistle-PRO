@@ -1,0 +1,25 @@
+{
+  "name": "조기축구 쿼터제 25분×4, 쿼터 휴식 2분, 하프타임 10분",
+  "config": { "periodCount": 4, "periodLength": 1500, "halfTimeLength": 600, "quarterBreakLength": 120 },
+  "commands": [
+    { "type": "setKickoffTeam", "t": 0, "team": "away" },
+    { "type": "startPeriod", "t": 0 },
+    { "type": "endPeriod", "t": 1500 },
+    { "type": "startPeriod", "t": 1620 },
+    { "type": "endPeriod", "t": 3120 },
+    { "type": "startPeriod", "t": 3720 },
+    { "type": "recordGoal", "t": 3800, "team": "home" },
+    { "type": "endPeriod", "t": 5220 },
+    { "type": "startPeriod", "t": 5340 },
+    { "type": "endPeriod", "t": 6840 }
+  ],
+  "expect": [
+    { "at": 1560, "phase": "interval", "period": "Q1", "intervalRemaining": 60, "kickoffTeam": "home",
+      "nextAlert": { "kind": "breakEnd", "at": 1620 } },
+    { "at": 3120, "phase": "interval", "period": "Q2", "intervalRemaining": 600, "kickoffTeam": "away" },
+    { "at": 3800, "phase": "period", "period": "Q3", "elapsed": 80, "matchSecond": 3080, "score": [1, 0] },
+    { "at": 5280, "phase": "interval", "period": "Q3", "intervalRemaining": 60 },
+    { "at": 6840, "phase": "finished", "finishReason": "completed", "period": "Q4", "score": [1, 0],
+      "stoppageTotals": [0, 0, 0, 0] }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "name": "단축 경기 동점 → 연장 → 승부차기 조기 결정",
+  "config": { "periodLength": 600, "halfTimeLength": 120, "extraTime": true, "extraTimePeriodLength": 300,
+              "extraTimeBreakLength": 60, "penalties": true },
+  "commands": [
+    { "type": "startPeriod", "t": 0 },
+    { "type": "recordGoal", "t": 100, "team": "home", "number": 9 },
+    { "type": "endPeriod", "t": 600 },
+    { "type": "startPeriod", "t": 720 },
+    { "type": "recordGoal", "t": 1000, "team": "away", "number": 11 },
+    { "type": "endPeriod", "t": 1320 },
+    { "type": "setKickoffTeam", "t": 1400, "team": "away" },
+    { "type": "startPeriod", "t": 1500 },
+    { "type": "endPeriod", "t": 1800 },
+    { "type": "startPeriod", "t": 1860 },
+    { "type": "endPeriod", "t": 2160 },
+    { "type": "recordPenaltyKick", "t": 2200, "team": "home", "scored": true },
+    { "type": "setShootoutFirstTeam", "t": 2210, "team": "away" },
+    { "type": "recordPenaltyKick", "t": 2220, "team": "away", "scored": true },
+    { "type": "recordPenaltyKick", "t": 2230, "team": "home", "scored": true },
+    { "type": "recordPenaltyKick", "t": 2240, "team": "away", "scored": true },
+    { "type": "recordPenaltyKick", "t": 2250, "team": "home", "scored": false },
+    { "type": "recordPenaltyKick", "t": 2260, "team": "away", "scored": true },
+    { "type": "recordPenaltyKick", "t": 2270, "team": "home", "scored": false },
+    { "type": "recordPenaltyKick", "t": 2280, "team": "away", "scored": true }
+  ],
+  "expect": [
+    { "at": 1320, "phase": "preExtraTime", "period": "2H", "score": [1, 1], "kickoffTeam": null },
+    { "at": 1400, "kickoffTeam": "away" },
+    { "at": 1500, "phase": "period", "period": "ET1", "matchSecond": 1200, "remaining": 300 },
+    { "at": 1820, "phase": "interval", "period": "ET1", "intervalRemaining": 40, "kickoffTeam": "home",
+      "nextAlert": { "kind": "breakEnd", "at": 1860 } },
+    { "at": 2200, "phase": "penalties", "ignored": ["#11"], "nextShootoutTeam": null },
+    { "at": 2210, "nextShootoutTeam": "away" },
+    { "at": 2270, "phase": "penalties", "shootoutScore": [1, 3], "nextShootoutTeam": "away" },
+    { "at": 2280, "phase": "finished", "finishReason": "completed", "score": [1, 1], "shootoutScore": [1, 4],
+      "nextShootoutTeam": null }
+  ]
+}

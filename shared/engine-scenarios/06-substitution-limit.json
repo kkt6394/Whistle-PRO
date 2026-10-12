@@ -1,0 +1,34 @@
+{
+  "name": "교체 한도 2명 + 연장 추가 1명, 초과는 경고만",
+  "config": { "periodLength": 600, "halfTimeLength": 60, "extraTime": true, "extraTimePeriodLength": 300,
+              "substitutionLimit": 2, "extraTimeExtraSubs": 1 },
+  "commands": [
+    { "type": "startPeriod", "t": 0 },
+    { "type": "recordSubstitution", "t": 100, "team": "home", "numberOut": 7, "numberIn": 14 },
+    { "type": "recordSubstitution", "t": 200, "team": "home" },
+    { "type": "recordSubstitution", "t": 300, "team": "home" },
+    { "type": "endPeriod", "t": 600 },
+    { "type": "startPeriod", "t": 660 },
+    { "type": "endPeriod", "t": 1260 },
+    { "type": "recordSubstitution", "t": 1300, "team": "away" },
+    { "type": "startPeriod", "t": 1400 },
+    { "type": "recordSubstitution", "t": 1500, "team": "away" },
+    { "type": "recordSubstitution", "t": 1600, "team": "away" },
+    { "type": "recordSubstitution", "t": 1700, "team": "away" },
+    { "type": "recordSubstitution", "t": 1750, "team": "home" }
+  ],
+  "expect": [
+    { "at": 1260, "phase": "preExtraTime" },
+    { "at": 1750, "phase": "period", "period": "ET1", "substitutions": [4, 4],
+      "events": [
+        { "id": "#1", "type": "substitution", "team": "home", "numberOut": 7, "numberIn": 14, "matchSecond": 100, "warnings": [] },
+        { "id": "#2", "type": "substitution", "team": "home", "matchSecond": 200, "warnings": [] },
+        { "id": "#3", "type": "substitution", "team": "home", "matchSecond": 300, "warnings": ["substitutionLimitExceeded"] },
+        { "id": "#7", "type": "substitution", "team": "away", "matchSecond": 1200, "warnings": [] },
+        { "id": "#9", "type": "substitution", "team": "away", "matchSecond": 1300, "warnings": [] },
+        { "id": "#10", "type": "substitution", "team": "away", "matchSecond": 1400, "warnings": [] },
+        { "id": "#11", "type": "substitution", "team": "away", "matchSecond": 1500, "warnings": ["substitutionLimitExceeded"] },
+        { "id": "#12", "type": "substitution", "team": "home", "matchSecond": 1550, "warnings": ["substitutionLimitExceeded"] }
+      ] }
+  ]
+}

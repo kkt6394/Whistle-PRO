@@ -1,0 +1,33 @@
+{
+  "name": "FIFA 표준 90분: 중단 90초, 득점·자책골, 하프타임",
+  "config": {},
+  "commands": [
+    { "type": "setKickoffTeam", "t": 0, "team": "home" },
+    { "type": "startPeriod", "t": 0 },
+    { "type": "toggleStoppage", "t": 600 },
+    { "type": "toggleStoppage", "t": 690 },
+    { "type": "recordGoal", "t": 1200, "team": "home", "number": 9 },
+    { "type": "endPeriod", "t": 2820 },
+    { "type": "startPeriod", "t": 3720 },
+    { "type": "recordGoal", "t": 4000, "team": "away", "number": 10 },
+    { "type": "recordGoal", "t": 5000, "team": "away", "number": 7, "ownGoal": true },
+    { "type": "endPeriod", "t": 6480 }
+  ],
+  "expect": [
+    { "at": 0, "phase": "period", "period": "1H", "elapsed": 0, "matchSecond": 0, "remaining": 2700, "addedTime": 0,
+      "kickoffTeam": "home", "stoppageTotals": [0], "stoppageRunning": false,
+      "nextAlert": { "kind": "warningBeforeEnd", "at": 2400 } },
+    { "at": 650, "stoppageRunning": true, "stoppageTotals": [50] },
+    { "at": 2760, "phase": "period", "elapsed": 2760, "matchSecond": 2760, "remaining": 0, "addedTime": 60,
+      "stoppageTotals": [90], "nextAlert": null },
+    { "at": 3000, "phase": "interval", "period": "1H", "intervalRemaining": 720, "kickoffTeam": "away", "score": [1, 0] },
+    { "at": 4000, "phase": "period", "period": "2H", "elapsed": 280, "matchSecond": 2980, "score": [1, 1] },
+    { "at": 6480, "phase": "finished", "finishReason": "completed", "score": [2, 1], "stoppageTotals": [90, 0],
+      "kickoffTeam": null, "nextAlert": null, "ignored": [],
+      "events": [
+        { "id": "#4", "type": "goal", "team": "home", "number": 9, "matchSecond": 1200, "warnings": [] },
+        { "id": "#7", "type": "goal", "team": "away", "number": 10, "matchSecond": 2980, "warnings": [] },
+        { "id": "#8", "type": "ownGoal", "team": "away", "number": 7, "matchSecond": 3980, "warnings": [] }
+      ] }
+  ]
+}
