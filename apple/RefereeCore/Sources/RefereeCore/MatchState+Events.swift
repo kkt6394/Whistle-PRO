@@ -11,21 +11,31 @@ extension MatchState {
     mutating func recordEvent(_ payload: EventPayload, id: String, at t: Double) throws(EngineError) {
         try validateContent(payload)
         try validatePhase(for: payload)
+        if case .penaltyKick(let team, _, _) = payload { try checkShootoutTurn(team) }
         events.append(RecordedEvent(id: id, timestamp: t, payload: payload, time: try eventTime(at: t)))
+        finishShootoutIfDecided()
     }
 
     /// 같은 종류 안에서만 내용을 바꾼다. 시각은 원래 기록 시각을 유지한다.
+    /// 승부차기 킥은 승부차기 진행 중에만, 팀은 바꿀 수 없다(차례가 꼬이므로).
     mutating func editEvent(id: String, to payload: EventPayload) throws(EngineError) {
         guard let i = events.firstIndex(where: { $0.id == id }) else { throw .unknownEvent }
         guard events[i].payload.typeName == payload.typeName else { throw .invalidValue }
         try validateContent(payload)
-        if case .penaltyKick = payload { throw .invalidInPhase } // Task 7에서 승부차기 규칙으로 교체
+        if payload.isPenaltyKick {
+            guard phase == .penalties, events[i].payload.team == payload.team else { throw .invalidInPhase }
+        }
         events[i].payload = payload
+        finishShootoutIfDecided()
     }
 
+    /// 승부차기 킥은 승부차기 진행 중의 마지막 킥만 지울 수 있다.
     mutating func deleteEvent(id: String) throws(EngineError) {
         guard let i = events.firstIndex(where: { $0.id == id }) else { throw .unknownEvent }
-        if case .penaltyKick = events[i].payload { throw .invalidInPhase } // Task 7에서 승부차기 규칙으로 교체
+        if events[i].payload.isPenaltyKick {
+            let lastKick = events.lastIndex { $0.payload.isPenaltyKick }
+            guard phase == .penalties, lastKick == i else { throw .invalidInPhase }
+        }
         events.remove(at: i)
     }
 

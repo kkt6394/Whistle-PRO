@@ -32,6 +32,8 @@ extension MatchState {
     public var resolvedEvents: [ResolvedEvent] {
         var cautioned: Set<PlayerKey> = []
         var subs = TeamPair(home: 0, away: 0)
+        var sentOff = TeamPair(home: 0, away: 0)
+        var kickers = TeamPair<Set<Int>>(home: [], away: [])
         let extraStart = extraTimeReachedAt
         return events.map { e in
             var warnings: [EventWarning] = []
@@ -51,14 +53,23 @@ extension MatchState {
                         kind = .yellow
                     }
                 }
+                if kind == .red || kind == .secondYellow { sentOff[team] += 1 }
             case .substitution(let team, _, _):
                 kind = .substitution
                 subs[team] += 1
                 if let limit = substitutionLimit(at: e.timestamp, extraStart: extraStart), subs[team] > limit {
                     warnings.append(.substitutionLimitExceeded)
                 }
-            case .penaltyKick:
+            case .penaltyKick(let team, let number, _):
                 kind = .penaltyKick
+                // 일시 퇴장 중인 선수도 키커 자격이 있으므로 퇴장 인원만 뺀다 (Law 10.3)
+                if let number {
+                    let eligible = rules.playersPerTeam - sentOff[team]
+                    if kickers[team].contains(number) && kickers[team].count < eligible {
+                        warnings.append(.repeatPenaltyKicker)
+                    }
+                    kickers[team].insert(number)
+                }
             }
             return ResolvedEvent(event: e, kind: kind, warnings: warnings)
         }

@@ -18,8 +18,7 @@ extension MatchState {
         case .recordEvent(let payload): try recordEvent(payload, id: command.id, at: t)
         case .editEvent(let id, let payload): try editEvent(id: id, to: payload)
         case .deleteEvent(let id): try deleteEvent(id: id)
-        case .setShootoutFirstTeam:
-            throw .invalidInPhase // Task 7에서 구현
+        case .setShootoutFirstTeam(let team): try setShootoutFirstTeam(team)
         case .undo:
             throw .invalidInPhase // undo는 MatchEngine.reduce가 로그 단계에서 처리한다
         }
