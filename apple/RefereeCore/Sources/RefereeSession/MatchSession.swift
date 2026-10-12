@@ -10,6 +10,8 @@ public final class MatchSession {
     public private(set) var state: MatchState
     /// 마지막 저장 실패 메시지. 다음 저장이 성공하면 nil.
     public private(set) var saveError: String?
+    /// 마지막으로 받아들인 명령의 id (방금 기록한 이벤트를 찾을 때 쓴다)
+    public private(set) var lastCommandID: String?
 
     @ObservationIgnored private let store: any MatchLogStore
     @ObservationIgnored private let now: () -> Double
@@ -57,6 +59,7 @@ public final class MatchSession {
             return false
         }
         record.commands.append(command)
+        lastCommandID = command.id
         state = next
         persist()
         return true

@@ -8,6 +8,8 @@ final class MemoryStore: MatchLogStore, @unchecked Sendable {
 
     var active: MatchRecord?
     var finished: [MatchRecord] = []
+    var activeWorkout: WorkoutLog?
+    var finishedWorkouts: [UUID: WorkoutLog] = [:]
     var failSaves = false
 
     func loadActive() throws -> MatchRecord? { active }
@@ -20,10 +22,23 @@ final class MemoryStore: MatchLogStore, @unchecked Sendable {
     func finishActive(_ record: MatchRecord) throws {
         if failSaves { throw SaveFailed() }
         finished.append(record)
+        if let activeWorkout, activeWorkout.matchID == record.id {
+            finishedWorkouts[record.id] = activeWorkout
+        }
         active = nil
+        activeWorkout = nil
     }
 
     func archived() throws -> [MatchRecord] { finished }
+
+    func saveActiveWorkout(_ log: WorkoutLog) throws {
+        if failSaves { throw SaveFailed() }
+        activeWorkout = log
+    }
+
+    func loadActiveWorkout() throws -> WorkoutLog? { activeWorkout }
+
+    func archivedWorkout(for matchID: UUID) throws -> WorkoutLog? { finishedWorkouts[matchID] }
 }
 
 final class FakeClock {

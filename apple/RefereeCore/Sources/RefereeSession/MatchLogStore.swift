@@ -4,13 +4,18 @@ public protocol MatchLogStore: Sendable {
     /// 진행 중인 경기. 없으면 nil.
     func loadActive() throws -> MatchRecord?
     func saveActive(_ record: MatchRecord) throws
-    /// 경기를 보관함으로 옮기고 진행 중 기록을 지운다.
+    /// 경기(와 같은 경기의 운동 기록)를 보관함으로 옮기고 진행 중 기록을 지운다.
     func finishActive(_ record: MatchRecord) throws
     /// 보관된 경기 (오래된 순)
     func archived() throws -> [MatchRecord]
+
+    func saveActiveWorkout(_ log: WorkoutLog) throws
+    func loadActiveWorkout() throws -> WorkoutLog?
+    func archivedWorkout(for matchID: UUID) throws -> WorkoutLog?
 }
 
-/// 파일 저장소. directory/active.json 에 진행 중 경기, directory/finished/<id>.json 에 끝난 경기를 둔다.
+/// 파일 저장소. directory/active.json·workout-active.json 에 진행 중 기록,
+/// directory/finished/<id>.json·<id>-workout.json 에 끝난 기록을 둔다.
 public struct FileMatchLogStore: MatchLogStore {
     public let directory: URL
 
@@ -19,7 +24,12 @@ public struct FileMatchLogStore: MatchLogStore {
     }
 
     private var activeURL: URL { directory.appendingPathComponent("active.json") }
+    private var activeWorkoutURL: URL { directory.appendingPathComponent("workout-active.json") }
     private var archiveDirectory: URL { directory.appendingPathComponent("finished", isDirectory: true) }
+
+    private func archivedWorkoutURL(_ id: UUID) -> URL {
+        archiveDirectory.appendingPathComponent("\(id.uuidString)-workout.json")
+    }
 
     /// 읽을 수 없는 파일은 지우지 않고 active-corrupt-<uuid>.json 으로 옮긴 뒤 nil을 돌려준다.
     public func loadActive() throws -> MatchRecord? {
@@ -43,8 +53,11 @@ public struct FileMatchLogStore: MatchLogStore {
         try FileManager.default.createDirectory(at: archiveDirectory, withIntermediateDirectories: true)
         let url = archiveDirectory.appendingPathComponent("\(record.id.uuidString).json")
         try JSONEncoder().encode(record).write(to: url, options: .atomic)
-        if FileManager.default.fileExists(atPath: activeURL.path) {
-            try FileManager.default.removeItem(at: activeURL)
+        if let log = try? loadActiveWorkout(), log.matchID == record.id {
+            try JSONEncoder().encode(log).write(to: archivedWorkoutURL(record.id), options: .atomic)
+        }
+        for active in [activeURL, activeWorkoutURL] where FileManager.default.fileExists(atPath: active.path) {
+            try FileManager.default.removeItem(at: active)
         }
     }
 
@@ -53,8 +66,25 @@ public struct FileMatchLogStore: MatchLogStore {
         let files = try FileManager.default.contentsOfDirectory(at: archiveDirectory, includingPropertiesForKeys: nil)
         let decoder = JSONDecoder()
         return files
-            .filter { $0.pathExtension == "json" }
+            .filter { $0.pathExtension == "json" && !$0.lastPathComponent.hasSuffix("-workout.json") }
             .compactMap { try? decoder.decode(MatchRecord.self, from: Data(contentsOf: $0)) }
             .sorted { $0.createdAt < $1.createdAt }
+    }
+
+    public func saveActiveWorkout(_ log: WorkoutLog) throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try JSONEncoder().encode(log).write(to: activeWorkoutURL, options: .atomic)
+    }
+
+    /// 읽을 수 없으면 nil (운동 기록은 경기 기록보다 덜 중요해서 격리하지 않는다)
+    public func loadActiveWorkout() throws -> WorkoutLog? {
+        guard FileManager.default.fileExists(atPath: activeWorkoutURL.path) else { return nil }
+        return try? JSONDecoder().decode(WorkoutLog.self, from: Data(contentsOf: activeWorkoutURL))
+    }
+
+    public func archivedWorkout(for matchID: UUID) throws -> WorkoutLog? {
+        let url = archivedWorkoutURL(matchID)
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return try JSONDecoder().decode(WorkoutLog.self, from: Data(contentsOf: url))
     }
 }

@@ -19,6 +19,8 @@ public struct MatchSetup: Codable, Equatable, Sendable {
     public var clockDisplay: ClockDisplay
     /// 종료 N초 전 예고 진동 (0이면 끔)
     public var warningBeforeEnd: Int
+    /// GPS 경로 기록 (끄면 배터리를 아끼는 대신 히트맵·스프린트가 없다)
+    public var recordsRoute: Bool
 
     public init(
         rules: RuleSet = .fifaStandard,
@@ -27,7 +29,8 @@ public struct MatchSetup: Codable, Equatable, Sendable {
         homeColor: TeamColor = .red,
         awayColor: TeamColor = .blue,
         clockDisplay: ClockDisplay = .elapsed,
-        warningBeforeEnd: Int = 300
+        warningBeforeEnd: Int = 300,
+        recordsRoute: Bool = true
     ) {
         self.rules = rules
         self.homeName = homeName
@@ -36,6 +39,25 @@ public struct MatchSetup: Codable, Equatable, Sendable {
         self.awayColor = awayColor
         self.clockDisplay = clockDisplay
         self.warningBeforeEnd = warningBeforeEnd
+        self.recordsRoute = recordsRoute
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case rules, homeName, awayName, homeColor, awayColor, clockDisplay, warningBeforeEnd, recordsRoute
+    }
+
+    /// 나중에 추가된 필드는 없으면 기본값을 쓴다 (이전 버전 기록 호환).
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            rules: try c.decode(RuleSet.self, forKey: .rules),
+            homeName: try c.decode(String.self, forKey: .homeName),
+            awayName: try c.decode(String.self, forKey: .awayName),
+            homeColor: try c.decode(TeamColor.self, forKey: .homeColor),
+            awayColor: try c.decode(TeamColor.self, forKey: .awayColor),
+            clockDisplay: try c.decode(ClockDisplay.self, forKey: .clockDisplay),
+            warningBeforeEnd: try c.decode(Int.self, forKey: .warningBeforeEnd),
+            recordsRoute: try c.decodeIfPresent(Bool.self, forKey: .recordsRoute) ?? true)
     }
 }
 
