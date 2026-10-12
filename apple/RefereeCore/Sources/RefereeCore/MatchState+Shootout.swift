@@ -46,6 +46,20 @@ extension MatchState {
         guard shootout.next == team else { throw .notYourTurn }
     }
 
+    /// 승부차기 중이거나 승부차기로 끝난 경기 (킥을 고칠 수 있는 상태)
+    var shootoutIsEditable: Bool {
+        if phase == .penalties { return true }
+        if case .finished(.completed) = phase, shootoutFirstTeam != nil { return true }
+        return false
+    }
+
+    /// 고친 결과 승부가 다시 미정이면 승부차기로 되돌린다.
+    mutating func reopenShootoutIfUndecided() {
+        if case .finished(.completed) = phase, shootoutFirstTeam != nil, !shootout.decided {
+            phase = .penalties
+        }
+    }
+
     mutating func finishShootoutIfDecided() {
         if phase == .penalties && shootout.decided { phase = .finished(.completed) }
     }

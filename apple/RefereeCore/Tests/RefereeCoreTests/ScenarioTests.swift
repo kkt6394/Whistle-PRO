@@ -26,7 +26,7 @@ enum Scenarios {
 
 struct ScenarioTests {
     @Test func scenarioDirectoryIsFound() {
-        #expect(Scenarios.files.count >= 9, "시나리오 디렉터리: \(Scenarios.directory.path)")
+        #expect(Scenarios.files.count >= 10, "시나리오 디렉터리: \(Scenarios.directory.path)")
     }
 
     @Test(arguments: Scenarios.files)
@@ -35,9 +35,11 @@ struct ScenarioTests {
         let input = try JSONDecoder().decode(ScenarioInput.self, from: data)
         let raw = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
         let expectations = try #require(raw["expect"] as? [[String: Any]])
+        // id를 적지 않은 명령에만 "#<인덱스>"를 붙인다 (디코더는 빈 id 대신 UUID를 만든다)
+        let rawCommands = try #require(raw["commands"] as? [[String: Any]])
         let commands = input.commands.enumerated().map { index, command in
             var command = command
-            if command.id.isEmpty { command.id = "#\(index)" }
+            if rawCommands[index]["id"] == nil { command.id = "#\(index)" }
             return command
         }
 

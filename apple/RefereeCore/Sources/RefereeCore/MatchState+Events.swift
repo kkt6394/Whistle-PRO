@@ -28,10 +28,11 @@ extension MatchState {
         guard events[i].payload.typeName == payload.typeName else { throw .invalidValue }
         try validateContent(payload)
         if payload.isPenaltyKick {
-            guard phase == .penalties, events[i].payload.team == payload.team else { throw .invalidInPhase }
+            guard shootoutIsEditable, events[i].payload.team == payload.team else { throw .invalidInPhase }
         }
         if events[i].payload.scoringSide != payload.scoringSide { try ensureScoreIsStillOpen() }
         events[i].payload = payload
+        reopenShootoutIfUndecided()
         finishShootoutIfDecided()
     }
 
@@ -40,10 +41,11 @@ extension MatchState {
         guard let i = events.firstIndex(where: { $0.id == id }) else { throw .unknownEvent }
         if events[i].payload.isPenaltyKick {
             let lastKick = events.lastIndex { $0.payload.isPenaltyKick }
-            guard phase == .penalties, lastKick == i else { throw .invalidInPhase }
+            guard shootoutIsEditable, lastKick == i else { throw .invalidInPhase }
         }
         if events[i].payload.scoringSide != nil { try ensureScoreIsStillOpen() }
         events.remove(at: i)
+        reopenShootoutIfUndecided()
     }
 
     /// 점수가 바뀌는 골 수정·삭제는 기간 진행 중이나 휴식 중에만 허용한다.
@@ -70,7 +72,7 @@ extension MatchState {
 
     private func eventTime(at t: Double) throws(EngineError) -> EventTime {
         guard let p = periods.last else { throw .invalidInPhase }
-        let elapsed = Int(p.elapsedSeconds(at: t).rounded(.down))
+        let elapsed = wholeSeconds(p.elapsedSeconds(at: t))
         return EventTime(period: p.ref, duringPlay: p.endedAt == nil, matchSecond: p.offset + elapsed)
     }
 }

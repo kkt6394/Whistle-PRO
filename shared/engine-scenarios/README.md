@@ -17,6 +17,7 @@ Swift(`apple/RefereeCore`)와 Kotlin(`android/core`) 경기 엔진이 **똑같�
 - `config`: RuleSet 부분 객체. 없는 키는 FIFA 표준 기본값. `minimumPlayers`·`substitutionLimit`에 `null`을 주면 끔.
 - `warningBeforeEnd`: 종료 N초 전 예고. 생략하면 300.
 - `commands`: 명령 로그. `id`가 없으면 러너가 `"#<0부터 시작하는 인덱스>"`를 붙인다.
+- 엔진 디코더는 `id`가 없는 명령에 UUID를 만든다(빈 문자열 금지). 러너는 원본 JSON에 `id`가 없는 명령에만 `#i`를 붙인다.
 - `expect`: 각 항목마다 `t <= at`인 명령만 재생한 뒤, `at` 시점 스냅샷을 JSON으로 만들어 **적힌 키만** 비교한다. 값이 `null`이면 키가 없거나 null이어야 한다. 배열과 객체는 전체가 같아야 한다.
 - 시간 단위는 초.
 
@@ -46,7 +47,7 @@ Swift(`apple/RefereeCore`)와 Kotlin(`android/core`) 경기 엔진이 **똑같�
 | 키 | 값 |
 |---|---|
 | phase | `notStarted`·`period`·`interval`·`preExtraTime`·`penalties`·`finished` |
-| period | 마지막으로 시작한 기간 라벨 (`1H`, `Q3`, `ET1`). 시작 전이면 없음 |
+| period | 마지막으로 시작한 기간 라벨 (`1H`, `Q3`, `ET1`). 승부차기 중이거나 승부차기로 끝났으면 `PK`. 시작 전이면 없음 |
 | finishReason | `completed`·`abandoned` (종료 시에만) |
 | abandonReason | 중단 사유 (중단 시에만) |
 | score | `[home, away]` 정규+연장 득점 (자책골은 상대 팀) |
@@ -63,7 +64,7 @@ Swift(`apple/RefereeCore`)와 Kotlin(`android/core`) 경기 엔진이 **똑같�
 | playersOnField | `[home, away]` 시작 인원 − 퇴장 − 진행 중 일시 퇴장 |
 | substitutions | `[home, away]` 교체 횟수 |
 | events | 이벤트 배열: `{id, type, team, number?, numberOut?, numberIn?, matchSecond, warnings}`. type은 `goal`·`ownGoal`·`yellow`·`secondYellow`·`red`·`sinBin`·`substitution`·`penaltyKick`, warnings 원소는 `substitutionLimitExceeded`·`repeatPenaltyKicker`·`playerAlreadySentOff` |
-| sinBins | 진행 중 일시 퇴장: `{eventId, team, number?, remaining}` (remaining 올림) |
+| sinBins | 진행 중 일시 퇴장: `{eventId, team, number?, remaining}` (remaining 올림) 승부차기·종료 상태에서는 항상 빈 배열 |
 | warnings | 경기 경고: `belowMinimumPlayers:home` 형식 |
 | nextAlert | `{kind, at}` — kind는 `warningBeforeEnd`·`periodEnd`·`breakEndingSoon`·`breakEnd`·`sinBinEnd`. `at`보다 뒤의 첫 알림 |
 | ignored | 적용되지 못한 명령 id 배열 |
@@ -96,7 +97,7 @@ Swift(`apple/RefereeCore`)와 Kotlin(`android/core`) 경기 엔진이 **똑같�
 ### 수정·삭제
 - `editEvent`는 같은 종류(`goal`·`card`·`substitution`·`penaltyKick`) 안에서만 가능하다. 시각은 원래 기록 시각을 유지한다.
 - 골의 **득점 팀이 바뀌는 수정**(팀 변경, 자책골 여부 변경)과 골 삭제는 period·interval에서만 허용한다. 마지막 기간이 끝난 뒤에는 점수로 이미 연장·승부차기·종료가 정해졌기 때문이다. 득점 팀이 같은 수정(등번호 정정)은 언제나 가능하다.
-- 승부차기 킥은 penalties 중에만 수정할 수 있고 팀은 바꿀 수 없다. 삭제는 penalties 중 **마지막 킥**만 가능하다. 수정 후 승부가 나면 즉시 finished가 된다.
+- 승부차기 킥은 penalties 중이거나 승부차기로 끝난(finished·completed) 경기에서 수정할 수 있고 팀은 바꿀 수 없다. 삭제는 **마지막 킥**만 가능하다. 수정·삭제 후 승부가 다시 미정이면 penalties로 돌아가고, 승부가 나면 finished가 된다.
 
 ### 이벤트 해석
 - `matchSecond` = 기록 시점의 마지막 기간 `offset` + 그 기간 경과 초(내림). 휴식 중 기록이면 기간이 끝난 시점에서 멈춘 경과 초를 쓴다.
@@ -104,6 +105,9 @@ Swift(`apple/RefereeCore`)와 Kotlin(`android/core`) 경기 엔진이 **똑같�
 - 이미 퇴장한(`red` 또는 `secondYellow`) 선수에게 다시 기록된 카드는 원래 종류(`yellow`·`red`·`sinBin`)로 두고 `playerAlreadySentOff` 경고를 붙이며, 퇴장 인원에 다시 세지 않는다.
 - 일시 퇴장 중인 선수가 이후 퇴장당하면 그 일시 퇴장은 즉시 끝난다(`sinBins`·알림에서 빠짐).
 - 교체 한도 = `substitutionLimit` + (연장에 들어간 뒤 기록된 교체라면 `extraTimeExtraSubs`). `returnSubstitutions`이거나 한도가 null이면 검사하지 않는다.
+
+### 초 변환
+- 경과·중단·남은 시간 등 초를 정수로 바꿀 때 값이 유한하지 않으면 0, ±1조 초 범위로 자른 뒤 반올림 규칙(경과는 내림, 남은 시간은 올림)을 적용한다.
 
 ### 숫자 비교
 - 모든 숫자는 **값으로** 비교한다. `2400`과 `2400.0`은 같다.

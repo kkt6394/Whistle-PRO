@@ -132,7 +132,7 @@ extension Command: Codable {
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.decodeIfPresent(String.self, forKey: .id) ?? ""
+        id = try c.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString
         timestamp = try c.decode(Double.self, forKey: .t)
         let type = try c.decode(String.self, forKey: .type)
         switch type {
