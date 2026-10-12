@@ -12,6 +12,8 @@ public protocol MatchLogStore: Sendable {
     func saveActiveWorkout(_ log: WorkoutLog) throws
     func loadActiveWorkout() throws -> WorkoutLog?
     func archivedWorkout(for matchID: UUID) throws -> WorkoutLog?
+    /// 폰이 받았다고 확인한 경기를 워치 보관함에서 지운다.
+    func deleteArchived(_ matchID: UUID) throws
 }
 
 /// 파일 저장소. directory/active.json·workout-active.json 에 진행 중 기록,
@@ -86,5 +88,12 @@ public struct FileMatchLogStore: MatchLogStore {
         let url = archivedWorkoutURL(matchID)
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         return try JSONDecoder().decode(WorkoutLog.self, from: Data(contentsOf: url))
+    }
+
+    public func deleteArchived(_ matchID: UUID) throws {
+        let files = [archiveDirectory.appendingPathComponent("\(matchID.uuidString).json"), archivedWorkoutURL(matchID)]
+        for file in files where FileManager.default.fileExists(atPath: file.path) {
+            try FileManager.default.removeItem(at: file)
+        }
     }
 }
