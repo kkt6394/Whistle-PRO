@@ -23,7 +23,7 @@ public enum WorkoutAnalysis {
     /// 이보다 짧은 고속 구간은 GPS 튐으로 보고 세지 않는다 (초, 1Hz에서 3지점)
     public static let minimumSprintDuration = 2.0
 
-    /// 20km/h 이상이 1초 이상 이어진 구간 수. route는 시간순이어야 한다.
+    /// 20km/h 이상이 2초 이상 이어진 구간 수. route는 시간순이어야 한다.
     public static func sprintCount(_ route: [RoutePoint]) -> Int {
         var count = 0
         var runStart: Double?
@@ -65,11 +65,11 @@ public enum WorkoutAnalysis {
     private static func stats(_ log: WorkoutLog, ranges: [(Double, Double)], label: String?) -> WorkoutStats {
         func inRanges(_ t: Double) -> Bool { ranges.contains { t >= $0.0 && t <= $0.1 } }
         let heartRates = log.heartRate.filter { inRanges($0.t) }.map(\.value)
-        let average = heartRates.isEmpty ? nil : Int((heartRates.reduce(0, +) / Double(heartRates.count)).rounded())
+        let average = heartRates.isEmpty ? nil : wholeSeconds(heartRates.reduce(0, +) / Double(heartRates.count), rounding: .toNearestOrAwayFromZero)
         return WorkoutStats(
             label: label,
             averageHeartRate: average,
-            maxHeartRate: heartRates.max().map { Int($0.rounded()) },
+            maxHeartRate: heartRates.max().map { wholeSeconds($0, rounding: .toNearestOrAwayFromZero) },
             distance: ranges.reduce(0) { $0 + delta(log.distance, from: $1.0, to: $1.1) },
             energy: ranges.reduce(0) { $0 + delta(log.energy, from: $1.0, to: $1.1) },
             sprints: ranges.reduce(0) { total, range in

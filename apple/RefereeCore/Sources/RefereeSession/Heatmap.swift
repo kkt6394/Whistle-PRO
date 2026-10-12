@@ -25,8 +25,9 @@ public enum Heatmap {
         struct Key: Hashable { let row: Int; let column: Int }
         var counts: [Key: Int] = [:]
         for p in points {
-            let key = Key(row: Int((p.latitude / latitudeStep).rounded(.down)),
-                          column: Int((p.longitude / longitudeStep).rounded(.down)))
+            // 손상된 좌표로 트랩하지 않게 제한해서 변환한다
+            let key = Key(row: wholeSeconds(p.latitude / latitudeStep),
+                          column: wholeSeconds(p.longitude / longitudeStep))
             counts[key, default: 0] += 1
         }
         let maximum = Double(counts.values.max() ?? 1)

@@ -46,3 +46,18 @@ struct BacklogSessionTests {
         #expect(!SubscriptionProducts.contains("com.aidenstudio.whistlepro.pro.lifetime"))
     }
 }
+
+/// 최종 리뷰: 보고서·화면 표시 경로도 손상된 큰 타임스탬프에서 죽지 않아야 한다
+struct HugeTimestampSessionTests {
+    @Test func reportSurvivesHugeTimestamps() {
+        let record = makeRecord([(.startPeriod, 0), (.endPeriod, 1e300)])
+        let report = MatchReport(bundle: MatchBundle(record: record, workout: nil))
+        #expect(report.periods.count == 1)
+    }
+
+    @Test func preExtraTimeClockSurvivesHugeNow() {
+        let s = makeState(RuleSet(extraTime: true), [(.startPeriod, 0), (.endPeriod, 2700), (.startPeriod, 3600), (.endPeriod, 6300)])
+        #expect(MatchDisplay(state: s, now: 1e300, clockDisplay: .elapsed).screen == .preExtraTime)
+        #expect(MatchDisplay(state: s, now: .infinity, clockDisplay: .elapsed).intervalClock == "00:00")
+    }
+}
