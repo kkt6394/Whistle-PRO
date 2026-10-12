@@ -38,8 +38,12 @@ public final class MatchSession {
         if case .finished = state.phase { true } else { false }
     }
 
+    /// 첫 킥오프(startPeriod)와 그 이전 명령은 되돌리지 않는다.
+    /// 되돌리면 시작 버튼이 없는 화면에 갇히기 때문이다.
     public var canUndo: Bool {
-        !MatchEngine.effectiveCommands(record.commands).isEmpty
+        let effective = MatchEngine.effectiveCommands(record.commands)
+        guard let kickoff = effective.firstIndex(where: { $0.kind == .startPeriod }) else { return !effective.isEmpty }
+        return effective.count > kickoff + 1
     }
 
     /// 현재 시각으로 명령을 만들어 적용한다. 거부되면 로그에 남기지 않고 false.

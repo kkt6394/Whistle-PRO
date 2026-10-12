@@ -94,3 +94,25 @@ struct MatchSessionTests {
         #expect(alert?.at == 2100)
     }
 }
+
+/// 최종 리뷰: 킥오프를 실행 취소하면 경기 시작 버튼이 없는 화면에 갇힌다
+@MainActor
+struct KickoffUndoTests {
+    @Test func kickoffItselfCannotBeUndone() {
+        let store = MemoryStore()
+        let clock = FakeClock()
+        let s = MatchSession.start(setup: MatchSetup(), store: store, now: { clock.t })
+        s.send(.setKickoffTeam(.home))
+        s.send(.startPeriod)
+        #expect(!s.canUndo)
+        #expect(!s.undo())
+        #expect(s.state.phase.isPeriod)
+
+        clock.t = 100
+        s.send(.toggleStoppage)
+        #expect(s.canUndo)
+        #expect(s.undo())
+        #expect(s.state.phase.isPeriod)
+        #expect(!s.canUndo)
+    }
+}
