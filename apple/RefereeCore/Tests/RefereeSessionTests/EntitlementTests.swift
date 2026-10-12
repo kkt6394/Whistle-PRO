@@ -65,3 +65,53 @@ struct EntitlementTests {
         #expect(restored.record.unlocked)
     }
 }
+
+/// 최종 리뷰: 오프라인 "확인 불가"와 "만료" 구분, 폰·워치 확인 합치기
+struct EntitlementSourceTests {
+    @Test func storeUnavailableKeepsCachedExpiry() {
+        let cached = Entitlement(expiresAt: 30 * day, checkedAt: 1)
+        #expect(Entitlement.resolve(cached: cached, check: .unavailable, now: 40 * day) == cached)
+    }
+
+    @Test func activeCheckSetsExpiry() {
+        #expect(Entitlement.resolve(cached: .none, check: .active(expiresAt: 60 * day), now: 5)
+                == Entitlement(expiresAt: 60 * day, checkedAt: 5))
+    }
+
+    @Test func confirmedInactiveClearsExpiryImmediately() {
+        let cached = Entitlement(expiresAt: 30 * day, checkedAt: 1)
+        let resolved = Entitlement.resolve(cached: cached, check: .inactive(revoked: false), now: 31 * day)
+        #expect(resolved.expiresAt == nil)
+        #expect(!resolved.isActive(at: 31 * day))
+    }
+
+    @Test func revokedIsNeverActive() {
+        let resolved = Entitlement.resolve(cached: .none, check: .inactive(revoked: true), now: 0)
+        #expect(resolved.revoked)
+        #expect(!Entitlement(expiresAt: 99 * day, checkedAt: 0, revoked: true).isActive(at: 0))
+    }
+
+    @Test func watchRenewalBeatsStalePhoneValue() {
+        let phone = Entitlement(expiresAt: 30 * day, checkedAt: 1)
+        let watch = Entitlement(expiresAt: 60 * day, checkedAt: 2)
+        #expect(Entitlement.combine(phone: phone, watch: watch).expiresAt == 60 * day)
+    }
+
+    @Test func phoneNilDoesNotWipeWatchPurchase() {
+        let watch = Entitlement(expiresAt: 60 * day, checkedAt: 2)
+        #expect(Entitlement.combine(phone: Entitlement(expiresAt: nil, checkedAt: 3), watch: watch).expiresAt == 60 * day)
+        #expect(Entitlement.combine(phone: nil, watch: nil) == .none)
+    }
+
+    @Test func phoneRefundOverridesWatch() {
+        let refund = Entitlement(expiresAt: nil, checkedAt: 3, revoked: true)
+        let watch = Entitlement(expiresAt: 60 * day, checkedAt: 2)
+        #expect(!Entitlement.combine(phone: refund, watch: watch).isActive(at: 10 * day))
+    }
+
+    @Test func oldEntitlementWithoutRevokedDecodes() throws {
+        let decoded = try JSONDecoder().decode(Entitlement.self, from: Data(#"{"expiresAt": 5, "checkedAt": 1}"#.utf8))
+        #expect(decoded == Entitlement(expiresAt: 5, checkedAt: 1))
+        #expect(!decoded.revoked)
+    }
+}
