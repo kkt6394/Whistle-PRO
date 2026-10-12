@@ -67,11 +67,29 @@ public struct MatchRecord: Codable, Equatable, Sendable, Identifiable {
     public var createdAt: Double
     public var setup: MatchSetup
     public var commands: [Command]
+    /// 킥오프 때 유료 기능이 열려 있었는지. 경기 중에는 바꾸지 않는다 (스펙 §6).
+    public var unlocked: Bool
 
-    public init(id: UUID, createdAt: Double, setup: MatchSetup, commands: [Command]) {
+    public init(id: UUID, createdAt: Double, setup: MatchSetup, commands: [Command], unlocked: Bool = true) {
         self.id = id
         self.createdAt = createdAt
         self.setup = setup
         self.commands = commands
+        self.unlocked = unlocked
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, createdAt, setup, commands, unlocked
+    }
+
+    /// 유료 기능이 생기기 전(M2~M4)에 저장한 기록에는 unlocked가 없다 → 열린 것으로 읽는다.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            id: try c.decode(UUID.self, forKey: .id),
+            createdAt: try c.decode(Double.self, forKey: .createdAt),
+            setup: try c.decode(MatchSetup.self, forKey: .setup),
+            commands: try c.decode([Command].self, forKey: .commands),
+            unlocked: try c.decodeIfPresent(Bool.self, forKey: .unlocked) ?? true)
     }
 }

@@ -26,9 +26,10 @@ public final class MatchSession {
     public static func start(
         setup: MatchSetup,
         store: any MatchLogStore,
-        now: @escaping () -> Double = { Date().timeIntervalSince1970 }
+        now: @escaping () -> Double = { Date().timeIntervalSince1970 },
+        unlocked: Bool = true
     ) -> MatchSession {
-        let record = MatchRecord(id: UUID(), createdAt: now(), setup: setup, commands: [])
+        let record = MatchRecord(id: UUID(), createdAt: now(), setup: setup, commands: [], unlocked: unlocked)
         let session = MatchSession(record: record, store: store, now: now)
         session.persist()
         return session
