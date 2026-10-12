@@ -82,8 +82,11 @@ extension MatchState {
     }
 
     public func playersOnField(at now: Double) -> TeamPair<Int> {
-        let off = sentOffCounts
-        return TeamPair(home: rules.playersPerTeam - off.home, away: rules.playersPerTeam - off.away)
+        var onField = sentOffCounts
+        onField.home = rules.playersPerTeam - onField.home
+        onField.away = rules.playersPerTeam - onField.away
+        for s in activeSinBins(at: now) { onField[s.team] -= 1 }
+        return onField
     }
 
     public func matchWarnings(at now: Double) -> [MatchWarning] {
