@@ -76,7 +76,7 @@ public enum SyncPayload {
     }
 }
 
-/// 폰의 경기 보관함. 경기마다 <id>.json 하나.
+/// 폰의 경기 보관함. 경기마다 <id>.json(전체)과 <id>.summary.json(목록용 요약).
 public struct MatchLibrary: Sendable {
     public let directory: URL
 
@@ -84,14 +84,44 @@ public struct MatchLibrary: Sendable {
         self.directory = directory
     }
 
+    private static let summarySuffix = ".summary.json"
+
     private func url(for id: UUID) -> URL {
         directory.appendingPathComponent("\(id.uuidString).json")
     }
 
-    /// 같은 경기가 다시 오면 덮어쓴다 (중복 전송에 안전).
+    private func summaryURL(for id: UUID) -> URL {
+        directory.appendingPathComponent(id.uuidString + Self.summarySuffix)
+    }
+
+    /// 같은 경기가 다시 오면 덮어쓴다 (중복 전송에 안전). 요약도 함께 쓴다.
     public func upsert(_ bundle: MatchBundle) throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try JSONEncoder().encode(bundle).write(to: url(for: bundle.id), options: .atomic)
+        try JSONEncoder().encode(MatchSummary(record: bundle.record)).write(to: summaryURL(for: bundle.id), options: .atomic)
+    }
+
+    /// 목록용 요약 (최신순). 요약 없이 저장된 이전 경기는 한 번 읽어 요약을 만들어 둔다.
+    public func summaries() throws -> [MatchSummary] {
+        guard FileManager.default.fileExists(atPath: directory.path) else { return [] }
+        let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+        let names = Set(files.map(\.lastPathComponent))
+        let decoder = JSONDecoder()
+        var result: [MatchSummary] = []
+        for file in files where file.pathExtension == "json" {
+            let name = file.lastPathComponent
+            if name.hasSuffix(Self.summarySuffix) {
+                if let summary = try? decoder.decode(MatchSummary.self, from: Data(contentsOf: file)) {
+                    result.append(summary)
+                }
+            } else if !names.contains(name.dropLast(".json".count) + Self.summarySuffix),
+                      let bundle = try? decoder.decode(MatchBundle.self, from: Data(contentsOf: file)) {
+                let summary = MatchSummary(record: bundle.record)
+                try? JSONEncoder().encode(summary).write(to: summaryURL(for: bundle.id), options: .atomic)
+                result.append(summary)
+            }
+        }
+        return result.sorted { $0.createdAt > $1.createdAt }
     }
 
     /// 최신 경기가 먼저. 읽을 수 없는 파일은 건너뛴다.
@@ -100,7 +130,7 @@ public struct MatchLibrary: Sendable {
         let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
         let decoder = JSONDecoder()
         return files
-            .filter { $0.pathExtension == "json" }
+            .filter { $0.pathExtension == "json" && !$0.lastPathComponent.hasSuffix(Self.summarySuffix) }
             .compactMap { try? decoder.decode(MatchBundle.self, from: Data(contentsOf: $0)) }
             .sorted { $0.record.createdAt > $1.record.createdAt }
     }
@@ -112,8 +142,7 @@ public struct MatchLibrary: Sendable {
     }
 
     public func delete(id: UUID) throws {
-        let file = url(for: id)
-        if FileManager.default.fileExists(atPath: file.path) {
+        for file in [url(for: id), summaryURL(for: id)] where FileManager.default.fileExists(atPath: file.path) {
             try FileManager.default.removeItem(at: file)
         }
     }

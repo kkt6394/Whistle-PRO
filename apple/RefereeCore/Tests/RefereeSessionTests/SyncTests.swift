@@ -90,3 +90,57 @@ struct SyncTests {
         #expect(try store.archivedWorkout(for: record.id) == nil)
     }
 }
+
+/// 최종 리뷰: 목록이 모든 경기의 운동 데이터까지 읽지 않도록 가벼운 요약을 따로 둔다
+struct MatchSummaryTests {
+    private let match: [(CommandKind, Double)] = [
+        (.startPeriod, 100), (.recordEvent(.goal(team: .home, number: 9, ownGoal: false)), 600),
+        (.endPeriod, 2800), (.startPeriod, 3700), (.endPeriod, 6400),
+    ]
+
+    @Test func summaryDescribesMatch() {
+        let summary = MatchSummary(record: makeRecord(MatchSetup(homeName: "A", awayName: "B"), match, createdAt: 50))
+        #expect(summary.homeName == "A")
+        #expect(summary.awayName == "B")
+        #expect(summary.homeScore == 1)
+        #expect(summary.awayScore == 0)
+        #expect(summary.startedAt == 100)
+        #expect(summary.createdAt == 50)
+        #expect(summary.outcome == .completed)
+        #expect(summary.shootout == nil)
+    }
+
+    @Test func abandonedSummary() {
+        let summary = MatchSummary(record: makeRecord([(.startPeriod, 0), (.abandonMatch(reason: "폭우"), 10)]))
+        #expect(summary.outcome == .abandoned("폭우"))
+    }
+
+    @Test func upsertWritesSummaryNewestFirst() throws {
+        let library = MatchLibrary(directory: tempDirectory())
+        let old = makeRecord(match, createdAt: 10)
+        let new = makeRecord(match, createdAt: 20)
+        try library.upsert(MatchBundle(record: old, workout: nil))
+        try library.upsert(MatchBundle(record: new, workout: WorkoutLog(matchID: new.id)))
+        #expect(try library.summaries() == [MatchSummary(record: new), MatchSummary(record: old)])
+        #expect(try library.all().map(\.id) == [new.id, old.id])
+    }
+
+    @Test func summaryIsBackfilledForBundlesSavedWithoutOne() throws {
+        let dir = tempDirectory()
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let record = makeRecord(match)
+        try JSONEncoder().encode(MatchBundle(record: record, workout: nil))
+            .write(to: dir.appendingPathComponent("\(record.id.uuidString).json"))
+        let library = MatchLibrary(directory: dir)
+        #expect(try library.summaries() == [MatchSummary(record: record)])
+        #expect(FileManager.default.fileExists(atPath: dir.appendingPathComponent("\(record.id.uuidString).summary.json").path))
+    }
+
+    @Test func deleteRemovesSummary() throws {
+        let library = MatchLibrary(directory: tempDirectory())
+        let record = makeRecord(match)
+        try library.upsert(MatchBundle(record: record, workout: nil))
+        try library.delete(id: record.id)
+        #expect(try library.summaries().isEmpty)
+    }
+}
