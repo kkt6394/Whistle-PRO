@@ -41,7 +41,13 @@ public struct FileMatchLogStore: MatchLogStore {
             return try JSONDecoder().decode(MatchRecord.self, from: data)
         } catch {
             let quarantine = directory.appendingPathComponent("active-corrupt-\(UUID().uuidString).json")
-            try FileManager.default.moveItem(at: activeURL, to: quarantine)
+            do {
+                try FileManager.default.moveItem(at: activeURL, to: quarantine)
+            } catch {
+                // 이동이 안 되면 복사로라도 보관한 뒤 원본을 치운다 (다음 경기가 덮어쓰기 전에)
+                try FileManager.default.copyItem(at: activeURL, to: quarantine)
+                try? FileManager.default.removeItem(at: activeURL)
+            }
             return nil
         }
     }

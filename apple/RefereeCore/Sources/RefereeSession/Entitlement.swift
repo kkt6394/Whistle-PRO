@@ -81,3 +81,15 @@ public struct Entitlement: Codable, Equatable, Sendable {
         }
     }
 }
+
+/// 구독 상품 (iPhone 판매·워치 확인이 같은 목록을 쓴다)
+public enum SubscriptionProducts {
+    public static let ids = [
+        "com.aidenstudio.whistlepro.pro.monthly",
+        "com.aidenstudio.whistlepro.pro.yearly",
+    ]
+
+    public static func contains(_ productID: String) -> Bool {
+        ids.contains(productID)
+    }
+}
