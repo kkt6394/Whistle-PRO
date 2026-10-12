@@ -14,8 +14,9 @@ extension MatchState {
         case .endPeriod: try endPeriod(at: t)
         case .adjustPeriodLength(let seconds): try adjustPeriodLength(seconds)
         case .abandonMatch(let reason): try abandon(reason: reason, at: t)
-        case .toggleStoppage, .recordEvent, .editEvent, .deleteEvent, .setShootoutFirstTeam:
-            throw .invalidInPhase // Task 4~7에서 구현
+        case .toggleStoppage: try toggleStoppage(at: t)
+        case .recordEvent, .editEvent, .deleteEvent, .setShootoutFirstTeam:
+            throw .invalidInPhase // Task 5~7에서 구현
         case .undo:
             throw .invalidInPhase // undo는 MatchEngine.reduce가 로그 단계에서 처리한다
         }
