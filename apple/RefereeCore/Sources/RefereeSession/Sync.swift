@@ -79,9 +79,11 @@ public enum SyncPayload {
     }
 
     /// 폰 → 워치 (updateApplicationContext). 컨텍스트는 통째로 바뀌므로 프리셋과 구독 상태를 항상 함께 보낸다.
+    /// 프리셋이 한도를 넘으면 앞에서부터 들어가는 만큼만 넣는다 (구독 상태는 늘 가야 한다).
     public static func context(presets: [MatchPreset], entitlement: Entitlement,
                                sentAt: Double = Date().timeIntervalSince1970) throws -> [String: Any] {
-        [presetsKey: try JSONEncoder().encode(presets), entitlementKey: try JSONEncoder().encode(entitlement), sentAtKey: sentAt]
+        [presetsKey: try JSONEncoder().encode(presetsFittingContext(presets)),
+         entitlementKey: try JSONEncoder().encode(entitlement), sentAtKey: sentAt]
     }
 
     public static func entitlement(from context: [String: Any]) -> Entitlement? {
@@ -89,14 +91,31 @@ public enum SyncPayload {
         return try? JSONDecoder().decode(Entitlement.self, from: data)
     }
 
-    /// updateApplicationContext가 받아 주는 크기 (WCSession 메시지 한도와 같은 64KB로 본다). 넘으면 프리셋·구독 상태가 모두 가지 않는다.
+    /// updateApplicationContext가 받아 주는 크기 (WCSession 메시지 한도와 같은 64KB로 본다, 실기기 미확인).
+    /// 넘으면 컨텍스트 전체(구독 상태 포함)가 가지 않는다.
     public static let contextLimit = 65_536
+    /// 구독 상태·보낸 시각·plist 몫으로 남기는 크기
+    static let contextReserve = 4096
 
-    /// 프리셋을 한 번에 워치로 보낼 수 있는지. 명단이 꽉 찬(팀당 40명) 프리셋 하나가 3~7KB라 열 개쯤부터 한도에 다가간다.
-    /// 구독 상태·보낸 시각 몫으로 4KB를 남긴다.
+    /// 한도 안에 드는 앞쪽 프리셋 (목록 순서). 첫 프리셋부터 넘치면 빈 목록.
+    /// 명단이 꽉 찬(팀당 40명) 프리셋 하나가 3.3~7.4KB라 이름이 최대 길이면 9개쯤, 3글자 이름이면 18개쯤에서 넘친다.
+    public static func presetsFittingContext(_ presets: [MatchPreset]) -> [MatchPreset] {
+        let encoder = JSONEncoder()
+        // JSON 배열 크기 = 괄호 2 + 항목들 + 항목 사이 쉼표
+        var size = 2
+        var fitting: [MatchPreset] = []
+        for preset in presets {
+            guard let data = try? encoder.encode(preset) else { break }
+            size += data.count + (fitting.isEmpty ? 0 : 1)
+            if size > contextLimit - contextReserve { break }
+            fitting.append(preset)
+        }
+        return fitting
+    }
+
+    /// 프리셋을 모두 워치로 보낼 수 있는지 (넘치면 목록·편집기에 안내한다)
     public static func presetsFitContext(_ presets: [MatchPreset]) -> Bool {
-        guard let data = try? JSONEncoder().encode(presets) else { return false }
-        return data.count <= contextLimit - 4096
+        presetsFittingContext(presets).count == presets.count
     }
 
     public static func presets(from context: [String: Any]) -> [MatchPreset]? {
