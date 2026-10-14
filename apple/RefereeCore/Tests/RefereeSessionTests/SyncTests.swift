@@ -121,7 +121,8 @@ struct MatchSummaryTests {
         let new = makeRecord(match, createdAt: 20)
         try library.upsert(MatchBundle(record: old, workout: nil))
         try library.upsert(MatchBundle(record: new, workout: WorkoutLog(matchID: new.id)))
-        #expect(try library.summaries() == [MatchSummary(record: new), MatchSummary(record: old)])
+        #expect(try library.summaries() == [MatchSummary(bundle: MatchBundle(record: new, workout: WorkoutLog(matchID: new.id))),
+                                            MatchSummary(record: old)])
         #expect(try library.all().map(\.id) == [new.id, old.id])
     }
 
@@ -134,6 +135,59 @@ struct MatchSummaryTests {
         let library = MatchLibrary(directory: dir)
         #expect(try library.summaries() == [MatchSummary(record: record)])
         #expect(FileManager.default.fileExists(atPath: dir.appendingPathComponent("\(record.id.uuidString).summary.json").path))
+    }
+
+    @Test func rebuildsOldSummaryOnce() throws {
+        let library = MatchLibrary(directory: tempDirectory())
+        let record = makeRecord([(.startPeriod, 0), (.recordEvent(.goal(team: .home, number: 9, ownGoal: false)), 60)])
+        try library.upsert(MatchBundle(record: record, workout: nil))
+        // 이전 버전 요약 흉내: 통계 키를 지운다
+        let url = library.directory.appendingPathComponent(record.id.uuidString + ".summary.json")
+        var json = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as! [String: Any]
+        for key in ["summaryVersion", "goals", "yellows", "reds", "sinBins", "addedSeconds"] { json.removeValue(forKey: key) }
+        try JSONSerialization.data(withJSONObject: json).write(to: url)
+        #expect(try JSONDecoder().decode(MatchSummary.self, from: Data(contentsOf: url)).isCurrent == false)
+
+        let rebuilt = try library.summaries()
+        #expect(rebuilt.first?.goals == 1)
+        #expect(rebuilt.first?.summaryVersion == MatchSummary.currentVersion)
+        #expect(try JSONDecoder().decode(MatchSummary.self, from: Data(contentsOf: url)).isCurrent)
+    }
+
+    @Test func oldSummaryIsKeptWhenBundleIsUnreadable() throws {
+        let library = MatchLibrary(directory: tempDirectory())
+        let record = makeRecord(match)
+        try library.upsert(MatchBundle(record: record, workout: nil))
+        let url = library.directory.appendingPathComponent(record.id.uuidString + ".summary.json")
+        var json = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as! [String: Any]
+        json.removeValue(forKey: "summaryVersion")
+        try JSONSerialization.data(withJSONObject: json).write(to: url)
+        try Data("broken".utf8).write(to: library.directory.appendingPathComponent(record.id.uuidString + ".json"))
+        #expect(try library.summaries().map(\.id) == [record.id])
+    }
+
+    @Test func summaryCarriesSeasonValues() {
+        var log = WorkoutLog(matchID: UUID())
+        log.distance = [WorkoutSample(t: 0, value: 0), WorkoutSample(t: 2800, value: 6000)]
+        log.heartRate = [WorkoutSample(t: 10, value: 150)]
+        let record = makeRecord([
+            (.startPeriod, 0),
+            (.recordEvent(.goal(team: .home, number: 9, ownGoal: false)), 60),
+            (.recordEvent(.goal(team: .away, number: 3, ownGoal: true)), 70),
+            (.recordEvent(.card(team: .away, number: 4, kind: .yellow)), 100),
+            (.recordEvent(.card(team: .away, number: 4, kind: .yellow)), 200),
+            (.recordEvent(.card(team: .home, number: 5, kind: .red)), 300),
+            (.endPeriod, 2800),
+        ])
+        log.matchID = record.id
+        let summary = MatchSummary(bundle: MatchBundle(record: record, workout: log))
+        #expect(summary.goals == 2)
+        #expect(summary.yellows == 1)
+        #expect(summary.reds == 2)
+        #expect(summary.sinBins == 0)
+        #expect(summary.addedSeconds == 100)
+        #expect(summary.distance == 6000)
+        #expect(summary.averageHeartRate == 150)
     }
 
     @Test func deleteRemovesSummary() throws {

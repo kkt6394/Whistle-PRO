@@ -100,8 +100,11 @@ public struct MatchReport: Equatable, Sendable {
     }
 }
 
-/// 목록 화면용 가벼운 요약. 운동 데이터 없이 경기 기록만으로 만든다.
+/// 목록·시즌 통계용 가벼운 요약. 경기마다 <id>.summary.json으로 저장한다.
 public struct MatchSummary: Codable, Equatable, Sendable, Identifiable {
+    /// 통계 값이 들어간 요약 형식. 이보다 낮거나 없는 요약은 전체 기록에서 다시 만든다.
+    public static let currentVersion = 2
+
     public var id: UUID
     public var createdAt: Double
     /// 첫 킥오프 시각 (킥오프 전이면 기록 생성 시각)
@@ -116,25 +119,51 @@ public struct MatchSummary: Codable, Equatable, Sendable, Identifiable {
     public var shootout: [Int]?
     public var outcome: ReportOutcome
 
+    // 아래는 버전 2부터 (이전 요약에는 없다)
+    public var summaryVersion: Int?
+    /// 골 + 자책골
+    public var goals: Int?
+    public var yellows: Int?
+    /// 레드 + 경고 누적 퇴장
+    public var reds: Int?
+    public var sinBins: Int?
+    /// 기간마다 규정 시간을 넘겨 진행한 시간의 합 (초)
+    public var addedSeconds: Int?
+    /// 운동 데이터 (없으면 nil)
+    public var distance: Double?
+    public var averageHeartRate: Int?
+    public var sprints: Int?
+    public var zones: SpeedZones?
+
     public init(record: MatchRecord) {
-        let setup = record.setup
-        let state = MatchEngine.reduce(rules: setup.rules, commands: record.commands)
+        self.init(bundle: MatchBundle(record: record, workout: nil))
+    }
+
+    public init(bundle: MatchBundle) {
+        let record = bundle.record
+        let report = MatchReport(bundle: bundle)
         id = record.id
         createdAt = record.createdAt
-        startedAt = state.periods.first?.startedAt ?? record.createdAt
-        homeName = setup.homeName
-        awayName = setup.awayName
-        homeColor = setup.homeColor
-        awayColor = setup.awayColor
-        homeScore = state.score.home
-        awayScore = state.score.away
-        let shootoutStatus = state.shootout
-        shootout = shootoutStatus.kicks.home + shootoutStatus.kicks.away > 0
-            ? [shootoutStatus.goals.home, shootoutStatus.goals.away] : nil
-        outcome = switch state.phase {
-        case .finished(.completed): .completed
-        case .finished(.abandoned(let reason)): .abandoned(reason)
-        default: .inProgress
-        }
+        startedAt = report.startedAt
+        homeName = report.homeName
+        awayName = report.awayName
+        homeColor = report.homeColor
+        awayColor = report.awayColor
+        homeScore = report.score.home
+        awayScore = report.score.away
+        shootout = report.shootout.map { [$0.home, $0.away] }
+        outcome = report.outcome
+        summaryVersion = Self.currentVersion
+        goals = report.goals.count
+        yellows = report.discipline.filter { $0.kind == .yellow }.count
+        reds = report.discipline.filter { $0.kind == .red || $0.kind == .secondYellow }.count
+        sinBins = report.discipline.filter { $0.kind == .sinBin }.count
+        addedSeconds = report.periods.reduce(0) { $0 + $1.added }
+        distance = report.workoutOverall?.distance
+        averageHeartRate = report.workoutOverall?.averageHeartRate
+        sprints = report.workoutOverall?.sprints
+        zones = report.workoutOverall?.zones
     }
+
+    public var isCurrent: Bool { (summaryVersion ?? 1) >= Self.currentVersion }
 }

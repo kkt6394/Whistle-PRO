@@ -42,7 +42,7 @@ public struct SpeedZones: Codable, Equatable, Sendable {
         return SpeedZones(walking: walking * factor, jogging: jogging * factor, running: running * factor, sprinting: sprinting * factor)
     }
 
-    static func + (a: SpeedZones, b: SpeedZones) -> SpeedZones {
+    public static func + (a: SpeedZones, b: SpeedZones) -> SpeedZones {
         SpeedZones(walking: a.walking + b.walking, jogging: a.jogging + b.jogging,
                    running: a.running + b.running, sprinting: a.sprinting + b.sprinting)
     }
