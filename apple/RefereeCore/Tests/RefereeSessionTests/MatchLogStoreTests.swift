@@ -83,4 +83,47 @@ struct MatchLogStoreTests {
     @Test func emptyHistoryWithoutFinishedMatches() throws {
         #expect(try FileMatchLogStore(directory: tempDirectory()).history() == [])
     }
+
+    /// 무료 경기는 이벤트가 없고, 지난 경기 조회는 유료 기능이라 남기지 않는다
+    @Test func freeMatchesAreNotKeptInHistory() throws {
+        let store = FileMatchLogStore(directory: tempDirectory())
+        var free = record()
+        free.unlocked = false
+        try store.finishActive(free)
+        #expect(try store.archived() == [free])
+        #expect(try store.history() == [])
+    }
+
+    /// 시작 시각이 같아도 방금 끝낸 경기는 정리되지 않는다
+    @Test func justFinishedMatchSurvivesPruningOnTies() throws {
+        let store = FileMatchLogStore(directory: tempDirectory())
+        let records = (0..<(FileMatchLogStore.historyLimit + 3)).map { _ in record(createdAt: 5) }
+        for r in records {
+            try store.finishActive(r)
+            #expect(try store.history().contains(r))
+        }
+        #expect(try store.history().count == FileMatchLogStore.historyLimit)
+    }
+
+    @Test func unreadableHistoryFilesAreRemoved() throws {
+        let dir = tempDirectory()
+        let store = FileMatchLogStore(directory: dir)
+        let history = dir.appendingPathComponent("history", isDirectory: true)
+        try FileManager.default.createDirectory(at: history, withIntermediateDirectories: true)
+        try Data("{ not json".utf8).write(to: history.appendingPathComponent("broken.json"))
+        try store.finishActive(record())
+        #expect(try store.history().count == 1)
+        #expect(!FileManager.default.fileExists(atPath: history.appendingPathComponent("broken.json").path))
+    }
+
+    @Test func historyFailureDoesNotBlockArchiving() throws {
+        let dir = tempDirectory()
+        let store = FileMatchLogStore(directory: dir)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        // history 자리에 일반 파일이 있어 폴더를 만들 수 없다
+        try Data().write(to: dir.appendingPathComponent("history"))
+        let r = record()
+        try store.finishActive(r)
+        #expect(try store.archived() == [r])
+    }
 }

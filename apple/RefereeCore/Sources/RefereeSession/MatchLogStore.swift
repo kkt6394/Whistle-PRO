@@ -77,15 +77,40 @@ public struct FileMatchLogStore: MatchLogStore {
 
     /// 워치에서 다시 볼 최근 경기 (최근 순). 폰이 받았다고 확인해도 남는다.
     public func history() throws -> [MatchRecord] {
-        try records(in: historyDirectory).sorted { $0.createdAt > $1.createdAt }
+        try historyEntries().map(\.record)
     }
 
+    /// 무료 경기는 이벤트가 없고 지난 경기 조회는 유료 기능이라 남기지 않는다.
+    /// 방금 끝낸 경기는 시작 시각이 같은 기록이 있어도 정리하지 않는다.
     private func addToHistory(_ record: MatchRecord) throws {
+        guard record.unlocked else { return }
         try FileManager.default.createDirectory(at: historyDirectory, withIntermediateDirectories: true)
         let url = historyDirectory.appendingPathComponent("\(record.id.uuidString).json")
         try JSONEncoder().encode(record).write(to: url, options: .atomic)
-        for old in try history().dropFirst(Self.historyLimit) {
-            try? FileManager.default.removeItem(at: historyDirectory.appendingPathComponent("\(old.id.uuidString).json"))
+        let others = try historyEntries().filter { $0.record.id != record.id }
+        for old in others.dropFirst(Self.historyLimit - 1) {
+            try? FileManager.default.removeItem(at: old.url)
+        }
+    }
+
+    /// 지난 경기 파일과 기록 (최근 순, 같은 시각이면 id 순). 읽을 수 없는 파일은 지운다 (보조 기능이라 격리하지 않는다).
+    private func historyEntries() throws -> [(url: URL, record: MatchRecord)] {
+        guard FileManager.default.fileExists(atPath: historyDirectory.path) else { return [] }
+        let files = try FileManager.default.contentsOfDirectory(at: historyDirectory, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "json" }
+        let decoder = JSONDecoder()
+        var entries: [(url: URL, record: MatchRecord)] = []
+        for file in files {
+            if let record = try? decoder.decode(MatchRecord.self, from: Data(contentsOf: file)) {
+                entries.append((file, record))
+            } else {
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
+        return entries.sorted {
+            $0.record.createdAt != $1.record.createdAt
+                ? $0.record.createdAt > $1.record.createdAt
+                : $0.record.id.uuidString < $1.record.id.uuidString
         }
     }
 
