@@ -25,6 +25,14 @@ struct SyncTests {
         #expect(SyncPayload.presets(from: context) == [preset])
     }
 
+    /// 같은 내용을 다시 보내도(워치 앱 재설치) 전달되도록 보낸 시각이 들어간다
+    @Test func contextCarriesSendTime() throws {
+        let first = try SyncPayload.context(presets: [], entitlement: .none, sentAt: 1)
+        let second = try SyncPayload.context(presets: [], entitlement: .none, sentAt: 2)
+        #expect(first[SyncPayload.sentAtKey] as? Double == 1)
+        #expect(second[SyncPayload.sentAtKey] as? Double == 2)
+    }
+
     @Test func presetsFromForeignContextIsNil() {
         #expect(SyncPayload.presets(from: [:]) == nil)
         #expect(SyncPayload.presets(from: [SyncPayload.presetsKey: Data("nope".utf8)]) == nil)
