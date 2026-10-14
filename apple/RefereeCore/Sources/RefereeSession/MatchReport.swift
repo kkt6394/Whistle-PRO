@@ -70,7 +70,7 @@ public struct MatchReport: Equatable, Sendable {
         let shootoutStatus = state.shootout
         shootout = shootoutStatus.kicks.home + shootoutStatus.kicks.away > 0 ? shootoutStatus.goals : nil
 
-        let rows = Array(state.eventRows.reversed())
+        let rows = Array(state.eventRows(setup: setup).reversed())
         func lines(_ kinds: Set<ResolvedEventKind>) -> [ReportLine] {
             rows.filter { kinds.contains($0.kind) }
                 .map { ReportLine(minute: $0.minute, team: $0.team, kind: $0.kind, detail: $0.detail) }

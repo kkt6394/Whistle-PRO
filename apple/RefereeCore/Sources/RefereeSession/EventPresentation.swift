@@ -35,19 +35,33 @@ public enum RecordFeedback: Equatable, Sendable {
 extension MatchState {
     /// 이벤트 로그 화면용. 최근 것이 먼저.
     public var eventRows: [EventRow] {
+        rows { _, _ in nil }
+    }
+
+    /// 명단이 있으면 번호 뒤에 이름을 붙인다 ("#10 홍길동").
+    public func eventRows(setup: MatchSetup) -> [EventRow] {
+        rows(name: setup.playerName(team:number:))
+    }
+
+    private func rows(name: (Team, Int?) -> String?) -> [EventRow] {
         resolvedEvents.reversed().map { r in
+            let team = r.event.payload.team
+            func label(_ number: Int?) -> String? {
+                guard let number else { return nil }
+                return name(team, number).map { "#\(number) \($0)" } ?? "#\(number)"
+            }
             var scored: Bool?
             let detail: String
             switch r.event.payload {
             case .goal(_, let n, _), .card(_, let n, _):
-                detail = n.map { "#\($0)" } ?? ""
+                detail = label(n) ?? ""
             case .penaltyKick(_, let n, let s):
-                detail = n.map { "#\($0)" } ?? ""
+                detail = label(n) ?? ""
                 scored = s
             case .substitution(_, let out, let into):
                 detail = out == nil && into == nil
                     ? ""
-                    : "\(out.map { "#\($0)" } ?? "?") → \(into.map { "#\($0)" } ?? "?")"
+                    : "\(label(out) ?? "?") → \(label(into) ?? "?")"
             }
             return EventRow(
                 id: r.event.id,
