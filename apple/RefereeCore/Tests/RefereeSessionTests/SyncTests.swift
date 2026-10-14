@@ -33,6 +33,53 @@ struct SyncTests {
         #expect(second[SyncPayload.sentAtKey] as? Double == 2)
     }
 
+    /// 명단이 꽉 찬 프리셋: 3글자 이름이면 열 개는 들어가고 스무 개는 넘친다 (실측 3.3KB/개)
+    @Test func fullRosterPresetsFitContextUpToTen() throws {
+        let roster = (1...40).map { Player(number: $0, name: "김민준") }
+        let preset = MatchPreset(id: UUID(), name: "조기축구", setup: MatchSetup(homeRoster: roster, awayRoster: roster))
+        #expect(SyncPayload.presetsFitContext([]))
+        #expect(SyncPayload.presetsFitContext(Array(repeating: preset, count: 10)))
+        #expect(!SyncPayload.presetsFitContext(Array(repeating: preset, count: 20)))
+        let ten = try SyncPayload.context(presets: Array(repeating: preset, count: 10), entitlement: .none)
+        let size = try PropertyListSerialization.data(fromPropertyList: ten, format: .binary, options: 0).count
+        #expect(size < SyncPayload.contextLimit)
+    }
+
+    private func contextSize(_ context: [String: Any]) throws -> Int {
+        try PropertyListSerialization.data(fromPropertyList: context, format: .binary, options: 0).count
+    }
+
+    @Test func contextKeepsAllPresetsThatFit() throws {
+        let presets = (0..<3).map { MatchPreset(id: UUID(), name: "P\($0)", setup: MatchSetup()) }
+        #expect(SyncPayload.presetsFittingContext(presets) == presets)
+        let context = try SyncPayload.context(presets: presets, entitlement: .none)
+        #expect(SyncPayload.presets(from: context) == presets)
+    }
+
+    /// 넘치면 앞에서부터 들어가는 만큼만, 구독 상태는 그대로 간다
+    @Test func oversizedContextKeepsPrefixAndEntitlement() throws {
+        let roster = (1...40).map { Player(number: $0, name: String(repeating: "가", count: 20)) }
+        let presets = (0..<20).map { MatchPreset(id: UUID(), name: "P\($0)", setup: MatchSetup(homeRoster: roster, awayRoster: roster)) }
+        let fitting = SyncPayload.presetsFittingContext(presets)
+        #expect(!fitting.isEmpty && fitting.count < presets.count)
+        #expect(fitting == Array(presets.prefix(fitting.count)))
+        let entitlement = Entitlement.none
+        let context = try SyncPayload.context(presets: presets, entitlement: entitlement, sentAt: 5)
+        #expect(SyncPayload.presets(from: context) == fitting)
+        #expect(SyncPayload.entitlement(from: context) == entitlement)
+        #expect(context[SyncPayload.sentAtKey] as? Double == 5)
+        #expect(try contextSize(context) <= SyncPayload.contextLimit)
+    }
+
+    @Test func singleOversizedPresetSendsOnlyEntitlement() throws {
+        let roster = (0..<2000).map { Player(number: $0, name: String(repeating: "가", count: 20)) }
+        let huge = MatchPreset(id: UUID(), name: "Huge", setup: MatchSetup(homeRoster: roster))
+        #expect(SyncPayload.presetsFittingContext([huge]).isEmpty)
+        let context = try SyncPayload.context(presets: [huge, MatchPreset(id: UUID(), name: "Small", setup: MatchSetup())], entitlement: .none)
+        #expect(SyncPayload.presets(from: context) == [])
+        #expect(SyncPayload.entitlement(from: context) == Entitlement.none)
+    }
+
     @Test func presetsFromForeignContextIsNil() {
         #expect(SyncPayload.presets(from: [:]) == nil)
         #expect(SyncPayload.presets(from: [SyncPayload.presetsKey: Data("nope".utf8)]) == nil)
