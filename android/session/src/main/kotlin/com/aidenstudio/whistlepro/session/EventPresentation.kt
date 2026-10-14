@@ -40,32 +40,40 @@ sealed interface RecordFeedback {
     data class Warning(val warning: EventWarning) : RecordFeedback
 }
 
-private fun shirt(n: Int?) = n?.let { "#$it" }
-
 /** 이벤트 로그 화면용. 최근 것이 먼저. */
 val MatchState.eventRows: List<EventRow>
-    get() = resolvedEvents.reversed().map { r ->
-        var scored: Boolean? = null
-        val detail = when (val p = r.event.payload) {
-            is EventPayload.Goal -> shirt(p.number) ?: ""
-            is EventPayload.Card -> shirt(p.number) ?: ""
-            is EventPayload.PenaltyKick -> {
-                scored = p.scored
-                shirt(p.number) ?: ""
-            }
-            is EventPayload.Substitution ->
-                if (p.numberOut == null && p.numberIn == null) "" else "${shirt(p.numberOut) ?: "?"} → ${shirt(p.numberIn) ?: "?"}"
-        }
-        EventRow(
-            id = r.event.id,
-            minute = if (r.kind == ResolvedEventKind.PENALTY_KICK) EventMinute.Shootout else minute(r.event.time),
-            kind = r.kind,
-            team = r.event.payload.team,
-            detail = detail,
-            scored = scored,
-            warnings = r.warnings,
-        )
+    get() = rows { _, _ -> null }
+
+/** 명단이 있으면 번호 뒤에 이름을 붙인다 ("#10 홍길동"). */
+fun MatchState.eventRows(setup: MatchSetup): List<EventRow> = rows(setup::playerName)
+
+private fun MatchState.rows(name: (Team, Int?) -> String?): List<EventRow> = resolvedEvents.reversed().map { r ->
+    val team = r.event.payload.team
+    fun label(number: Int?): String? {
+        if (number == null) return null
+        return name(team, number)?.let { "#$number $it" } ?: "#$number"
     }
+    var scored: Boolean? = null
+    val detail = when (val p = r.event.payload) {
+        is EventPayload.Goal -> label(p.number) ?: ""
+        is EventPayload.Card -> label(p.number) ?: ""
+        is EventPayload.PenaltyKick -> {
+            scored = p.scored
+            label(p.number) ?: ""
+        }
+        is EventPayload.Substitution ->
+            if (p.numberOut == null && p.numberIn == null) "" else "${label(p.numberOut) ?: "?"} → ${label(p.numberIn) ?: "?"}"
+    }
+    EventRow(
+        id = r.event.id,
+        minute = if (r.kind == ResolvedEventKind.PENALTY_KICK) EventMinute.Shootout else minute(r.event.time),
+        kind = r.kind,
+        team = team,
+        detail = detail,
+        scored = scored,
+        warnings = r.warnings,
+    )
+}
 
 /** 0:00~0:59 → 1', 규정 시간 이후 → 45+2' (45:00~45:59가 45+1') */
 fun MatchState.minute(time: EventTime): EventMinute {
