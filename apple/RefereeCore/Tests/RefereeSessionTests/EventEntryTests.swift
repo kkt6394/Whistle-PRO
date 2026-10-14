@@ -37,6 +37,29 @@ struct EventEntryTests {
         #expect(NumberEntry(value: 9).digits == "9")
     }
 
+    /// 번호 수정: 미리 채운 번호 뒤에 이어 붙지 않고, 처음 누른 숫자가 바꾼다 (실기기: 4 → 5를 눌러 45가 됨)
+    @Test func firstDigitReplacesPrefilledNumber() {
+        var e = NumberEntry(value: 4)
+        e.append(5)
+        #expect(e.digits == "5")
+        e.append(1)
+        #expect(e.digits == "51")
+    }
+
+    @Test func firstDigitReplacesPrefilledTwoDigitNumber() {
+        var e = NumberEntry(value: 10)
+        e.append(7)
+        #expect(e.digits == "7")
+    }
+
+    /// 지우기로 고치기 시작하면 그 뒤로는 이어서 입력한다
+    @Test func deletingPrefilledNumberContinuesEditing() {
+        var e = NumberEntry(value: 45)
+        e.deleteLast()
+        e.append(7)
+        #expect(e.digits == "47")
+    }
+
     @Test func numberSlotsReadAndReplace() {
         let sub = EventPayload.substitution(team: .home, numberOut: 7, numberIn: 14)
         #expect(sub.number(in: .primary) == 7)
