@@ -89,6 +89,16 @@ public enum SyncPayload {
         return try? JSONDecoder().decode(Entitlement.self, from: data)
     }
 
+    /// updateApplicationContext가 받아 주는 크기 (WCSession 메시지 한도와 같은 64KB로 본다). 넘으면 프리셋·구독 상태가 모두 가지 않는다.
+    public static let contextLimit = 65_536
+
+    /// 프리셋을 한 번에 워치로 보낼 수 있는지. 명단이 꽉 찬(팀당 40명) 프리셋 하나가 3~7KB라 열 개쯤부터 한도에 다가간다.
+    /// 구독 상태·보낸 시각 몫으로 4KB를 남긴다.
+    public static func presetsFitContext(_ presets: [MatchPreset]) -> Bool {
+        guard let data = try? JSONEncoder().encode(presets) else { return false }
+        return data.count <= contextLimit - 4096
+    }
+
     public static func presets(from context: [String: Any]) -> [MatchPreset]? {
         guard let data = context[presetsKey] as? Data else { return nil }
         return try? JSONDecoder().decode([MatchPreset].self, from: data)

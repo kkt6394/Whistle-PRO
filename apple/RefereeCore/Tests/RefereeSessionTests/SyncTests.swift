@@ -33,6 +33,18 @@ struct SyncTests {
         #expect(second[SyncPayload.sentAtKey] as? Double == 2)
     }
 
+    /// 명단이 꽉 찬 프리셋: 3글자 이름이면 열 개는 들어가고 스무 개는 넘친다 (실측 3.3KB/개)
+    @Test func fullRosterPresetsFitContextUpToTen() throws {
+        let roster = (1...40).map { Player(number: $0, name: "김민준") }
+        let preset = MatchPreset(id: UUID(), name: "조기축구", setup: MatchSetup(homeRoster: roster, awayRoster: roster))
+        #expect(SyncPayload.presetsFitContext([]))
+        #expect(SyncPayload.presetsFitContext(Array(repeating: preset, count: 10)))
+        #expect(!SyncPayload.presetsFitContext(Array(repeating: preset, count: 20)))
+        let ten = try SyncPayload.context(presets: Array(repeating: preset, count: 10), entitlement: .none)
+        let size = try PropertyListSerialization.data(fromPropertyList: ten, format: .binary, options: 0).count
+        #expect(size < SyncPayload.contextLimit)
+    }
+
     @Test func presetsFromForeignContextIsNil() {
         #expect(SyncPayload.presets(from: [:]) == nil)
         #expect(SyncPayload.presets(from: [SyncPayload.presetsKey: Data("nope".utf8)]) == nil)
