@@ -3,10 +3,7 @@ package com.aidenstudio.whistlepro.core
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.int
-import kotlinx.serialization.json.jsonPrimitive
 
 /** 경기 규칙 설정. 기본값은 IFAB 경기규칙(FIFA 표준)이다. 시간 단위는 초. */
 data class RuleSet(
@@ -117,13 +114,10 @@ data class RuleSet(
         fun fromJson(json: JsonObject): RuleSet {
             val d = FIFA_STANDARD
             // Swift decodeIfPresent처럼 키가 없거나 null이면 기본값
-            fun present(f: Field) = json[f.name]?.takeUnless { it is JsonNull }?.jsonPrimitive
-            fun int(f: Field, fallback: Int): Int = present(f)?.int ?: fallback
-            fun bool(f: Field, fallback: Boolean): Boolean = present(f)?.boolean ?: fallback
-            fun optionalInt(f: Field, fallback: Int?): Int? {
-                val v = json[f.name] ?: return fallback
-                return if (v is JsonNull) null else v.jsonPrimitive.int
-            }
+            fun int(f: Field, fallback: Int): Int = json.optionalInt(f.name) ?: fallback
+            fun bool(f: Field, fallback: Boolean): Boolean = json.optionalBoolean(f.name) ?: fallback
+            fun optionalInt(f: Field, fallback: Int?): Int? =
+                if (f.name in json) json.optionalInt(f.name) else fallback
             return RuleSet(
                 periodCount = int(Field.periodCount, d.periodCount),
                 periodLength = int(Field.periodLength, d.periodLength),
