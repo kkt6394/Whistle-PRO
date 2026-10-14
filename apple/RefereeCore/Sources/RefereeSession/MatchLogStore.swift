@@ -17,9 +17,12 @@ public protocol MatchLogStore: Sendable {
 }
 
 /// 파일 저장소. directory/active.json·workout-active.json 에 진행 중 기록,
-/// directory/finished/<id>.json·<id>-workout.json 에 끝난 기록을 둔다.
+/// directory/finished/<id>.json·<id>-workout.json 에 폰으로 보낼 끝난 기록,
+/// directory/history/<id>.json 에 워치에서 다시 볼 최근 경기(운동 기록 없이)를 둔다.
 public struct FileMatchLogStore: MatchLogStore {
     public let directory: URL
+    /// 워치 "지난 경기"에 남기는 경기 수
+    public static let historyLimit = 10
 
     public init(directory: URL) {
         self.directory = directory
@@ -28,6 +31,7 @@ public struct FileMatchLogStore: MatchLogStore {
     private var activeURL: URL { directory.appendingPathComponent("active.json") }
     private var activeWorkoutURL: URL { directory.appendingPathComponent("workout-active.json") }
     private var archiveDirectory: URL { directory.appendingPathComponent("finished", isDirectory: true) }
+    private var historyDirectory: URL { directory.appendingPathComponent("history", isDirectory: true) }
 
     private func archivedWorkoutURL(_ id: UUID) -> URL {
         archiveDirectory.appendingPathComponent("\(id.uuidString)-workout.json")
@@ -64,19 +68,38 @@ public struct FileMatchLogStore: MatchLogStore {
         if let log = try? loadActiveWorkout(), log.matchID == record.id {
             try JSONEncoder().encode(log).write(to: archivedWorkoutURL(record.id), options: .atomic)
         }
+        // 지난 경기 사본은 보조 기능이라 실패해도 경기 보관을 막지 않는다
+        try? addToHistory(record)
         for active in [activeURL, activeWorkoutURL] where FileManager.default.fileExists(atPath: active.path) {
             try FileManager.default.removeItem(at: active)
         }
     }
 
-    public func archived() throws -> [MatchRecord] {
-        guard FileManager.default.fileExists(atPath: archiveDirectory.path) else { return [] }
-        let files = try FileManager.default.contentsOfDirectory(at: archiveDirectory, includingPropertiesForKeys: nil)
+    /// 워치에서 다시 볼 최근 경기 (최근 순). 폰이 받았다고 확인해도 남는다.
+    public func history() throws -> [MatchRecord] {
+        try records(in: historyDirectory).sorted { $0.createdAt > $1.createdAt }
+    }
+
+    private func addToHistory(_ record: MatchRecord) throws {
+        try FileManager.default.createDirectory(at: historyDirectory, withIntermediateDirectories: true)
+        let url = historyDirectory.appendingPathComponent("\(record.id.uuidString).json")
+        try JSONEncoder().encode(record).write(to: url, options: .atomic)
+        for old in try history().dropFirst(Self.historyLimit) {
+            try? FileManager.default.removeItem(at: historyDirectory.appendingPathComponent("\(old.id.uuidString).json"))
+        }
+    }
+
+    private func records(in folder: URL) throws -> [MatchRecord] {
+        guard FileManager.default.fileExists(atPath: folder.path) else { return [] }
+        let files = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
         let decoder = JSONDecoder()
         return files
             .filter { $0.pathExtension == "json" && !$0.lastPathComponent.hasSuffix("-workout.json") }
             .compactMap { try? decoder.decode(MatchRecord.self, from: Data(contentsOf: $0)) }
-            .sorted { $0.createdAt < $1.createdAt }
+    }
+
+    public func archived() throws -> [MatchRecord] {
+        try records(in: archiveDirectory).sorted { $0.createdAt < $1.createdAt }
     }
 
     public func saveActiveWorkout(_ log: WorkoutLog) throws {

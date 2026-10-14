@@ -49,4 +49,38 @@ struct MatchLogStoreTests {
         #expect(!names.contains("active.json"))
         #expect(names.contains { $0.hasPrefix("active-corrupt-") })
     }
+
+    // 워치 "지난 경기": 끝난 경기는 폰 전송과 별개로 최근 10경기까지 남는다
+
+    @Test func finishedMatchesAppearInHistoryNewestFirst() throws {
+        let store = FileMatchLogStore(directory: tempDirectory())
+        let older = record(createdAt: 10)
+        let newer = record(createdAt: 20)
+        try store.finishActive(older)
+        try store.finishActive(newer)
+        #expect(try store.history() == [newer, older])
+    }
+
+    @Test func historySurvivesPhoneAcknowledgement() throws {
+        let store = FileMatchLogStore(directory: tempDirectory())
+        let r = record()
+        try store.finishActive(r)
+        try store.deleteArchived(r.id)
+        #expect(try store.archived() == [])
+        #expect(try store.history() == [r])
+    }
+
+    @Test func historyKeepsOnlyTheMostRecentMatches() throws {
+        let store = FileMatchLogStore(directory: tempDirectory())
+        let records = (0..<(FileMatchLogStore.historyLimit + 2)).map { record(createdAt: Double($0)) }
+        for r in records { try store.finishActive(r) }
+        let history = try store.history()
+        #expect(history.count == FileMatchLogStore.historyLimit)
+        #expect(history.first == records.last)
+        #expect(!history.contains(records[0]) && !history.contains(records[1]))
+    }
+
+    @Test func emptyHistoryWithoutFinishedMatches() throws {
+        #expect(try FileMatchLogStore(directory: tempDirectory()).history() == [])
+    }
 }
