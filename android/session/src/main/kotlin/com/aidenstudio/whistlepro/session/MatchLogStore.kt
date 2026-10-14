@@ -1,7 +1,10 @@
 package com.aidenstudio.whistlepro.session
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import java.io.File
 import java.nio.file.Files
@@ -105,6 +108,7 @@ class FileMatchLogStore(val directory: File) : MatchLogStore {
 
     /** 임시 파일에 쓰고 원자적으로 바꾼다 (Swift .atomic과 같음) */
     private fun writeAtomically(file: File, json: JsonObject) {
+        requireFinite(json, file.name)
         val temp = File(file.parentFile, ".${file.name}.${UUID.randomUUID()}.tmp")
         temp.writeText(json.toString())
         try {
@@ -112,6 +116,20 @@ class FileMatchLogStore(val directory: File) : MatchLogStore {
         } catch (e: Exception) {
             temp.delete()
             throw e
+        }
+    }
+}
+
+/**
+ * NaN·Infinity가 든 값은 쓰지 않는다. kotlinx는 이를 따옴표 없는 NaN/Infinity로 써서 Swift가 읽지 못하는 파일이 된다.
+ * Swift JSONEncoder가 EncodingError.invalidValue로 저장을 실패시키는 것과 같게 예외를 던진다.
+ */
+internal fun requireFinite(element: JsonElement, where: String) {
+    when (element) {
+        is JsonObject -> element.values.forEach { requireFinite(it, where) }
+        is JsonArray -> element.forEach { requireFinite(it, where) }
+        is JsonPrimitive -> if (!element.isString && element.content in setOf("NaN", "Infinity", "-Infinity")) {
+            throw IllegalArgumentException("$where: 유한하지 않은 숫자 ${element.content}")
         }
     }
 }

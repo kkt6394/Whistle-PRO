@@ -11,6 +11,7 @@ import kotlinx.serialization.json.jsonObject
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -58,6 +59,23 @@ class WorkoutStoreTests {
         store.finishActive(record)
         assertNull(store.archivedWorkout(record.id))
         assertNull(store.loadActiveWorkout())
+    }
+
+    /** Kotlin 추가: NaN·Infinity는 Swift가 읽지 못하므로 저장을 실패시킨다 (Swift JSONEncoder와 같음). 기존 파일은 그대로 */
+    @Test fun nonFiniteValuesAreNotWritten() {
+        val store = FileMatchLogStore(tempDirectory())
+        val id = UUID.randomUUID()
+        val good = WorkoutLog(id, heartRate = listOf(WorkoutSample(1.0, 120.0)))
+        store.saveActiveWorkout(good)
+        assertFailsWith<IllegalArgumentException> {
+            store.saveActiveWorkout(WorkoutLog(id, route = listOf(RoutePoint(1.0, 0.0, 0.0, Double.NaN, Double.POSITIVE_INFINITY))))
+        }
+        assertEquals(good, store.loadActiveWorkout())
+        assertFailsWith<IllegalArgumentException> {
+            store.saveActive(MatchRecord(id, Double.NaN, MatchSetup(), emptyList()))
+        }
+        assertNull(store.loadActive())
+        assertTrue(store.directory.list().orEmpty().none { it.endsWith(".tmp") })
     }
 
     /** Kotlin 추가: Swift가 저장한 기록·운동 파일을 읽고, 다시 쓴 JSON이 값으로 같다 (M6-3 폰과 형식 공유) */
