@@ -1,0 +1,87 @@
+{
+  "commands" : [
+    {
+      "id" : "c0",
+      "t" : 1791945000.25,
+      "team" : "away",
+      "type" : "setKickoffTeam"
+    },
+    {
+      "id" : "c1",
+      "t" : 1791945001.5,
+      "type" : "startPeriod"
+    },
+    {
+      "id" : "c2",
+      "number" : 9,
+      "ownGoal" : false,
+      "t" : 1791945100,
+      "team" : "home",
+      "type" : "recordGoal"
+    },
+    {
+      "id" : "c3",
+      "kind" : "sinBin",
+      "t" : 1791945200,
+      "team" : "away",
+      "type" : "recordCard"
+    },
+    {
+      "id" : "c4",
+      "numberIn" : 14,
+      "numberOut" : 7,
+      "t" : 1791945300,
+      "team" : "home",
+      "type" : "recordSubstitution"
+    },
+    {
+      "event" : {
+        "number" : 10,
+        "ownGoal" : false,
+        "team" : "home",
+        "type" : "goal"
+      },
+      "eventId" : "c2",
+      "id" : "c5",
+      "t" : 1791945400,
+      "type" : "editEvent"
+    },
+    {
+      "id" : "c6",
+      "t" : 1791945500,
+      "type" : "toggleStoppage"
+    }
+  ],
+  "createdAt" : 1791944990.125,
+  "id" : "6F9619FF-8B86-D011-B42D-00C04FC964FF",
+  "setup" : {
+    "awayColor" : "black",
+    "awayName" : "Away",
+    "clockDisplay" : "remaining",
+    "homeColor" : "white",
+    "homeName" : "FC 서울",
+    "recordsRoute" : false,
+    "rules" : {
+      "alternateKickoff" : true,
+      "extraTime" : false,
+      "extraTimeBreakLength" : 60,
+      "extraTimeExtraSubs" : 0,
+      "extraTimePeriodLength" : 900,
+      "halfTimeLength" : 900,
+      "minimumPlayers" : 7,
+      "penalties" : false,
+      "penaltyKicksPerTeam" : 5,
+      "periodCount" : 4,
+      "periodLength" : 1500,
+      "playersPerTeam" : 11,
+      "quarterBreakLength" : 0,
+      "returnSubstitutions" : false,
+      "secondYellowSendOff" : true,
+      "sinBin" : true,
+      "sinBinLength" : 600,
+      "substitutionLimit" : 5
+    },
+    "warningBeforeEnd" : 120
+  },
+  "unlocked" : false
+}

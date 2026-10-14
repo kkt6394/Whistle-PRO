@@ -16,7 +16,7 @@ kotlin {
 }
 
 dependencies {
-    implementation(libs.serialization.json)
+    api(libs.serialization.json)
     testImplementation(kotlin("test"))
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
