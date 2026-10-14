@@ -28,18 +28,27 @@ public enum EventKindChoice: String, CaseIterable, Sendable {
 /// 숫자 패드 입력 (최대 두 자리)
 public struct NumberEntry: Equatable, Sendable {
     public private(set) var digits: String
+    /// 번호 수정으로 미리 채운 번호: 처음 누른 숫자가 바꾼다 (뒤에 이어 붙으면 4 → 5가 45가 된다)
+    private var prefilled: Bool
 
     public init(value: Int? = nil) {
         digits = value.map(String.init) ?? ""
+        prefilled = value != nil
     }
 
     public mutating func append(_ digit: Int) {
-        guard (0...9).contains(digit), digits.count < 2 else { return }
+        guard (0...9).contains(digit) else { return }
+        if prefilled {
+            digits = ""
+            prefilled = false
+        }
+        guard digits.count < 2 else { return }
         if digits == "0" { digits = "" }
         digits += String(digit)
     }
 
     public mutating func deleteLast() {
+        prefilled = false
         if !digits.isEmpty { digits.removeLast() }
     }
 
