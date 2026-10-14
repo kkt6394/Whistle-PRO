@@ -12,6 +12,6 @@ public enum CoinSide: Sendable, Hashable, CaseIterable {
         return toss(using: &generator)
     }
 
-    /// 결과가 나올 때 한 번. 경기 알림 진동과 헷갈리지 않는 종류
+    /// 결과가 나올 때 한 번. 경기 알림 진동과 헷갈리지 않는 종류 (이벤트 기록과 같지만 동전 시트가 떠 있으면 기록할 수 없다)
     public static let resultHaptic = HapticPattern(tone: .success, repeats: 1, interval: 0)
 }
