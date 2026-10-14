@@ -21,6 +21,9 @@ public struct MatchSetup: Codable, Equatable, Sendable {
     public var warningBeforeEnd: Int
     /// GPS 경로 기록 (끄면 배터리를 아끼는 대신 히트맵·스프린트가 없다)
     public var recordsRoute: Bool
+    /// 선수 명단 (없으면 등번호만 입력한다)
+    public var homeRoster: [Player]
+    public var awayRoster: [Player]
 
     public init(
         rules: RuleSet = .fifaStandard,
@@ -30,7 +33,9 @@ public struct MatchSetup: Codable, Equatable, Sendable {
         awayColor: TeamColor = .blue,
         clockDisplay: ClockDisplay = .elapsed,
         warningBeforeEnd: Int = 300,
-        recordsRoute: Bool = true
+        recordsRoute: Bool = true,
+        homeRoster: [Player] = [],
+        awayRoster: [Player] = []
     ) {
         self.rules = rules
         self.homeName = homeName
@@ -40,10 +45,13 @@ public struct MatchSetup: Codable, Equatable, Sendable {
         self.clockDisplay = clockDisplay
         self.warningBeforeEnd = warningBeforeEnd
         self.recordsRoute = recordsRoute
+        self.homeRoster = homeRoster
+        self.awayRoster = awayRoster
     }
 
     private enum CodingKeys: String, CodingKey {
         case rules, homeName, awayName, homeColor, awayColor, clockDisplay, warningBeforeEnd, recordsRoute
+        case homeRoster, awayRoster
     }
 
     /// 나중에 추가된 필드는 없으면 기본값을 쓴다 (이전 버전 기록 호환).
@@ -57,7 +65,19 @@ public struct MatchSetup: Codable, Equatable, Sendable {
             awayColor: try c.decode(TeamColor.self, forKey: .awayColor),
             clockDisplay: try c.decode(ClockDisplay.self, forKey: .clockDisplay),
             warningBeforeEnd: try c.decode(Int.self, forKey: .warningBeforeEnd),
-            recordsRoute: try c.decodeIfPresent(Bool.self, forKey: .recordsRoute) ?? true)
+            recordsRoute: try c.decodeIfPresent(Bool.self, forKey: .recordsRoute) ?? true,
+            homeRoster: try c.decodeIfPresent([Player].self, forKey: .homeRoster) ?? [],
+            awayRoster: try c.decodeIfPresent([Player].self, forKey: .awayRoster) ?? [])
+    }
+
+    public func roster(of team: Team) -> [Player] {
+        team == .home ? homeRoster : awayRoster
+    }
+
+    /// 명단에서 등번호로 찾은 이름 (번호가 없거나 명단에 없으면 nil)
+    public func playerName(team: Team, number: Int?) -> String? {
+        guard let number else { return nil }
+        return roster(of: team).first { $0.number == number }?.name
     }
 }
 

@@ -1,8 +1,11 @@
 package com.aidenstudio.whistlepro.session
 
 import com.aidenstudio.whistlepro.core.MatchState
+import kotlin.math.PI
 import kotlin.math.ceil
+import kotlin.math.cos
 import kotlin.math.floor
+import kotlin.math.sqrt
 
 data class WorkoutStats(
     /** 기간 라벨 (전체 통계면 null) */
@@ -14,7 +17,33 @@ data class WorkoutStats(
     /** kcal */
     val energy: Double,
     val sprints: Int,
+    /** 속도 구간별 거리 (GPS 경로가 없으면 null) */
+    val zones: SpeedZones? = null,
 )
+
+/** 속도 구간별 이동 거리 (m) */
+data class SpeedZones(
+    /** 7km/h 미만 */
+    val walking: Double = 0.0,
+    /** 7~13km/h */
+    val jogging: Double = 0.0,
+    /** 13~20km/h */
+    val running: Double = 0.0,
+    /** 20km/h 이상 (스프린트 기준과 같다) */
+    val sprinting: Double = 0.0,
+) {
+    val total: Double get() = walking + jogging + running + sprinting
+
+    /** 비율은 그대로 두고 합이 total이 되게 (GPS 거리와 워치 거리 차이를 맞춘다) */
+    fun scaled(to: Double): SpeedZones {
+        if (!(total > 0 && to > 0)) return this
+        val factor = to / total
+        return SpeedZones(walking * factor, jogging * factor, running * factor, sprinting * factor)
+    }
+
+    operator fun plus(b: SpeedZones) =
+        SpeedZones(walking + b.walking, jogging + b.jogging, running + b.running, sprinting + b.sprinting)
+}
 
 object WorkoutAnalysis {
     /** 스프린트 기준 속도 20km/h (m/s) */
@@ -25,6 +54,50 @@ object WorkoutAnalysis {
     const val MAXIMUM_GAP = 3.0
     /** 이보다 짧은 고속 구간은 GPS 튐으로 보고 세지 않는다 (초, 1Hz에서 3지점) */
     const val MINIMUM_SPRINT_DURATION = 2.0
+    /** 조깅 시작 속도 7km/h (m/s) */
+    const val JOGGING_SPEED = 7.0 / 3.6
+    /** 달리기 시작 속도 13km/h (m/s) */
+    const val RUNNING_SPEED = 13.0 / 3.6
+
+    /**
+     * GPS 경로의 속도 구간별 거리. 연속한 두 지점(정확도 20m 이하, 간격 3초 이하) 사이 거리를
+     * 두 지점 평균 속도의 구간에 더한다. 속도를 모르면 거리÷시간을 쓴다. 쓸 구간이 없으면 null.
+     */
+    fun speedZones(route: List<RoutePoint>): SpeedZones? {
+        var walking = 0.0
+        var jogging = 0.0
+        var running = 0.0
+        var sprinting = 0.0
+        var found = false
+        var previous: RoutePoint? = null
+        for (point in route) {
+            if (!(point.accuracy >= 0 && point.accuracy <= MAXIMUM_ACCURACY)) continue
+            val prev = previous
+            previous = point
+            if (prev == null) continue
+            val dt = point.t - prev.t
+            if (!(dt > 0 && dt <= MAXIMUM_GAP)) continue
+            val meters = distance(prev, point)
+            if (!meters.isFinite()) continue
+            val speed = if (prev.speed >= 0 && point.speed >= 0) (prev.speed + point.speed) / 2 else meters / dt
+            found = true
+            when {
+                speed < JOGGING_SPEED -> walking += meters
+                speed < RUNNING_SPEED -> jogging += meters
+                speed < SPRINT_SPEED -> running += meters
+                else -> sprinting += meters
+            }
+        }
+        return if (found) SpeedZones(walking, jogging, running, sprinting) else null
+    }
+
+    /** 두 지점 사이 거리(m). 경기장 크기라 평면 근사로 충분하다. */
+    internal fun distance(a: RoutePoint, b: RoutePoint): Double {
+        val metersPerDegree = 111_320.0
+        val north = (b.latitude - a.latitude) * metersPerDegree
+        val east = (b.longitude - a.longitude) * metersPerDegree * cos((a.latitude + b.latitude) / 2 * PI / 180)
+        return sqrt(north * north + east * east)
+    }
 
     /** 20km/h 이상이 2초 이상 이어진 구간 수. route는 시간순이어야 한다. */
     fun sprintCount(route: List<RoutePoint>): Int {
@@ -67,13 +140,18 @@ object WorkoutAnalysis {
     private fun stats(log: WorkoutLog, ranges: List<Pair<Double, Double>>, label: String?): WorkoutStats {
         fun inRanges(t: Double) = ranges.any { t >= it.first && t <= it.second }
         val heartRates = log.heartRate.filter { inRanges(it.t) }.map { it.value }
+        val distance = ranges.sumOf { delta(log.distance, it.first, it.second) }
+        // 기간마다 따로 계산해 휴식 시간을 건너는 구간이 생기지 않게 한다
+        val gpsZones = ranges.mapNotNull { range -> speedZones(log.route.filter { it.t >= range.first && it.t <= range.second }) }
+        val zones = if (gpsZones.isEmpty()) null else gpsZones.fold(SpeedZones()) { a, b -> a + b }.scaled(to = distance)
         return WorkoutStats(
             label = label,
             averageHeartRate = if (heartRates.isEmpty()) null else roundedSeconds(heartRates.sum() / heartRates.size),
             maxHeartRate = heartRates.maxOrNull()?.let(::roundedSeconds),
-            distance = ranges.sumOf { delta(log.distance, it.first, it.second) },
+            distance = distance,
             energy = ranges.sumOf { delta(log.energy, it.first, it.second) },
             sprints = ranges.sumOf { range -> sprintCount(log.route.filter { it.t >= range.first && it.t <= range.second }) },
+            zones = zones,
         )
     }
 

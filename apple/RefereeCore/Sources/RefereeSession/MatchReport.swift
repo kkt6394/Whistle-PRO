@@ -70,7 +70,7 @@ public struct MatchReport: Equatable, Sendable {
         let shootoutStatus = state.shootout
         shootout = shootoutStatus.kicks.home + shootoutStatus.kicks.away > 0 ? shootoutStatus.goals : nil
 
-        let rows = Array(state.eventRows.reversed())
+        let rows = Array(state.eventRows(setup: setup).reversed())
         func lines(_ kinds: Set<ResolvedEventKind>) -> [ReportLine] {
             rows.filter { kinds.contains($0.kind) }
                 .map { ReportLine(minute: $0.minute, team: $0.team, kind: $0.kind, detail: $0.detail) }
@@ -100,8 +100,11 @@ public struct MatchReport: Equatable, Sendable {
     }
 }
 
-/// 목록 화면용 가벼운 요약. 운동 데이터 없이 경기 기록만으로 만든다.
+/// 목록·시즌 통계용 가벼운 요약. 경기마다 <id>.summary.json으로 저장한다.
 public struct MatchSummary: Codable, Equatable, Sendable, Identifiable {
+    /// 통계 값이 들어간 요약 형식. 이보다 낮거나 없는 요약은 전체 기록에서 다시 만든다.
+    public static let currentVersion = 2
+
     public var id: UUID
     public var createdAt: Double
     /// 첫 킥오프 시각 (킥오프 전이면 기록 생성 시각)
@@ -116,6 +119,23 @@ public struct MatchSummary: Codable, Equatable, Sendable, Identifiable {
     public var shootout: [Int]?
     public var outcome: ReportOutcome
 
+    // 아래는 버전 2부터 (이전 요약에는 없다)
+    public var summaryVersion: Int?
+    /// 골 + 자책골
+    public var goals: Int?
+    public var yellows: Int?
+    /// 레드 + 경고 누적 퇴장
+    public var reds: Int?
+    public var sinBins: Int?
+    /// 기간마다 규정 시간을 넘겨 진행한 시간의 합 (초)
+    public var addedSeconds: Int?
+    /// 운동 데이터 (없으면 nil)
+    public var distance: Double?
+    public var averageHeartRate: Int?
+    public var sprints: Int?
+    public var zones: SpeedZones?
+
+    /// 경기 기록만으로 만드는 가벼운 요약 (통계 값 없음). 워치 지난 경기 목록이 행마다 부른다.
     public init(record: MatchRecord) {
         let setup = record.setup
         let state = MatchEngine.reduce(rules: setup.rules, commands: record.commands)
@@ -137,4 +157,22 @@ public struct MatchSummary: Codable, Equatable, Sendable, Identifiable {
         default: .inProgress
         }
     }
+
+    /// 폰 보관함용: 시즌 통계 값까지 (보고서를 한 번 만든다)
+    public init(bundle: MatchBundle) {
+        self.init(record: bundle.record)
+        let report = MatchReport(bundle: bundle)
+        summaryVersion = Self.currentVersion
+        goals = report.goals.count
+        yellows = report.discipline.filter { $0.kind == .yellow }.count
+        reds = report.discipline.filter { $0.kind == .red || $0.kind == .secondYellow }.count
+        sinBins = report.discipline.filter { $0.kind == .sinBin }.count
+        addedSeconds = report.periods.reduce(0) { $0 + $1.added }
+        distance = report.workoutOverall?.distance
+        averageHeartRate = report.workoutOverall?.averageHeartRate
+        sprints = report.workoutOverall?.sprints
+        zones = report.workoutOverall?.zones
+    }
+
+    public var isCurrent: Bool { (summaryVersion ?? 1) >= Self.currentVersion }
 }
