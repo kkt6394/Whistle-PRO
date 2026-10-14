@@ -33,6 +33,18 @@ struct SyncTests {
         #expect(second[SyncPayload.sentAtKey] as? Double == 2)
     }
 
+    /// 새로 설치된 워치 앱은 받은 컨텍스트가 비어 있다 → 폰에 요청해야 한다 (폰 앱이 꺼져 있으면 재설치 알림을 놓친다)
+    @Test func emptyContextNeedsRequest() throws {
+        #expect(SyncPayload.needsContext([:]))
+        #expect(!SyncPayload.needsContext(try SyncPayload.context(presets: [], entitlement: .none)))
+    }
+
+    @Test func contextRequestIsRecognized() {
+        #expect(SyncPayload.isContextRequest(SyncPayload.contextRequest()))
+        #expect(!SyncPayload.isContextRequest(SyncPayload.ack(UUID())))
+        #expect(SyncPayload.matchID(from: SyncPayload.contextRequest()) == nil)
+    }
+
     /// 명단이 꽉 찬 프리셋: 3글자 이름이면 열 개는 들어가고 스무 개는 넘친다 (실측 3.3KB/개)
     @Test func fullRosterPresetsFitContextUpToTen() throws {
         let roster = (1...40).map { Player(number: $0, name: "김민준") }

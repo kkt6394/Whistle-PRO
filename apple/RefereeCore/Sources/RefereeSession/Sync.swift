@@ -60,6 +60,23 @@ public enum SyncPayload {
     /// 보낸 시각: 내용이 같아도 다시 전달되게 한다 (워치 앱 재설치 후 다시 보낼 때)
     public static let sentAtKey = "sentAt"
 
+    public static let contextRequestKey = "contextRequest"
+
+    /// 워치 → 폰: 프리셋·구독 상태를 보내 달라는 요청. 새로 설치된 워치 앱은 컨텍스트가 비어 있는데,
+    /// 폰 앱이 그때 실행 중이 아니면 재설치 알림(sessionWatchStateDidChange)을 놓쳐 다시 보내지 않는다.
+    public static func contextRequest() -> [String: Any] {
+        [contextRequestKey: true]
+    }
+
+    public static func isContextRequest(_ info: [String: Any]) -> Bool {
+        info[contextRequestKey] as? Bool == true
+    }
+
+    /// 받은 컨텍스트가 없다 (새로 설치된 워치 앱): 폰에 요청한다
+    public static func needsContext(_ context: [String: Any]) -> Bool {
+        context[presetsKey] == nil && context[entitlementKey] == nil
+    }
+
     /// 폰이 읽을 수 없는 형식의 경기 (앱 버전 차이). 워치는 다시 보내지 않고 보관한다.
     public static func unsupported(_ matchID: UUID) -> [String: Any] {
         [matchIDKey: matchID.uuidString, unsupportedKey: true]
