@@ -38,6 +38,14 @@ struct HeatmapTests {
         var log = WorkoutLog(matchID: UUID())
         log.heartRate = [WorkoutSample(t: 60, value: 120), WorkoutSample(t: 3000, value: 90), WorkoutSample(t: 3660, value: 150)]
         #expect(WorkoutAnalysis.heartRateTimeline(log, state: state, now: 7000)
-                == [ChartPoint(minute: 1, value: 120), ChartPoint(minute: 61, value: 150)])
+                == [ChartPoint(minute: 1, value: 120, period: 0), ChartPoint(minute: 61, value: 150, period: 1)])
+    }
+
+    /// 그래프가 기간마다 따로 선을 그려 하프타임을 잇지 않게 점에 기간 번호가 있다 (점검표 25)
+    @Test func heartRatePointsKnowTheirPeriod() {
+        let state = makeState([(.startPeriod, 0), (.endPeriod, 2700), (.startPeriod, 3600), (.endPeriod, 6300)])
+        var log = WorkoutLog(matchID: UUID())
+        log.heartRate = [WorkoutSample(t: 2640, value: 150), WorkoutSample(t: 3620, value: 140)]
+        #expect(WorkoutAnalysis.heartRateTimeline(log, state: state, now: 7000).map(\.period) == [0, 1])
     }
 }
