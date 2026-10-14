@@ -60,6 +60,16 @@ class ScenarioTests {
         assertFalse("finishReason" in json)
     }
 
+    /** Kotlin 추가: Swift Encodable처럼 이벤트·일시 퇴장의 null 등번호 키를 생략한다 (중첩 객체는 키 집합까지 비교하므로) */
+    @Test fun snapshotOmitsNilNumbersInNestedObjects() {
+        val s = play(RuleSet(sinBin = true), listOf(cmd(start, 0.0), card(Team.HOME, null, CardKind.SIN_BIN, 10.0, id = "s")))
+        val json = s.snapshot(20.0, 300).toJson()
+        val event = json.getValue("events").jsonArray[0].jsonObject
+        assertEquals(setOf("id", "type", "team", "matchSecond", "warnings"), event.keys)
+        val sinBin = json.getValue("sinBins").jsonArray[0].jsonObject
+        assertEquals(setOf("eventId", "team", "remaining"), sinBin.keys)
+    }
+
     /** Kotlin 추가: 러너의 숫자 비교 규칙 */
     @Test fun jsonNumbersCompareByValue() {
         fun parse(text: String) = Json.parseToJsonElement(text)
