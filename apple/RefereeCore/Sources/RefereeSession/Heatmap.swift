@@ -47,6 +47,8 @@ public struct ChartPoint: Equatable, Sendable {
     /// 첫 킥오프부터 지난 분
     public var minute: Double
     public var value: Double
+    /// 몇 번째 기간의 점인지 (그래프가 기간마다 따로 선을 그려 휴식 구간을 잇지 않게)
+    public var period: Int = 0
 }
 
 extension WorkoutAnalysis {
@@ -54,8 +56,42 @@ extension WorkoutAnalysis {
     public static func heartRateTimeline(_ log: WorkoutLog, state: MatchState, now: Double) -> [ChartPoint] {
         guard let start = state.periods.first?.startedAt else { return [] }
         let ranges = state.periods.map { ($0.startedAt, $0.endedAt ?? now) }
-        return log.heartRate
-            .filter { sample in ranges.contains { sample.t >= $0.0 && sample.t <= $0.1 } }
-            .map { ChartPoint(minute: ($0.t - start) / 60, value: $0.value) }
+        return log.heartRate.compactMap { sample in
+            guard let period = ranges.firstIndex(where: { sample.t >= $0.0 && sample.t <= $0.1 }) else { return nil }
+            return ChartPoint(minute: (sample.t - start) / 60, value: sample.value, period: period)
+        }
+    }
+}
+
+/// 히트맵 전체(와 이벤트 위치)가 들어오는 지도 범위. 상세 화면 지도와 활동 카드 스냅숏이 함께 쓴다.
+public struct HeatmapBounds: Equatable, Sendable {
+    public var centerLatitude: Double
+    public var centerLongitude: Double
+    public var northSouthMeters: Double
+    public var eastWestMeters: Double
+
+    /// 넓은 쪽 길이의 2.5배 높이에서 보면 여백을 두고 다 들어온다. 최소 150m
+    public var viewingDistance: Double {
+        max(max(northSouthMeters, eastWestMeters) * 2.5, 150)
+    }
+
+    /// 한국은 위성 사진을 경기장 크기까지 확대할 수 없어(Apple 지도 제한) 일반 지도로 그린다.
+    public var inKorea: Bool {
+        (33.0...38.7).contains(centerLatitude) && (124.5...131.9).contains(centerLongitude)
+    }
+}
+
+extension Heatmap {
+    public static func bounds(cells: [HeatCell], pinCoordinates: [(latitude: Double, longitude: Double)] = []) -> HeatmapBounds? {
+        let latitudes = cells.flatMap { [$0.minLatitude, $0.maxLatitude] } + pinCoordinates.map(\.latitude)
+        let longitudes = cells.flatMap { [$0.minLongitude, $0.maxLongitude] } + pinCoordinates.map(\.longitude)
+        guard !cells.isEmpty, let minLat = latitudes.min(), let maxLat = latitudes.max(),
+              let minLon = longitudes.min(), let maxLon = longitudes.max() else { return nil }
+        let centerLatitude = (minLat + maxLat) / 2
+        return HeatmapBounds(
+            centerLatitude: centerLatitude,
+            centerLongitude: (minLon + maxLon) / 2,
+            northSouthMeters: (maxLat - minLat) * 111_320,
+            eastWestMeters: (maxLon - minLon) * 111_320 * cos(centerLatitude * .pi / 180))
     }
 }
