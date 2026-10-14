@@ -57,6 +57,8 @@ public enum SyncPayload {
     public static let presetsKey = "presets"
     public static let entitlementKey = "entitlement"
     public static let unsupportedKey = "unsupported"
+    /// 보낸 시각: 내용이 같아도 다시 전달되게 한다 (워치 앱 재설치 후 다시 보낼 때)
+    public static let sentAtKey = "sentAt"
 
     /// 폰이 읽을 수 없는 형식의 경기 (앱 버전 차이). 워치는 다시 보내지 않고 보관한다.
     public static func unsupported(_ matchID: UUID) -> [String: Any] {
@@ -77,8 +79,9 @@ public enum SyncPayload {
     }
 
     /// 폰 → 워치 (updateApplicationContext). 컨텍스트는 통째로 바뀌므로 프리셋과 구독 상태를 항상 함께 보낸다.
-    public static func context(presets: [MatchPreset], entitlement: Entitlement) throws -> [String: Any] {
-        [presetsKey: try JSONEncoder().encode(presets), entitlementKey: try JSONEncoder().encode(entitlement)]
+    public static func context(presets: [MatchPreset], entitlement: Entitlement,
+                               sentAt: Double = Date().timeIntervalSince1970) throws -> [String: Any] {
+        [presetsKey: try JSONEncoder().encode(presets), entitlementKey: try JSONEncoder().encode(entitlement), sentAtKey: sentAt]
     }
 
     public static func entitlement(from context: [String: Any]) -> Entitlement? {
