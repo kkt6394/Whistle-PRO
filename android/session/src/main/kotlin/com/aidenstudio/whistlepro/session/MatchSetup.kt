@@ -2,15 +2,19 @@ package com.aidenstudio.whistlepro.session
 
 import com.aidenstudio.whistlepro.core.Command
 import com.aidenstudio.whistlepro.core.RuleSet
+import com.aidenstudio.whistlepro.core.Team
 import com.aidenstudio.whistlepro.core.array
 import com.aidenstudio.whistlepro.core.commandsFromJson
 import com.aidenstudio.whistlepro.core.commandsToJson
 import com.aidenstudio.whistlepro.core.double
 import com.aidenstudio.whistlepro.core.int
 import com.aidenstudio.whistlepro.core.obj
+import com.aidenstudio.whistlepro.core.objects
 import com.aidenstudio.whistlepro.core.optionalBoolean
+import com.aidenstudio.whistlepro.core.present
 import com.aidenstudio.whistlepro.core.string
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -44,7 +48,18 @@ data class MatchSetup(
     val warningBeforeEnd: Int = 300,
     /** GPS 경로 기록 (끄면 배터리를 아끼는 대신 히트맵·스프린트가 없다) */
     val recordsRoute: Boolean = true,
+    /** 선수 명단 (없으면 등번호만 입력한다) */
+    val homeRoster: List<Player> = emptyList(),
+    val awayRoster: List<Player> = emptyList(),
 ) {
+    fun roster(team: Team): List<Player> = if (team == Team.HOME) homeRoster else awayRoster
+
+    /** 명단에서 등번호로 찾은 이름 (번호가 없거나 명단에 없으면 null) */
+    fun playerName(team: Team, number: Int?): String? {
+        if (number == null) return null
+        return roster(team).firstOrNull { it.number == number }?.name
+    }
+
     fun toJson(): JsonObject = buildJsonObject {
         put("rules", rules.toJson())
         put("homeName", JsonPrimitive(homeName))
@@ -54,6 +69,8 @@ data class MatchSetup(
         put("clockDisplay", JsonPrimitive(clockDisplay.code))
         put("warningBeforeEnd", JsonPrimitive(warningBeforeEnd))
         put("recordsRoute", JsonPrimitive(recordsRoute))
+        put("homeRoster", JsonArray(homeRoster.map { it.toJson() }))
+        put("awayRoster", JsonArray(awayRoster.map { it.toJson() }))
     }
 
     companion object {
@@ -67,7 +84,12 @@ data class MatchSetup(
             clockDisplay = ClockDisplay.fromCode(json.string("clockDisplay")),
             warningBeforeEnd = json.int("warningBeforeEnd"),
             recordsRoute = json.optionalBoolean("recordsRoute") ?: true,
+            homeRoster = json.roster("homeRoster"),
+            awayRoster = json.roster("awayRoster"),
         )
+
+        private fun JsonObject.roster(key: String): List<Player> =
+            if (present(key) == null) emptyList() else array(key).objects(key).map(Player::fromJson)
     }
 }
 

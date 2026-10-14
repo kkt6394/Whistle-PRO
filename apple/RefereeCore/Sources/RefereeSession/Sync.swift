@@ -126,31 +126,43 @@ public struct MatchLibrary: Sendable {
         guard !deletedIDs().contains(bundle.id) else { return false }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try JSONEncoder().encode(bundle).write(to: url(for: bundle.id), options: .atomic)
-        try JSONEncoder().encode(MatchSummary(record: bundle.record)).write(to: summaryURL(for: bundle.id), options: .atomic)
+        try JSONEncoder().encode(MatchSummary(bundle: bundle)).write(to: summaryURL(for: bundle.id), options: .atomic)
         return true
     }
 
-    /// 목록용 요약 (최신순). 요약 없이 저장된 이전 경기는 한 번 읽어 요약을 만들어 둔다.
-    public func summaries() throws -> [MatchSummary] {
+    /// 목록용 요약 (최신순).
+    /// - rebuild가 true면 요약이 없거나 이전 형식(통계 값 없음)인 경기는 전체 기록을 읽어 요약을 다시 만들어 둔다.
+    ///   경기마다 전체 기록을 디코딩하므로 메인 스레드에서 부르지 않는다.
+    /// - false면 저장된 요약만 읽는다 (이전 형식도 그대로, 요약이 없는 경기는 빠진다). 화면을 바로 그릴 때 쓴다.
+    public func summaries(rebuild: Bool = true) throws -> [MatchSummary] {
         guard FileManager.default.fileExists(atPath: directory.path) else { return [] }
         let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
-        let names = Set(files.map(\.lastPathComponent))
         let decoder = JSONDecoder()
-        var result: [MatchSummary] = []
-        for file in files where file.pathExtension == "json" && file.lastPathComponent != "deleted.json" {
-            let name = file.lastPathComponent
-            if name.hasSuffix(Self.summarySuffix) {
-                if let summary = try? decoder.decode(MatchSummary.self, from: Data(contentsOf: file)) {
-                    result.append(summary)
-                }
-            } else if !names.contains(name.dropLast(".json".count) + Self.summarySuffix),
-                      let bundle = try? decoder.decode(MatchBundle.self, from: Data(contentsOf: file)) {
-                let summary = MatchSummary(record: bundle.record)
-                try? JSONEncoder().encode(summary).write(to: summaryURL(for: bundle.id), options: .atomic)
-                result.append(summary)
+        var summaries: [String: MatchSummary] = [:]
+        for file in files where file.lastPathComponent.hasSuffix(Self.summarySuffix) {
+            if let summary = try? decoder.decode(MatchSummary.self, from: Data(contentsOf: file)) {
+                summaries[String(file.lastPathComponent.dropLast(Self.summarySuffix.count))] = summary
             }
         }
-        return result.sorted { $0.createdAt > $1.createdAt }
+        if rebuild {
+            for file in files where file.pathExtension == "json" && file.lastPathComponent != "deleted.json"
+                && !file.lastPathComponent.hasSuffix(Self.summarySuffix) {
+                let stem = String(file.lastPathComponent.dropLast(".json".count))
+                guard summaries[stem]?.isCurrent != true else { continue }
+                if let bundle = try? decoder.decode(MatchBundle.self, from: Data(contentsOf: file)) {
+                    let summary = MatchSummary(bundle: bundle)
+                    try? JSONEncoder().encode(summary).write(to: summaryURL(for: bundle.id), options: .atomic)
+                    summaries[stem] = summary
+                } else if var old = summaries[stem] {
+                    // 전체 기록을 읽을 수 없으면 이전 요약을 쓰고, 다음부터 다시 시도하지 않게 최신으로 표시한다 (통계 값은 없음)
+                    old.summaryVersion = MatchSummary.currentVersion
+                    try? JSONEncoder().encode(old).write(to: summaryURL(for: old.id), options: .atomic)
+                    summaries[stem] = old
+                }
+            }
+        }
+        // 시각이 같으면 id 순서로 (사전 순서가 매번 달라 목록이 흔들리지 않게)
+        return summaries.values.sorted { ($0.createdAt, $0.id.uuidString) > ($1.createdAt, $1.id.uuidString) }
     }
 
     /// 최신 경기가 먼저. 읽을 수 없는 파일은 건너뛴다.
