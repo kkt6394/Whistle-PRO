@@ -2,16 +2,31 @@ package com.aidenstudio.whistlepro.session
 
 import com.aidenstudio.whistlepro.core.CommandKind
 import com.aidenstudio.whistlepro.core.RuleSet
+import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-// Swift BacklogSessionTests 중 distanceSurvivesWorkoutRestart·twoSampleSpikeIsNotASprint는 Task 4(운동 통계),
-// preExtraTimeClockSurvivesHugeNow는 Task 3(MatchDisplay)에서 이 파일에 더한다.
-// deletedMatchIsNotStoredAgain(MatchLibrary)·unsupportedPayloadRoundTrips(SyncPayload)·
+// Swift BacklogSessionTests 중 deletedMatchIsNotStoredAgain(MatchLibrary)·unsupportedPayloadRoundTrips(SyncPayload)·
 // reportSurvivesHugeTimestamps(MatchReport)는 폰 쪽이라 M6-3에서 옮긴다.
+private fun point(t: Double, kmh: Double) = RoutePoint(t, 0.0, 0.0, kmh / 3.6, 5.0)
+
 class BacklogSessionTests {
+    @Test fun distanceSurvivesWorkoutRestart() {
+        // 1000초에 2000m, 운동 세션 재시작으로 1500초에 100m부터 다시, 2700초에 1500m
+        val log = WorkoutLog(UUID.randomUUID(), distance = listOf(
+            WorkoutSample(0.0, 0.0), WorkoutSample(1000.0, 2000.0), WorkoutSample(1500.0, 100.0), WorkoutSample(2700.0, 1500.0),
+        ))
+        val stats = WorkoutAnalysis.perPeriod(log, makeState(listOf(CommandKind.StartPeriod to 0.0, CommandKind.EndPeriod to 2700.0)), 3000.0)
+        assertEquals(listOf(3500.0), stats.map { it.distance })
+    }
+
+    @Test fun twoSampleSpikeIsNotASprint() {
+        assertEquals(0, WorkoutAnalysis.sprintCount(listOf(point(0.0, 10.0), point(1.0, 30.0), point(2.0, 30.0), point(3.0, 10.0))))
+        assertEquals(1, WorkoutAnalysis.sprintCount(listOf(point(0.0, 10.0), point(1.0, 30.0), point(2.0, 30.0), point(3.0, 30.0))))
+    }
+
     @Test fun subscriptionProductsAreShared() {
         assertEquals(listOf("com.aidenstudio.whistlepro.pro.monthly", "com.aidenstudio.whistlepro.pro.yearly"), SubscriptionProducts.ids)
         assertTrue(SubscriptionProducts.contains("com.aidenstudio.whistlepro.pro.yearly"))
