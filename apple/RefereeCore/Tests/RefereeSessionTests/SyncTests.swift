@@ -164,6 +164,26 @@ struct MatchSummaryTests {
         try JSONSerialization.data(withJSONObject: json).write(to: url)
         try Data("broken".utf8).write(to: library.directory.appendingPathComponent(record.id.uuidString + ".json"))
         #expect(try library.summaries().map(\.id) == [record.id])
+        // 다음부터는 깨진 기록을 다시 읽지 않는다
+        #expect(try JSONDecoder().decode(MatchSummary.self, from: Data(contentsOf: url)).isCurrent)
+    }
+
+    @Test func quickSummariesDoNotRebuild() throws {
+        let library = MatchLibrary(directory: tempDirectory())
+        let record = makeRecord([(.startPeriod, 0), (.recordEvent(.goal(team: .home, number: 9, ownGoal: false)), 60)])
+        try library.upsert(MatchBundle(record: record, workout: nil))
+        let url = library.directory.appendingPathComponent(record.id.uuidString + ".summary.json")
+        var json = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as! [String: Any]
+        json.removeValue(forKey: "summaryVersion")
+        json.removeValue(forKey: "goals")
+        try JSONSerialization.data(withJSONObject: json).write(to: url)
+
+        #expect(try library.summaries(rebuild: false).first?.goals == nil)
+        #expect(try JSONDecoder().decode(MatchSummary.self, from: Data(contentsOf: url)).isCurrent == false)
+        #expect(try library.summaries().first?.goals == 1)
+        // 다시 만든 요약은 다음 호출에서 그대로 쓴다 (전체 기록을 지워도 같은 값)
+        try FileManager.default.removeItem(at: library.directory.appendingPathComponent(record.id.uuidString + ".json"))
+        #expect(try library.summaries().first?.goals == 1)
     }
 
     @Test func summaryCarriesSeasonValues() {
