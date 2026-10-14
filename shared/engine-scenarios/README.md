@@ -2,6 +2,13 @@
 
 Swift(`apple/RefereeCore`)와 Kotlin(`android/core`) 경기 엔진이 **똑같이 통과해야 하는** 테스트 시나리오.
 
+```bash
+swift test --package-path apple/RefereeCore     # Swift
+cd android && ./gradlew :core:test               # Kotlin
+```
+
+**엔진 규칙을 바꿀 때:** ① 바뀐 동작을 드러내는 시나리오를 먼저 추가해 실패를 확인 → ② Swift·Kotlin 양쪽을 고침 → ③ 두 테스트가 모두 통과. 한쪽 엔진만 고치는 커밋을 만들지 않는다.
+
 ## 파일 형식
 
 ```json
