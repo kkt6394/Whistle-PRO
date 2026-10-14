@@ -20,4 +20,11 @@ struct HapticPatternTests {
         #expect(strong.contains(AlertKind.warningBeforeEnd.hapticPattern.tone))
         #expect(strong.contains(AlertKind.breakEndingSoon.hapticPattern.tone))
     }
+
+    /// 실기기(워치 SE)에서 0.4초 간격 notification 두 번은 한 번으로 느껴졌다 (앞 진동이 끝나기 전이라 무시됨).
+    @Test func repeatedHapticsLeaveRoomForEachTap() {
+        for kind in kinds where kind.hapticPattern.repeats > 1 {
+            #expect(kind.hapticPattern.interval >= 0.6, "\(kind)")
+        }
+    }
 }
