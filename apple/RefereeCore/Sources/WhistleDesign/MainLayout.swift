@@ -10,7 +10,7 @@ public struct MainLayout: Equatable, Sendable {
     public static let minScoreFont: CGFloat = 30
     public static let minSinBinFont: CGFloat = 13
     /// 화면 폭 중 시스템 시각이 차지하는 오른쪽 몫 (시뮬레이터에서 잼, `apple/scripts/watch_metrics.swift`)
-    public static let systemTimeShare: CGFloat = 0.35
+    public static let systemTimeShare: CGFloat = 0.38
     /// 두 팀 칸 사이 (가운데에 1pt 선)
     public static let dividerGap: CGFloat = 6
 
