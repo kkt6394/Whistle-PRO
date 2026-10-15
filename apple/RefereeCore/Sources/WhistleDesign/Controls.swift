@@ -41,12 +41,32 @@ private struct PillBody: View {
             .lineLimit(1)
             .minimumScaleFactor(0.6)
             .foregroundStyle(kind == .primary ? Theme.onAccent : Theme.textPrimary)
-            .padding(.horizontal, height * 0.3)
+            // 버튼이 커져도 좌우 여백은 10pt까지만 (영어 [Scored][Missed]가 잘렸다)
+            .padding(.horizontal, min(height * 0.3, 10))
             .frame(maxWidth: .infinity)
             .frame(height: height)
             .background(Capsule().fill(kind == .primary ? Theme.accent : Theme.surfaceRaised))
             .contentShape(Capsule())
             .opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.4)
+    }
+}
+
+/// 홈 [새 경기]: 남는 높이를 다 쓰는 둥근 사각 타일 (B2 §4 홈). 높이 상한 없음.
+public struct TileButtonStyle: ButtonStyle {
+    public var height: CGFloat
+
+    public init(height: CGFloat) {
+        self.height = height
+    }
+
+    public func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(Theme.onAccent)
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
+            .background(RoundedRectangle(cornerRadius: min(28, height / 3), style: .continuous).fill(Theme.accent))
+            .contentShape(RoundedRectangle(cornerRadius: min(28, height / 3), style: .continuous))
+            .opacity(configuration.isPressed ? 0.7 : 1)
     }
 }
 
