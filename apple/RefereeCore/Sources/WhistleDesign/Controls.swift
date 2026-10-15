@@ -8,35 +8,65 @@ public struct PillButtonStyle: ButtonStyle {
 
     public var kind: Kind
     public var height: CGFloat
+    /// 경기 밖 화면: 버튼 높이가 시스템 글자 크기를 따른다 (최소 44pt, B2 스펙 §4)
+    public var scalesWithText: Bool
 
-    public init(_ kind: Kind, height: CGFloat = 36) {
+    public init(_ kind: Kind, height: CGFloat = 44, scalesWithText: Bool = false) {
         self.kind = kind
         self.height = height
+        self.scalesWithText = scalesWithText
     }
 
     public func makeBody(configuration: Configuration) -> some View {
-        PillBody(configuration: configuration, kind: kind, height: height)
+        PillBody(configuration: configuration, kind: kind, baseHeight: height, scalesWithText: scalesWithText)
     }
 }
 
 private struct PillBody: View {
     let configuration: ButtonStyleConfiguration
     let kind: PillButtonStyle.Kind
-    let height: CGFloat
+    let baseHeight: CGFloat
+    let scalesWithText: Bool
     @Environment(\.isEnabled) private var isEnabled
+    /// 본문 글자 크기 비율 (기본 글자 크기에서 1)
+    @ScaledMetric(relativeTo: .body) private var textScale: CGFloat = 1
+
+    private var height: CGFloat {
+        scalesWithText ? max(44, baseHeight * textScale) : baseHeight
+    }
 
     var body: some View {
         configuration.label
-            .font(.system(size: min(height * 0.42, 17), weight: .heavy, design: .rounded))
+            .font(.system(size: min(height * 0.42, scalesWithText ? 17 * textScale : 17), weight: .heavy, design: .rounded))
             .lineLimit(1)
             .minimumScaleFactor(0.6)
             .foregroundStyle(kind == .primary ? Theme.onAccent : Theme.textPrimary)
-            .padding(.horizontal, height * 0.3)
+            // 버튼이 커져도 좌우 여백은 10pt까지만 (영어 [Scored][Missed]가 잘렸다)
+            .padding(.horizontal, min(height * 0.3, 10))
             .frame(maxWidth: .infinity)
             .frame(height: height)
             .background(Capsule().fill(kind == .primary ? Theme.accent : Theme.surfaceRaised))
             .contentShape(Capsule())
             .opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.4)
+    }
+}
+
+/// 홈 [새 경기]: 남는 높이를 다 쓰는 둥근 사각 타일 (B2 §4 홈). 높이 상한 없음.
+public struct TileButtonStyle: ButtonStyle {
+    public var height: CGFloat
+
+    public init(height: CGFloat) {
+        self.height = height
+    }
+
+    public func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(Theme.onAccent)
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
+            .background(RoundedRectangle(cornerRadius: min(28, height / 3), style: .continuous).fill(Theme.accent))
+            .contentShape(RoundedRectangle(cornerRadius: min(28, height / 3), style: .continuous))
+            .opacity(configuration.isPressed ? 0.7 : 1)
     }
 }
 
