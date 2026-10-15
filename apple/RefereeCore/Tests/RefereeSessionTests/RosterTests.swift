@@ -89,4 +89,13 @@ struct RosterTests {
         let report = MatchReport(bundle: MatchBundle(record: record, workout: nil))
         #expect(report.goals.map(\.detail) == ["#10 홍길동"])
     }
+
+    /// M7b 리뷰: 붙여넣기 결과가 같은 번호의 이름을 바꾼 것까지 "추가"로 셌다
+    @Test func pasteCountsAddedAndRenamedSeparately() {
+        let existing = [Player(number: 7, name: "Kim"), Player(number: 10, name: "홍길동")]
+        let pasted = [Player(number: 7, name: "Kim"), Player(number: 10, name: "Son"), Player(number: 11, name: "Lee")]
+        let counts = Roster.pasteCounts(existing: existing, pasted: pasted)
+        #expect(counts.added == 1)
+        #expect(counts.renamed == 1)
+    }
 }
