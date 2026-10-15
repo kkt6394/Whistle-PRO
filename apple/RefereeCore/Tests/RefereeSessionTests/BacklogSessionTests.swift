@@ -90,6 +90,14 @@ struct BacklogSessionTests {
         #expect(try !library.upsert(bundle))
     }
 
+    /// 백로그: 같은 경기를 다시 보내면 끝난 이전 전송이 새 전송의 파일(같은 이름)을 지울 수 있었다 → 전송마다 다른 파일
+    @Test func outboxFileNameIsUniquePerTransfer() {
+        let id = UUID()
+        let a = SyncPayload.outboxFileName(for: id), b = SyncPayload.outboxFileName(for: id)
+        #expect(a != b)
+        #expect(a.hasPrefix(id.uuidString) && a.hasSuffix(".json"))
+    }
+
     @Test func unsupportedPayloadRoundTrips() {
         let id = UUID()
         let info = SyncPayload.unsupported(id)

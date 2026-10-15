@@ -87,6 +87,11 @@ public enum SyncPayload {
     }
 
     /// 폰이 경기를 저장했다는 확인 (transferUserInfo), 파일 전송 메타데이터로도 쓴다
+    /// 워치 outbox 파일 이름: 전송마다 다르게. 같은 이름이면 끝난 이전 전송의 정리가 새 전송의 파일을 지울 수 있었다 (백로그)
+    public static func outboxFileName(for matchID: UUID) -> String {
+        "\(matchID.uuidString)-\(UUID().uuidString).json"
+    }
+
     public static func ack(_ matchID: UUID) -> [String: Any] {
         [matchIDKey: matchID.uuidString]
     }
