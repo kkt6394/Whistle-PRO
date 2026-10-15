@@ -91,6 +91,10 @@ public struct MatchState: Equatable, Sendable {
     public internal(set) var extraPeriodLength: Int
     /// 적용되지 못하고 무시된 명령 ID (로그 순서)
     public internal(set) var ignoredCommandIDs: [String] = []
+    /// 경기를 끝낸 명령의 시각 (마지막 기간 종료·중단·승부를 가른 킥). 끝난 뒤 기록을 고쳐도 그대로
+    public internal(set) var finishedAt: Double?
+    /// 승부차기 중에 중단했다 (킥이 없어도 라벨은 PK)
+    public internal(set) var abandonedDuringShootout = false
 
     public init(rules: RuleSet) {
         self.rules = rules

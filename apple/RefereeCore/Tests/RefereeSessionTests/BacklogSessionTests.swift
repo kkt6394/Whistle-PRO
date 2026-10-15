@@ -13,6 +13,47 @@ struct BacklogSessionTests {
         var log = WorkoutLog(matchID: UUID())
         log.distance = [WorkoutSample(t: 0, value: 0), WorkoutSample(t: 1000, value: 2000),
                         WorkoutSample(t: 1500, value: 100), WorkoutSample(t: 2700, value: 1500)]
+        log.restarts = [1200]
+        let stats = WorkoutAnalysis.perPeriod(log, state: makeState([(.startPeriod, 0), (.endPeriod, 2700)]), now: 3000)
+        #expect(stats.map(\.distance) == [3500])
+    }
+
+    /// 백로그: 재시작 뒤 첫 누적값이 재시작 전 값보다 크면 차이만 더해 적게 셌다 (값이 줄어드는지로만 재시작을 알았다)
+    @Test func restartWithLargerFirstValueCountsFully() {
+        var log = WorkoutLog(matchID: UUID())
+        log.distance = [WorkoutSample(t: 0, value: 0), WorkoutSample(t: 500, value: 300),
+                        WorkoutSample(t: 1500, value: 400)]
+        log.restarts = [600]
+        let stats = WorkoutAnalysis.perPeriod(log, state: makeState([(.startPeriod, 0), (.endPeriod, 2700)]), now: 3000)
+        #expect(stats.map(\.distance) == [700])
+    }
+
+    /// 재시작 표시 없이 값이 잠깐 줄어도(순서가 뒤바뀐 샘플) 새로 시작한 것으로 보지 않는다
+    @Test func dipWithoutRestartIsNotCountedAgain() {
+        var log = WorkoutLog(matchID: UUID())
+        log.distance = [WorkoutSample(t: 0, value: 0), WorkoutSample(t: 100, value: 500),
+                        WorkoutSample(t: 110, value: 480), WorkoutSample(t: 200, value: 700)]
+        let stats = WorkoutAnalysis.perPeriod(log, state: makeState([(.startPeriod, 0), (.endPeriod, 2700)]), now: 3000)
+        #expect(stats.map(\.distance) == [700])
+    }
+
+    /// 새 기록은 재시작이 없어도 "restarts": []를 쓴다 — 키가 없는 예전 기록과 구분한다 (리뷰)
+    @Test func newLogsAlwaysWriteRestarts() throws {
+        let log = WorkoutLog(matchID: UUID())
+        let json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(log)) as! [String: Any]
+        #expect((json["restarts"] as? [Double]) == [])
+        var restarted = log
+        restarted.restarts = [10]
+        #expect(try JSONDecoder().decode(WorkoutLog.self, from: JSONEncoder().encode(restarted)).restarts == [10])
+    }
+
+    /// 예전 기록(키 없음)은 예전처럼 값이 줄면 재시작으로 본다 — 이미 3500m로 보이던 경기가 2000m로 바뀌지 않게 (리뷰)
+    @Test func legacyLogKeepsDecreaseHeuristic() throws {
+        var json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(WorkoutLog(matchID: UUID()))) as! [String: Any]
+        json["restarts"] = nil
+        json["distance"] = [["t": 0, "value": 0], ["t": 1000, "value": 2000], ["t": 1500, "value": 100], ["t": 2700, "value": 1500]]
+        let log = try JSONDecoder().decode(WorkoutLog.self, from: JSONSerialization.data(withJSONObject: json))
+        #expect(log.restarts == nil)
         let stats = WorkoutAnalysis.perPeriod(log, state: makeState([(.startPeriod, 0), (.endPeriod, 2700)]), now: 3000)
         #expect(stats.map(\.distance) == [3500])
     }
@@ -30,6 +71,40 @@ struct BacklogSessionTests {
         #expect(try !library.upsert(bundle))
         #expect(try library.summaries().isEmpty)
         #expect(try library.bundle(id: bundle.id) == nil)
+    }
+
+    /// 백로그: deleted.json이 손상되면 다음 삭제 때 지운 경기 목록이 모두 사라졌다 (지운 경기가 다시 저장됨)
+    @Test func corruptedDeletedListDoesNotResurrectDeletedMatches() throws {
+        let directory = tempDirectory()
+        let library = MatchLibrary(directory: directory)
+        let first = MatchBundle(record: makeRecord([(.startPeriod, 0)]), workout: nil)
+        let second = MatchBundle(record: makeRecord([(.startPeriod, 10)]), workout: nil)
+        try library.upsert(first)
+        try library.upsert(second)
+        try library.delete(id: first.id)
+        // 예전 형식 목록 파일이 깨져 있어도
+        try Data("{not json".utf8).write(to: directory.appendingPathComponent("deleted.json"))
+        try library.delete(id: second.id)
+        #expect(try !library.upsert(first))
+        #expect(try !library.upsert(second))
+    }
+
+    /// 예전 형식(deleted.json 하나)으로 지운 경기도 계속 지운 것으로 본다
+    @Test func legacyDeletedListStillRespected() throws {
+        let directory = tempDirectory()
+        let library = MatchLibrary(directory: directory)
+        let bundle = MatchBundle(record: makeRecord([(.startPeriod, 0)]), workout: nil)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try JSONEncoder().encode(Set([bundle.id])).write(to: directory.appendingPathComponent("deleted.json"))
+        #expect(try !library.upsert(bundle))
+    }
+
+    /// 백로그: 같은 경기를 다시 보내면 끝난 이전 전송이 새 전송의 파일(같은 이름)을 지울 수 있었다 → 전송마다 다른 파일
+    @Test func outboxFileNameIsUniquePerTransfer() {
+        let id = UUID()
+        let a = SyncPayload.outboxFileName(for: id), b = SyncPayload.outboxFileName(for: id)
+        #expect(a != b)
+        #expect(a.hasPrefix(id.uuidString) && a.hasSuffix(".json"))
     }
 
     @Test func unsupportedPayloadRoundTrips() {

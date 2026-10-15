@@ -7,7 +7,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
-import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonObject import kotlinx.serialization.json.jsonPrimitive
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -95,7 +95,7 @@ class WorkoutStoreTests {
         val withEmptyRosters = JsonObject(recordJson + ("setup" to JsonObject(
             recordJson.getValue("setup").jsonObject + mapOf("homeRoster" to JsonArray(emptyList()), "awayRoster" to JsonArray(emptyList())),
         )))
-        assertTrue(sameJson(withEmptyRosters, record.toJson()), "다시 쓴 기록 JSON이 Swift와 다름")
+        assertTrue(sameJson(withHexColors(withEmptyRosters), record.toJson()), "다시 쓴 기록 JSON이 Swift와 다름")
 
         val workoutJson = resource("swift-workout.json")
         val log = WorkoutLog.fromJson(workoutJson)
@@ -110,7 +110,14 @@ class WorkoutStoreTests {
         assertEquals(listOf(Player(4, "Park Ji-sung")), record.setup.awayRoster)
         val state = MatchEngine.reduce(record.setup.rules, record.commands)
         assertEquals(listOf("#7 Kim → #14", "#4 Park Ji-sung", "#10 홍길동"), state.eventRows(record.setup).map { it.detail })
-        assertTrue(sameJson(recordJson, record.toJson()), "다시 쓴 명단 기록 JSON이 Swift와 다름")
+        assertTrue(sameJson(withHexColors(recordJson), record.toJson()), "다시 쓴 명단 기록 JSON이 Swift와 다름")
+    }
+
+    /** 예전 Swift 기록의 팀 색 이름은 다시 쓰면 색 코드가 된다 (2026-10-16 팀 색 자유 선택) */
+    private fun withHexColors(json: JsonObject): JsonObject {
+        val setup = json.getValue("setup").jsonObject
+        val colors = listOf("homeColor", "awayColor").associateWith { JsonPrimitive(TeamColor.fromCode(setup.getValue(it).jsonPrimitive.content).hex) }
+        return JsonObject(json + ("setup" to JsonObject(setup + colors)))
     }
 
     private fun resource(name: String): JsonObject =

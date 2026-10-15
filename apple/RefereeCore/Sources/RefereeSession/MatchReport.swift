@@ -98,6 +98,19 @@ public struct MatchReport: Equatable, Sendable {
             workoutOverall = nil
         }
     }
+
+    /// 공유 파일 이름 (확장자 없이): "WhistlePRO 2026-10-15 FC 서울숲 vs 한강 유나이티드".
+    /// 경로에 못 쓰는 글자는 "-"로 (백로그: "WhistlePRO-1791945042"처럼 숫자였다)
+    public func fileStem(timeZone: TimeZone = .current) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let day = calendar.dateComponents([.year, .month, .day], from: Date(timeIntervalSince1970: startedAt))
+        let date = String(format: "%04d-%02d-%02d", day.year ?? 0, day.month ?? 0, day.day ?? 0)
+        func clean(_ name: String) -> String {
+            String(name.map { "/\\:?%*|\"<>".contains($0) ? "-" : $0 }).trimmingCharacters(in: .whitespaces)
+        }
+        return "WhistlePRO \(date) \(clean(homeName)) vs \(clean(awayName))"
+    }
 }
 
 /// 목록·시즌 통계용 가벼운 요약. 경기마다 <id>.summary.json으로 저장한다.

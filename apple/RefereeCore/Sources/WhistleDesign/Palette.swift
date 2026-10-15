@@ -1,4 +1,5 @@
 import SwiftUI
+import RefereeSession
 #if os(iOS)
 import UIKit
 #endif
@@ -107,4 +108,9 @@ public enum Theme {
     public static let surfaceRaised = Palette.surfaceRaised.color
     public static let textPrimary = Palette.textPrimary.color
     public static let textSecondary = Palette.textSecondary.color
+}
+
+/// 팀 색 (sRGB 코드) → 화면 색. 워치·아이폰이 같이 쓴다
+extension TeamColor {
+    public var color: Color { Color(.sRGB, red: red, green: green, blue: blue) }
 }

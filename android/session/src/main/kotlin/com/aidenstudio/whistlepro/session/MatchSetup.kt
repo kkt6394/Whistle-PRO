@@ -28,11 +28,21 @@ enum class ClockDisplay(val code: String) {
     }
 }
 
-enum class TeamColor(val code: String) {
-    RED("red"), BLUE("blue"), WHITE("white"), BLACK("black"), YELLOW("yellow"), GREEN("green"), ORANGE("orange"), PURPLE("purple");
-
+/** 팀 색 "#RRGGBB" (Swift TeamColor와 같은 형식). 예전 이름("red" 등)도 읽는다. */
+data class TeamColor(val hex: String) {
     companion object {
-        fun fromCode(code: String) = entries.firstOrNull { it.code == code } ?: throw SerializationException("알 수 없는 팀 색: $code")
+        val RED = TeamColor("#FF3B30"); val BLUE = TeamColor("#007AFF"); val WHITE = TeamColor("#FFFFFF")
+        val BLACK = TeamColor("#000000"); val YELLOW = TeamColor("#FFCC00"); val GREEN = TeamColor("#34C759")
+        val ORANGE = TeamColor("#FF9500"); val PURPLE = TeamColor("#AF52DE")
+        private val legacy = mapOf("red" to RED, "blue" to BLUE, "white" to WHITE, "black" to BLACK,
+            "yellow" to YELLOW, "green" to GREEN, "orange" to ORANGE, "purple" to PURPLE)
+        private val hexPattern = Regex("^#?[0-9A-Fa-f]{6}$")
+
+        fun fromCode(code: String): TeamColor {
+            legacy[code]?.let { return it }
+            if (!hexPattern.matches(code)) throw SerializationException("알 수 없는 팀 색: $code")
+            return TeamColor("#" + code.removePrefix("#").uppercase())
+        }
     }
 }
 
@@ -64,8 +74,8 @@ data class MatchSetup(
         put("rules", rules.toJson())
         put("homeName", JsonPrimitive(homeName))
         put("awayName", JsonPrimitive(awayName))
-        put("homeColor", JsonPrimitive(homeColor.code))
-        put("awayColor", JsonPrimitive(awayColor.code))
+        put("homeColor", JsonPrimitive(homeColor.hex))
+        put("awayColor", JsonPrimitive(awayColor.hex))
         put("clockDisplay", JsonPrimitive(clockDisplay.code))
         put("warningBeforeEnd", JsonPrimitive(warningBeforeEnd))
         put("recordsRoute", JsonPrimitive(recordsRoute))

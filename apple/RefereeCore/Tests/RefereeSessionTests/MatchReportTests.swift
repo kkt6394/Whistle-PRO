@@ -17,6 +17,15 @@ struct MatchReportTests {
         (.endPeriod, 6420),
     ]
 
+    /// 백로그: 공유 파일 이름이 "WhistlePRO-1791945042"처럼 숫자였다 → 날짜와 팀 이름
+    @Test func fileStemHasDateAndTeams() {
+        let setup = MatchSetup(homeName: "FC 서울숲", awayName: "한강/유나이티드:")
+        // 2026-10-15 13:00 UTC
+        let report = MatchReport(bundle: MatchBundle(record: makeRecord(setup, [(.startPeriod, 1_792_069_200)]), workout: nil))
+        #expect(report.fileStem(timeZone: TimeZone(identifier: "Asia/Seoul")!) == "WhistlePRO 2026-10-15 FC 서울숲 vs 한강-유나이티드-")
+        #expect(report.fileStem(timeZone: TimeZone(identifier: "America/Los_Angeles")!).hasPrefix("WhistlePRO 2026-10-15 "))
+    }
+
     @Test func reportSummarizesMatch() {
         let report = MatchReport(bundle: MatchBundle(record: makeRecord(match, createdAt: -10), workout: nil))
         #expect(report.outcome == .completed)

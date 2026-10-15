@@ -62,7 +62,7 @@ private fun MatchState.adjustPeriodLength(seconds: Int): MatchState {
 private fun MatchState.abandon(reason: String, t: Double): MatchState {
     if (phase is Phase.Finished) fail(EngineError.INVALID_IN_PHASE)
     val closed = if (phase.isPeriod) closeRunningPeriod(t) else this
-    return closed.copy(phase = Phase.Finished(FinishReason.Abandoned(reason)))
+    return closed.copy(phase = Phase.Finished(FinishReason.Abandoned(reason)), abandonedDuringShootout = phase == Phase.Penalties)
 }
 
 /** 진행 중인 기간과 열린 중단 구간을 t에 닫는다. */

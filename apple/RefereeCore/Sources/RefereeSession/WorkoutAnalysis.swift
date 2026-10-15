@@ -138,7 +138,7 @@ public enum WorkoutAnalysis {
         func inRanges(_ t: Double) -> Bool { ranges.contains { t >= $0.0 && t <= $0.1 } }
         let heartRates = log.heartRate.filter { inRanges($0.t) }.map(\.value)
         let average = heartRates.isEmpty ? nil : wholeSeconds(heartRates.reduce(0, +) / Double(heartRates.count), rounding: .toNearestOrAwayFromZero)
-        let distance = ranges.reduce(0) { $0 + delta(log.distance, from: $1.0, to: $1.1) }
+        let distance = ranges.reduce(0) { $0 + delta(log.distance, restarts: log.restarts, from: $1.0, to: $1.1) }
         // 기간마다 따로 계산해 휴식 시간을 건너는 구간이 생기지 않게 한다
         let gpsZones = ranges.compactMap { range in speedZones(log.route.filter { $0.t >= range.0 && $0.t <= range.1 }) }
         let zones = gpsZones.isEmpty ? nil : gpsZones.reduce(SpeedZones(), +).scaled(to: distance)
@@ -147,15 +147,32 @@ public enum WorkoutAnalysis {
             averageHeartRate: average,
             maxHeartRate: heartRates.max().map { wholeSeconds($0, rounding: .toNearestOrAwayFromZero) },
             distance: distance,
-            energy: ranges.reduce(0) { $0 + delta(log.energy, from: $1.0, to: $1.1) },
+            energy: ranges.reduce(0) { $0 + delta(log.energy, restarts: log.restarts, from: $1.0, to: $1.1) },
             sprints: ranges.reduce(0) { total, range in
                 total + sprintCount(log.route.filter { $0.t >= range.0 && $0.t <= range.1 })
             },
             zones: zones)
     }
 
-    /// 누적값 샘플에서 구간 동안 늘어난 양. 값이 줄어들면 운동 세션이 다시 시작돼 0부터 쌓인 것으로 본다.
-    private static func delta(_ samples: [WorkoutSample], from start: Double, to end: Double) -> Double {
+    /// 누적값 샘플에서 구간 동안 늘어난 양. 운동 세션을 새로 시작한 시각(restarts)을 지나면 0부터 다시 쌓인 것으로 보고,
+    /// 그 밖에 값이 잠깐 줄면(순서가 뒤바뀐 샘플) 늘어난 양이 없는 것으로 본다.
+    /// restarts가 nil(예전 기록)이면 예전처럼 값이 줄면 재시작으로 본다.
+    private static func delta(_ samples: [WorkoutSample], restarts: [Double]?, from start: Double, to end: Double) -> Double {
+        guard let restarts else { return legacyDelta(samples, from: start, to: end) }
+        var base = 0.0
+        var previousT = -Double.infinity
+        var total = 0.0
+        for sample in samples {
+            if restarts.contains(where: { $0 > previousT && $0 <= sample.t }) { base = 0 }
+            let increment = max(0, sample.value - base)
+            if sample.t > start && sample.t <= end { total += increment }
+            base = max(base, sample.value)
+            previousT = sample.t
+        }
+        return total
+    }
+
+    private static func legacyDelta(_ samples: [WorkoutSample], from start: Double, to end: Double) -> Double {
         var previous = 0.0
         var total = 0.0
         for sample in samples {
