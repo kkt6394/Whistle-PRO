@@ -37,16 +37,25 @@ struct BacklogSessionTests {
         #expect(stats.map(\.distance) == [700])
     }
 
-    /// 재시작 표시는 있을 때만 파일에 쓴다 (예전 파일·Kotlin과 같은 형식)
-    @Test func restartsAreOptionalInJSON() throws {
+    /// 새 기록은 재시작이 없어도 "restarts": []를 쓴다 — 키가 없는 예전 기록과 구분한다 (리뷰)
+    @Test func newLogsAlwaysWriteRestarts() throws {
         let log = WorkoutLog(matchID: UUID())
         let json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(log)) as! [String: Any]
-        #expect(json["restarts"] == nil)
+        #expect((json["restarts"] as? [Double]) == [])
         var restarted = log
         restarted.restarts = [10]
-        let decoded = try JSONDecoder().decode(WorkoutLog.self, from: JSONEncoder().encode(restarted))
-        #expect(decoded.restarts == [10])
-        #expect(try JSONDecoder().decode(WorkoutLog.self, from: JSONEncoder().encode(log)).restarts.isEmpty)
+        #expect(try JSONDecoder().decode(WorkoutLog.self, from: JSONEncoder().encode(restarted)).restarts == [10])
+    }
+
+    /// 예전 기록(키 없음)은 예전처럼 값이 줄면 재시작으로 본다 — 이미 3500m로 보이던 경기가 2000m로 바뀌지 않게 (리뷰)
+    @Test func legacyLogKeepsDecreaseHeuristic() throws {
+        var json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(WorkoutLog(matchID: UUID()))) as! [String: Any]
+        json["restarts"] = nil
+        json["distance"] = [["t": 0, "value": 0], ["t": 1000, "value": 2000], ["t": 1500, "value": 100], ["t": 2700, "value": 1500]]
+        let log = try JSONDecoder().decode(WorkoutLog.self, from: JSONSerialization.data(withJSONObject: json))
+        #expect(log.restarts == nil)
+        let stats = WorkoutAnalysis.perPeriod(log, state: makeState([(.startPeriod, 0), (.endPeriod, 2700)]), now: 3000)
+        #expect(stats.map(\.distance) == [3500])
     }
 
     @Test func twoSampleSpikeIsNotASprint() {

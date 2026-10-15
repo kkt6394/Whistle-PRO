@@ -40,8 +40,9 @@ public struct WorkoutLog: Codable, Equatable, Sendable {
     public var energy: [WorkoutSample] = []
     public var route: [RoutePoint] = []
     /// 운동 세션을 새로 시작한 시각들 (경기 첫 시작 제외). 그 뒤 누적값은 0부터 다시 쌓인다.
-    /// 값이 줄어드는지로만 재시작을 알면 재시작 뒤 첫 값이 더 클 때 적게 셌다 (백로그)
-    public var restarts: [Double] = []
+    /// 값이 줄어드는지로만 재시작을 알면 재시작 뒤 첫 값이 더 클 때 적게 셌다 (백로그).
+    /// nil은 이 키가 없던 예전 기록 — 예전처럼 값이 줄면 재시작으로 본다 (이미 보이던 거리가 바뀌지 않게)
+    public var restarts: [Double]? = []
 
     public init(matchID: UUID) {
         self.matchID = matchID
@@ -58,10 +59,10 @@ public struct WorkoutLog: Codable, Equatable, Sendable {
         distance = try c.decode([WorkoutSample].self, forKey: .distance)
         energy = try c.decode([WorkoutSample].self, forKey: .energy)
         route = try c.decode([RoutePoint].self, forKey: .route)
-        restarts = try c.decodeIfPresent([Double].self, forKey: .restarts) ?? []
+        restarts = try c.decodeIfPresent([Double].self, forKey: .restarts)
     }
 
-    /// 재시작이 없으면 키를 쓰지 않는다 (예전 파일과 같은 형식)
+    /// 새 기록은 재시작이 없어도 빈 배열을 쓴다 (키가 없는 예전 기록과 구분). 예전 기록은 그대로 키 없이
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(matchID, forKey: .matchID)
@@ -69,6 +70,6 @@ public struct WorkoutLog: Codable, Equatable, Sendable {
         try c.encode(distance, forKey: .distance)
         try c.encode(energy, forKey: .energy)
         try c.encode(route, forKey: .route)
-        if !restarts.isEmpty { try c.encode(restarts, forKey: .restarts) }
+        try c.encodeIfPresent(restarts, forKey: .restarts)
     }
 }

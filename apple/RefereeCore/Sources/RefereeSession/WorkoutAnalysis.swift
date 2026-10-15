@@ -156,7 +156,9 @@ public enum WorkoutAnalysis {
 
     /// 누적값 샘플에서 구간 동안 늘어난 양. 운동 세션을 새로 시작한 시각(restarts)을 지나면 0부터 다시 쌓인 것으로 보고,
     /// 그 밖에 값이 잠깐 줄면(순서가 뒤바뀐 샘플) 늘어난 양이 없는 것으로 본다.
-    private static func delta(_ samples: [WorkoutSample], restarts: [Double], from start: Double, to end: Double) -> Double {
+    /// restarts가 nil(예전 기록)이면 예전처럼 값이 줄면 재시작으로 본다.
+    private static func delta(_ samples: [WorkoutSample], restarts: [Double]?, from start: Double, to end: Double) -> Double {
+        guard let restarts else { return legacyDelta(samples, from: start, to: end) }
         var base = 0.0
         var previousT = -Double.infinity
         var total = 0.0
@@ -166,6 +168,17 @@ public enum WorkoutAnalysis {
             if sample.t > start && sample.t <= end { total += increment }
             base = max(base, sample.value)
             previousT = sample.t
+        }
+        return total
+    }
+
+    private static func legacyDelta(_ samples: [WorkoutSample], from start: Double, to end: Double) -> Double {
+        var previous = 0.0
+        var total = 0.0
+        for sample in samples {
+            let increment = sample.value >= previous ? sample.value - previous : sample.value
+            if sample.t > start && sample.t <= end { total += increment }
+            previous = sample.value
         }
         return total
     }

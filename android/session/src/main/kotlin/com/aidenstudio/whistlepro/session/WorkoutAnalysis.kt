@@ -163,7 +163,8 @@ object WorkoutAnalysis {
     }
 
     /** 누적값 샘플에서 구간 동안 늘어난 양 (Swift와 같다). 재시작 시각을 지나면 0부터 다시, 그 밖에 값이 잠깐 줄면 늘어난 양 없음 */
-    private fun delta(samples: List<WorkoutSample>, restarts: List<Double>, start: Double, end: Double): Double {
+    private fun delta(samples: List<WorkoutSample>, restarts: List<Double>?, start: Double, end: Double): Double {
+        if (restarts == null) return legacyDelta(samples, start, end)
         var base = 0.0
         var previousT = Double.NEGATIVE_INFINITY
         var total = 0.0
@@ -173,6 +174,18 @@ object WorkoutAnalysis {
             if (sample.t > start && sample.t <= end) total += increment
             base = maxOf(base, sample.value)
             previousT = sample.t
+        }
+        return total
+    }
+
+    /** 예전 기록(재시작 표시 없음): 값이 줄면 운동 세션이 다시 시작돼 0부터 쌓인 것으로 본다 */
+    private fun legacyDelta(samples: List<WorkoutSample>, start: Double, end: Double): Double {
+        var previous = 0.0
+        var total = 0.0
+        for (sample in samples) {
+            val increment = if (sample.value >= previous) sample.value - previous else sample.value
+            if (sample.t > start && sample.t <= end) total += increment
+            previous = sample.value
         }
         return total
     }
