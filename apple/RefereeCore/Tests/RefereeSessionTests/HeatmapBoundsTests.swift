@@ -32,4 +32,14 @@ struct HeatmapBoundsTests {
         #expect(try #require(Heatmap.bounds(cells: [cell(37.5, 127.0)])).inKorea)
         #expect(try #require(Heatmap.bounds(cells: [cell(51.5, -0.1)])).inKorea == false)
     }
+
+    /// M7a 리뷰: 한국 상자에 일본 남서부(후쿠오카·시모노세키·쓰시마)가 들어갔다
+    @Test func koreaBoxExcludesNearbyJapan() throws {
+        for (lat, lon) in [(35.18, 129.07), (33.5, 126.5), (37.48, 130.9), (34.88, 128.62)] {   // 부산·제주·울릉·거제
+            #expect(try #require(Heatmap.bounds(cells: [cell(lat, lon)])).inKorea, "\(lat) \(lon)")
+        }
+        for (lat, lon) in [(33.59, 130.40), (33.96, 130.94), (34.40, 129.30)] {   // 후쿠오카·시모노세키·쓰시마
+            #expect(try #require(Heatmap.bounds(cells: [cell(lat, lon)])).inKorea == false, "\(lat) \(lon)")
+        }
+    }
 }
