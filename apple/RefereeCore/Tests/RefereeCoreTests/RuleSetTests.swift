@@ -21,7 +21,12 @@ struct RuleSetTests {
         #expect(r.secondYellowSendOff)
         #expect(r.sinBin == false)
         #expect(r.sinBinLength == 600)
-        #expect(r.alternateKickoff)
+    }
+
+    /// "킥오프 교대" 규칙을 지웠다 (2026-10-15 사용자 결정: 경기 규칙 제8조는 항상 교대). 예전 데이터의 키는 무시한다
+    @Test func ignoresRemovedAlternateKickoffKey() throws {
+        let json = #"{"alternateKickoff": false}"#
+        #expect(try JSONDecoder().decode(RuleSet.self, from: Data(json.utf8)) == RuleSet.fifaStandard)
     }
 
     @Test func decodesPartialJSONOverFifaDefaults() throws {

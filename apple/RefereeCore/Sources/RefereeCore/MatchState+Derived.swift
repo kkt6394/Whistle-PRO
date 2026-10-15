@@ -21,7 +21,8 @@ extension MatchState {
         case .penalties, .finished: return nil
         }
         guard let first = ref.kind == .regular ? regularKickoff : extraKickoff else { return nil }
-        return rules.alternateKickoff && ref.index % 2 == 0 ? first.opponent : first
+        // 경기 규칙 제8조: 기간마다 킥오프 팀이 바뀐다
+        return ref.index % 2 == 0 ? first.opponent : first
     }
 
     /// ref 기간이 끝난 뒤의 휴식 길이(초)

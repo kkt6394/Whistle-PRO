@@ -42,6 +42,27 @@ struct MatchDisplayTests {
         #expect(MatchDisplay(state: makeState([(.startPeriod, 0)]), now: 130, clockDisplay: .elapsed).stoppage == nil)
     }
 
+    /// 큰 시계 아래 작은 줄 (2026-10-15 사용자 결정): 정규시간엔 큰 시계의 반대(경과 ↔ 남은), 추가시간엔 "45+2:13"
+    @Test func subClockShowsOtherRegulationClock() {
+        let s = makeState([(.startPeriod, 0)])
+        #expect(MatchDisplay(state: s, now: 754, clockDisplay: .elapsed).subClock == .remaining("32:26"))
+        #expect(MatchDisplay(state: s, now: 754, clockDisplay: .remaining).subClock == .elapsed("12:34"))
+    }
+
+    @Test func subClockInAddedTimeUsesFootballNotation() {
+        let first = makeState([(.startPeriod, 0)])
+        #expect(MatchDisplay(state: first, now: 2833, clockDisplay: .elapsed).subClock == .overtime("45+2:13"))
+        #expect(MatchDisplay(state: first, now: 2833, clockDisplay: .remaining).subClock == .overtime("45+2:13"))
+        let second = makeState([(.startPeriod, 0), (.endPeriod, 2760), (.startPeriod, 3660)])
+        #expect(MatchDisplay(state: second, now: 3660 + 2730, clockDisplay: .elapsed).subClock == .overtime("90+0:30"))
+    }
+
+    @Test func subClockOnlyDuringPeriod() {
+        #expect(MatchDisplay(state: makeState([]), now: 0, clockDisplay: .elapsed).subClock == nil)
+        let interval = makeState([(.startPeriod, 0), (.endPeriod, 2700)])
+        #expect(MatchDisplay(state: interval, now: 2760, clockDisplay: .elapsed).subClock == nil)
+    }
+
     @Test func intervalShowsCountdownAndNextPeriod() {
         let s = makeState([(.setKickoffTeam(.home), 0), (.startPeriod, 0), (.endPeriod, 2700)])
         let d = MatchDisplay(state: s, now: 2760, clockDisplay: .elapsed)

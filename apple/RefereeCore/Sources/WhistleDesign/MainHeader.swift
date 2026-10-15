@@ -2,17 +2,16 @@
 public enum MainHeaderItem: Equatable, Sendable {
     case warning
     case period(String)
-    case stoppage(String, running: Bool)
 }
 
 /// 상단 띠 순서. 띠 폭이 좁아(시스템 시각 왼쪽) 긴 문구는 줄어들거나 잘리므로,
-/// 놓치면 안 되는 ⚠를 맨 앞에 둔다. 그다음 기간 이름, 중단 시간.
+/// 놓치면 안 되는 ⚠를 맨 앞에 둔다. 중단 시간은 띠에 두지 않고 큰 시계 아래 줄에 둔다
+/// (2026-10-15 사용자 결정: 띠가 길어져 시스템 시각 옆 상태 아이콘과 겹쳤다).
 public enum MainHeader {
-    public static func items(period: String?, stoppage: String?, stoppageRunning: Bool, warning: Bool) -> [MainHeaderItem] {
+    public static func items(period: String?, warning: Bool) -> [MainHeaderItem] {
         var items: [MainHeaderItem] = []
         if warning { items.append(.warning) }
         if let period { items.append(.period(period)) }
-        if let stoppage { items.append(.stoppage(stoppage, running: stoppageRunning)) }
         return items
     }
 }

@@ -22,7 +22,8 @@ val MatchState.kickoffTeam: Team?
             Phase.Penalties, is Phase.Finished -> return null
         }
         val first = (if (ref.kind == PeriodRef.Kind.REGULAR) regularKickoff else extraKickoff) ?: return null
-        return if (rules.alternateKickoff && ref.index % 2 == 0) first.opponent else first
+        // 경기 규칙 제8조: 기간마다 킥오프 팀이 바뀐다
+        return if (ref.index % 2 == 0) first.opponent else first
     }
 
 /** ref 기간이 끝난 뒤의 휴식 길이(초) */

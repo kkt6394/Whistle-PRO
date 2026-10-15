@@ -26,7 +26,6 @@ data class RuleSet(
     val secondYellowSendOff: Boolean = true,
     val sinBin: Boolean = false,
     val sinBinLength: Int = 600,
-    val alternateKickoff: Boolean = true,
 ) {
     /** JSON 키와 같은 이름. 선언 순서가 deviations 순서다 (Swift RuleSet.Field와 같게). */
     @Suppress("EnumEntryName")
@@ -36,7 +35,7 @@ data class RuleSet(
         penalties, penaltyKicksPerTeam,
         playersPerTeam, minimumPlayers,
         substitutionLimit, returnSubstitutions, extraTimeExtraSubs,
-        secondYellowSendOff, sinBin, sinBinLength, alternateKickoff,
+        secondYellowSendOff, sinBin, sinBinLength,
     }
 
     /** 비교·표시용 문자열 값. 보고서의 "적용 규칙" 섹션에서도 쓴다. */
@@ -58,7 +57,6 @@ data class RuleSet(
         Field.secondYellowSendOff -> "$secondYellowSendOff"
         Field.sinBin -> "$sinBin"
         Field.sinBinLength -> "$sinBinLength"
-        Field.alternateKickoff -> "$alternateKickoff"
     }
 
     /** 기준(기본: FIFA 표준)과 값이 다른 항목. Field 선언 순서를 따른다. */
@@ -103,7 +101,6 @@ data class RuleSet(
         put(Field.secondYellowSendOff.name, JsonPrimitive(secondYellowSendOff))
         put(Field.sinBin.name, JsonPrimitive(sinBin))
         put(Field.sinBinLength.name, JsonPrimitive(sinBinLength))
-        put(Field.alternateKickoff.name, JsonPrimitive(alternateKickoff))
     }
 
     companion object {
@@ -136,7 +133,6 @@ data class RuleSet(
                 secondYellowSendOff = bool(Field.secondYellowSendOff, d.secondYellowSendOff),
                 sinBin = bool(Field.sinBin, d.sinBin),
                 sinBinLength = int(Field.sinBinLength, d.sinBinLength),
-                alternateKickoff = bool(Field.alternateKickoff, d.alternateKickoff),
             )
         }
     }

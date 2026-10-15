@@ -62,7 +62,6 @@
     "homeName" : "FC 서울",
     "recordsRoute" : false,
     "rules" : {
-      "alternateKickoff" : true,
       "extraTime" : false,
       "extraTimeBreakLength" : 60,
       "extraTimeExtraSubs" : 0,
