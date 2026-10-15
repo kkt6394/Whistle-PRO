@@ -37,6 +37,6 @@ fun MatchState.intervalLength(after: PeriodRef): Int = when (after.kind) {
 val MatchState.currentPeriodLabel: String?
     get() {
         if (phase == Phase.Penalties) return "PK"
-        if (phase is Phase.Finished && shootout.kicks.home + shootout.kicks.away > 0) return "PK"
+        if (phase is Phase.Finished && (shootout.kicks.home + shootout.kicks.away > 0 || abandonedDuringShootout)) return "PK"
         return periods.lastOrNull()?.ref?.label(rules.periodCount)
     }

@@ -36,7 +36,7 @@ extension MatchState {
     /// 마지막으로 시작한 기간의 라벨 (시작 전이면 nil). 승부차기 중이거나 승부차기로 끝났으면 "PK".
     public var currentPeriodLabel: String? {
         if phase == .penalties { return "PK" }
-        if case .finished = phase, shootout.kicks.home + shootout.kicks.away > 0 { return "PK" }
+        if case .finished = phase, shootout.kicks.home + shootout.kicks.away > 0 || abandonedDuringShootout { return "PK" }
         return periods.last?.ref.label(periodCount: rules.periodCount)
     }
 }

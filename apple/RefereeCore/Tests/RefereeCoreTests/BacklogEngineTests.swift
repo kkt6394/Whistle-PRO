@@ -39,6 +39,12 @@ struct BacklogEngineTests {
         #expect(play(twoHalves()).currentPeriodLabel == "2H")
     }
 
+    /// 백로그: 승부차기 중(킥 없이) 경기를 중단하면 라벨이 PK가 아니라 마지막 기간 라벨이었다
+    @Test func abandonedDuringShootoutIsPK() {
+        #expect(play(pkRules, twoHalves() + [cmd(.abandonMatch(reason: "x"), at: 6400)]).currentPeriodLabel == "PK")
+        #expect(play(twoHalves() + [cmd(.abandonMatch(reason: "x"), at: 6400)]).currentPeriodLabel == "2H")
+    }
+
     @Test func hugeTimestampsDoNotTrap() {
         let s = play([cmd(.startPeriod, at: 0), cmd(.toggleStoppage, at: 1e300)])
         _ = s.snapshot(at: .infinity, warningBeforeEnd: 300)

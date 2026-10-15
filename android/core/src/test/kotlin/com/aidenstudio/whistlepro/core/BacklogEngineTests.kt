@@ -38,6 +38,12 @@ class BacklogEngineTests {
         assertEquals("2H", play(twoHalves()).currentPeriodLabel)
     }
 
+    /** Swift와 같게: 승부차기 중(킥 없이) 중단해도 PK */
+    @Test fun abandonedDuringShootoutIsPK() {
+        assertEquals("PK", play(pkRules, twoHalves() + cmd(CommandKind.AbandonMatch("x"), 6400.0)).currentPeriodLabel)
+        assertEquals("2H", play(twoHalves() + cmd(CommandKind.AbandonMatch("x"), 6400.0)).currentPeriodLabel)
+    }
+
     @Test fun hugeTimestampsDoNotTrap() {
         val s = play(listOf(cmd(start, 0.0), cmd(toggle, 1e300)))
         s.snapshot(Double.POSITIVE_INFINITY, 300)

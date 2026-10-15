@@ -73,6 +73,7 @@ extension MatchState {
     private mutating func abandon(reason: String, at t: Double) throws(EngineError) {
         if case .finished = phase { throw .invalidInPhase }
         if phase.isPeriod { closeRunningPeriod(at: t) }
+        abandonedDuringShootout = phase == .penalties
         phase = .finished(.abandoned(reason: reason))
     }
 

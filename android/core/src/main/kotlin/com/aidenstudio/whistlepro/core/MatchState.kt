@@ -77,6 +77,8 @@ data class MatchState(
     val extraPeriodLength: Int = rules.extraTimePeriodLength,
     /** 적용되지 못하고 무시된 명령 ID (로그 순서) */
     val ignoredCommandIds: List<String> = emptyList(),
+    /** 승부차기 중에 중단했다 (킥이 없어도 라벨은 PK) */
+    val abandonedDuringShootout: Boolean = false,
 )
 
 /** 마지막 기간을 바꾼 목록 */
