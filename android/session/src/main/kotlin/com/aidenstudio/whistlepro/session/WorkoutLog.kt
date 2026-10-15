@@ -7,6 +7,8 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.double
+import kotlinx.serialization.json.jsonPrimitive
 import java.util.UUID
 
 data class WorkoutSample(
@@ -58,6 +60,8 @@ data class WorkoutLog(
     /** 누적 kcal */
     val energy: List<WorkoutSample> = emptyList(),
     val route: List<RoutePoint> = emptyList(),
+    /** 운동 세션을 새로 시작한 시각들 (경기 첫 시작 제외). Swift WorkoutLog.restarts와 같다 */
+    val restarts: List<Double> = emptyList(),
 ) {
     fun toJson() = buildJsonObject {
         put("matchID", JsonPrimitive(matchID.swiftString))
@@ -65,6 +69,8 @@ data class WorkoutLog(
         put("distance", JsonArray(distance.map { it.toJson() }))
         put("energy", JsonArray(energy.map { it.toJson() }))
         put("route", JsonArray(route.map { it.toJson() }))
+        // 재시작이 없으면 키를 쓰지 않는다 (예전 파일·Swift와 같은 형식)
+        if (restarts.isNotEmpty()) put("restarts", JsonArray(restarts.map(::JsonPrimitive)))
     }
 
     companion object {
@@ -74,6 +80,7 @@ data class WorkoutLog(
             distance = json.array("distance").objects("distance").map(WorkoutSample::fromJson),
             energy = json.array("energy").objects("energy").map(WorkoutSample::fromJson),
             route = json.array("route").objects("route").map(RoutePoint::fromJson),
+            restarts = (json["restarts"] as? JsonArray)?.map { it.jsonPrimitive.double } ?: emptyList(),
         )
     }
 }

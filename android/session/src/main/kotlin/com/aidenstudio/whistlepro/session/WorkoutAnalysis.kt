@@ -140,7 +140,7 @@ object WorkoutAnalysis {
     private fun stats(log: WorkoutLog, ranges: List<Pair<Double, Double>>, label: String?): WorkoutStats {
         fun inRanges(t: Double) = ranges.any { t >= it.first && t <= it.second }
         val heartRates = log.heartRate.filter { inRanges(it.t) }.map { it.value }
-        val distance = ranges.sumOf { delta(log.distance, it.first, it.second) }
+        val distance = ranges.sumOf { delta(log.distance, log.restarts, it.first, it.second) }
         // 기간마다 따로 계산해 휴식 시간을 건너는 구간이 생기지 않게 한다
         val gpsZones = ranges.mapNotNull { range -> speedZones(log.route.filter { it.t >= range.first && it.t <= range.second }) }
         val zones = if (gpsZones.isEmpty()) null else gpsZones.fold(SpeedZones()) { a, b -> a + b }.scaled(to = distance)
@@ -149,7 +149,7 @@ object WorkoutAnalysis {
             averageHeartRate = if (heartRates.isEmpty()) null else roundedSeconds(heartRates.sum() / heartRates.size),
             maxHeartRate = heartRates.maxOrNull()?.let(::roundedSeconds),
             distance = distance,
-            energy = ranges.sumOf { delta(log.energy, it.first, it.second) },
+            energy = ranges.sumOf { delta(log.energy, log.restarts, it.first, it.second) },
             sprints = ranges.sumOf { range -> sprintCount(log.route.filter { it.t >= range.first && it.t <= range.second }) },
             zones = zones,
         )
@@ -162,14 +162,17 @@ object WorkoutAnalysis {
         return (if (v >= 0) floor(v + 0.5) else ceil(v - 0.5)).toLong()
     }
 
-    /** 누적값 샘플에서 구간 동안 늘어난 양. 값이 줄어들면 운동 세션이 다시 시작돼 0부터 쌓인 것으로 본다. */
-    private fun delta(samples: List<WorkoutSample>, start: Double, end: Double): Double {
-        var previous = 0.0
+    /** 누적값 샘플에서 구간 동안 늘어난 양 (Swift와 같다). 재시작 시각을 지나면 0부터 다시, 그 밖에 값이 잠깐 줄면 늘어난 양 없음 */
+    private fun delta(samples: List<WorkoutSample>, restarts: List<Double>, start: Double, end: Double): Double {
+        var base = 0.0
+        var previousT = Double.NEGATIVE_INFINITY
         var total = 0.0
         for (sample in samples) {
-            val increment = if (sample.value >= previous) sample.value - previous else sample.value
+            if (restarts.any { it > previousT && it <= sample.t }) base = 0.0
+            val increment = maxOf(0.0, sample.value - base)
             if (sample.t > start && sample.t <= end) total += increment
-            previous = sample.value
+            base = maxOf(base, sample.value)
+            previousT = sample.t
         }
         return total
     }

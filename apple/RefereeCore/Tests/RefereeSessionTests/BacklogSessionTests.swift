@@ -13,8 +13,40 @@ struct BacklogSessionTests {
         var log = WorkoutLog(matchID: UUID())
         log.distance = [WorkoutSample(t: 0, value: 0), WorkoutSample(t: 1000, value: 2000),
                         WorkoutSample(t: 1500, value: 100), WorkoutSample(t: 2700, value: 1500)]
+        log.restarts = [1200]
         let stats = WorkoutAnalysis.perPeriod(log, state: makeState([(.startPeriod, 0), (.endPeriod, 2700)]), now: 3000)
         #expect(stats.map(\.distance) == [3500])
+    }
+
+    /// 백로그: 재시작 뒤 첫 누적값이 재시작 전 값보다 크면 차이만 더해 적게 셌다 (값이 줄어드는지로만 재시작을 알았다)
+    @Test func restartWithLargerFirstValueCountsFully() {
+        var log = WorkoutLog(matchID: UUID())
+        log.distance = [WorkoutSample(t: 0, value: 0), WorkoutSample(t: 500, value: 300),
+                        WorkoutSample(t: 1500, value: 400)]
+        log.restarts = [600]
+        let stats = WorkoutAnalysis.perPeriod(log, state: makeState([(.startPeriod, 0), (.endPeriod, 2700)]), now: 3000)
+        #expect(stats.map(\.distance) == [700])
+    }
+
+    /// 재시작 표시 없이 값이 잠깐 줄어도(순서가 뒤바뀐 샘플) 새로 시작한 것으로 보지 않는다
+    @Test func dipWithoutRestartIsNotCountedAgain() {
+        var log = WorkoutLog(matchID: UUID())
+        log.distance = [WorkoutSample(t: 0, value: 0), WorkoutSample(t: 100, value: 500),
+                        WorkoutSample(t: 110, value: 480), WorkoutSample(t: 200, value: 700)]
+        let stats = WorkoutAnalysis.perPeriod(log, state: makeState([(.startPeriod, 0), (.endPeriod, 2700)]), now: 3000)
+        #expect(stats.map(\.distance) == [700])
+    }
+
+    /// 재시작 표시는 있을 때만 파일에 쓴다 (예전 파일·Kotlin과 같은 형식)
+    @Test func restartsAreOptionalInJSON() throws {
+        let log = WorkoutLog(matchID: UUID())
+        let json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(log)) as! [String: Any]
+        #expect(json["restarts"] == nil)
+        var restarted = log
+        restarted.restarts = [10]
+        let decoded = try JSONDecoder().decode(WorkoutLog.self, from: JSONEncoder().encode(restarted))
+        #expect(decoded.restarts == [10])
+        #expect(try JSONDecoder().decode(WorkoutLog.self, from: JSONEncoder().encode(log)).restarts.isEmpty)
     }
 
     @Test func twoSampleSpikeIsNotASprint() {

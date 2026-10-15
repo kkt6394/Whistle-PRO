@@ -17,9 +17,33 @@ class BacklogSessionTests {
         // 1000초에 2000m, 운동 세션 재시작으로 1500초에 100m부터 다시, 2700초에 1500m
         val log = WorkoutLog(UUID.randomUUID(), distance = listOf(
             WorkoutSample(0.0, 0.0), WorkoutSample(1000.0, 2000.0), WorkoutSample(1500.0, 100.0), WorkoutSample(2700.0, 1500.0),
-        ))
+        ), restarts = listOf(1200.0))
         val stats = WorkoutAnalysis.perPeriod(log, makeState(listOf(CommandKind.StartPeriod to 0.0, CommandKind.EndPeriod to 2700.0)), 3000.0)
         assertEquals(listOf(3500.0), stats.map { it.distance })
+    }
+
+    /** Swift와 같게: 재시작 뒤 첫 값이 더 커도 0부터 센다, 재시작 표시 없이 줄면 늘어난 양 없음 */
+    @Test fun restartWithLargerFirstValueCountsFully() {
+        val log = WorkoutLog(UUID.randomUUID(), distance = listOf(
+            WorkoutSample(0.0, 0.0), WorkoutSample(500.0, 300.0), WorkoutSample(1500.0, 400.0),
+        ), restarts = listOf(600.0))
+        val stats = WorkoutAnalysis.perPeriod(log, makeState(listOf(CommandKind.StartPeriod to 0.0, CommandKind.EndPeriod to 2700.0)), 3000.0)
+        assertEquals(listOf(700.0), stats.map { it.distance })
+    }
+
+    @Test fun dipWithoutRestartIsNotCountedAgain() {
+        val log = WorkoutLog(UUID.randomUUID(), distance = listOf(
+            WorkoutSample(0.0, 0.0), WorkoutSample(100.0, 500.0), WorkoutSample(110.0, 480.0), WorkoutSample(200.0, 700.0),
+        ))
+        val stats = WorkoutAnalysis.perPeriod(log, makeState(listOf(CommandKind.StartPeriod to 0.0, CommandKind.EndPeriod to 2700.0)), 3000.0)
+        assertEquals(listOf(700.0), stats.map { it.distance })
+    }
+
+    @Test fun restartsAreOptionalInJson() {
+        val log = WorkoutLog(UUID.randomUUID())
+        kotlin.test.assertFalse("restarts" in log.toJson())
+        val restarted = log.copy(restarts = listOf(10.0))
+        assertEquals(listOf(10.0), WorkoutLog.fromJson(restarted.toJson()).restarts)
     }
 
     @Test fun twoSampleSpikeIsNotASprint() {
