@@ -244,10 +244,11 @@ public struct MatchLibrary: Sendable {
     }
 
     public func delete(id: UUID) throws {
+        // 지움 표시를 먼저 쓴다: 표시를 못 쓰면(디스크 부족 등) 기록도 지우지 않는다 — 기록만 지워지면 워치가 다시 보낼 때 되살아났다 (리뷰)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Data().write(to: deletedMarkerURL(for: id), options: .atomic)
         for file in [url(for: id), summaryURL(for: id)] where FileManager.default.fileExists(atPath: file.path) {
             try FileManager.default.removeItem(at: file)
         }
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        try Data().write(to: deletedMarkerURL(for: id), options: .atomic)
     }
 }
