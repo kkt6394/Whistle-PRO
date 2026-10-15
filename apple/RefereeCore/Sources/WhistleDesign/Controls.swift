@@ -38,13 +38,16 @@ private struct PillBody: View {
     var body: some View {
         configuration.label
             .font(.system(size: min(height * 0.42, scalesWithText ? 17 * textScale : 17), weight: .heavy, design: .rounded))
-            .lineLimit(1)
+            // 글자 크기를 따르는 버튼은 두 줄까지 (한 줄 + 0.6배 축소면 큰 글자를 고른 의미가 없었다), 버튼도 그만큼 커진다
+            .lineLimit(scalesWithText ? 2 : 1)
+            .multilineTextAlignment(.center)
             .minimumScaleFactor(0.6)
             .foregroundStyle(kind == .primary ? Theme.onAccent : Theme.textPrimary)
             // 버튼이 커져도 좌우 여백은 10pt까지만 (영어 [Scored][Missed]가 잘렸다)
             .padding(.horizontal, min(height * 0.3, 10))
+            .padding(.vertical, scalesWithText ? 4 : 0)
             .frame(maxWidth: .infinity)
-            .frame(height: height)
+            .frame(minHeight: height, maxHeight: scalesWithText ? nil : height)
             .background(Capsule().fill(kind == .primary ? Theme.accent : Theme.surfaceRaised))
             .contentShape(Capsule())
             .opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.4)

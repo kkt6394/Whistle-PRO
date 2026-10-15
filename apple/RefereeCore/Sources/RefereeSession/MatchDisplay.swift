@@ -98,6 +98,8 @@ public struct MatchDisplay: Equatable, Sendable {
             stoppage = reading.stoppageTotal > 0 || reading.stoppageRunning ? Self.formatShort(reading.stoppageTotal) : nil
             stoppageRunning = reading.stoppageRunning
             if case .period = state.phase {
+                // 길이 = 규정 길이: (경과 - 추가시간)은 규정 안에서 흐른 시간, 거기에 남은 시간을 더하면 규정 길이다.
+                // 추가시간 중에는 남은 시간이 0이고 경과 - 추가시간이 규정 길이다
                 periodProgress = ClockProgress(elapsed: reading.elapsed, length: reading.elapsed - reading.addedTime + reading.remaining)
                 let regulationEnd = reading.matchSecond - reading.addedTime
                 subClock = if reading.addedTime > 0 {
