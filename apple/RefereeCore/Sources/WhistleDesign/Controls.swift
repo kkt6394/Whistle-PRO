@@ -51,10 +51,10 @@ extension View {
 
     /// MainLayout이 정한 칸에 한 줄로 넣는다. 넘치면 글자를 줄이고, 그래도 넘치면 잘린다.
     /// 칸 밖으로는 절대 그려지지 않는다 (스펙 §4.2 겹침 금지).
-    public func placed(in rect: CGRect) -> some View {
+    public func placed(in rect: CGRect, alignment: Alignment = .center) -> some View {
         lineLimit(1)
             .minimumScaleFactor(0.5)
-            .frame(width: rect.width, height: rect.height)
+            .frame(width: rect.width, height: rect.height, alignment: alignment)
             .clipped()
             .position(x: rect.midX, y: rect.midY)
     }
