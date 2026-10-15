@@ -16,5 +16,13 @@ struct PeriodNameTests {
         #expect(PeriodName(label: "") == nil)
         #expect(PeriodName(label: "H") == nil)
         #expect(PeriodName(label: "ETx") == nil)
+        // 기간 이름 리뷰: 빠져 있던 잘못된 코드
+        #expect(PeriodName(label: "1Q") == nil)
+        #expect(PeriodName(label: "Q") == nil)
+        #expect(PeriodName(label: "ET") == nil)
+    }
+
+    @Test func fourthQuarter() {
+        #expect(PeriodName(label: PeriodRef(.regular, 4).label(periodCount: 4)) == .quarter(4))
     }
 }
