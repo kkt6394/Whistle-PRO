@@ -32,6 +32,32 @@ struct BacklogSessionTests {
         #expect(try library.bundle(id: bundle.id) == nil)
     }
 
+    /// 백로그: deleted.json이 손상되면 다음 삭제 때 지운 경기 목록이 모두 사라졌다 (지운 경기가 다시 저장됨)
+    @Test func corruptedDeletedListDoesNotResurrectDeletedMatches() throws {
+        let directory = tempDirectory()
+        let library = MatchLibrary(directory: directory)
+        let first = MatchBundle(record: makeRecord([(.startPeriod, 0)]), workout: nil)
+        let second = MatchBundle(record: makeRecord([(.startPeriod, 10)]), workout: nil)
+        try library.upsert(first)
+        try library.upsert(second)
+        try library.delete(id: first.id)
+        // 예전 형식 목록 파일이 깨져 있어도
+        try Data("{not json".utf8).write(to: directory.appendingPathComponent("deleted.json"))
+        try library.delete(id: second.id)
+        #expect(try !library.upsert(first))
+        #expect(try !library.upsert(second))
+    }
+
+    /// 예전 형식(deleted.json 하나)으로 지운 경기도 계속 지운 것으로 본다
+    @Test func legacyDeletedListStillRespected() throws {
+        let directory = tempDirectory()
+        let library = MatchLibrary(directory: directory)
+        let bundle = MatchBundle(record: makeRecord([(.startPeriod, 0)]), workout: nil)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try JSONEncoder().encode(Set([bundle.id])).write(to: directory.appendingPathComponent("deleted.json"))
+        #expect(try !library.upsert(bundle))
+    }
+
     @Test func unsupportedPayloadRoundTrips() {
         let id = UUID()
         let info = SyncPayload.unsupported(id)

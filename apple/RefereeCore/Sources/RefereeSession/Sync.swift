@@ -150,11 +150,21 @@ public struct MatchLibrary: Sendable {
     }
 
     private static let summarySuffix = ".summary.json"
-    private var deletedURL: URL { directory.appendingPathComponent("deleted.json") }
+    /// 예전 형식: 지운 경기 id 목록 파일 하나 (읽기만 한다)
+    private var legacyDeletedURL: URL { directory.appendingPathComponent("deleted.json") }
+    private static let deletedSuffix = ".deleted"
 
-    private func deletedIDs() -> Set<UUID> {
-        guard let data = try? Data(contentsOf: deletedURL) else { return [] }
-        return (try? JSONDecoder().decode(Set<UUID>.self, from: data)) ?? []
+    /// 지운 경기 표시: 경기마다 빈 파일 <id>.deleted. 목록 파일 하나를 읽고 다시 쓰면,
+    /// 그 파일이 깨졌을 때 다음 삭제가 예전에 지운 경기들을 모두 잊었다 (백로그).
+    private func deletedMarkerURL(for id: UUID) -> URL {
+        directory.appendingPathComponent(id.uuidString + Self.deletedSuffix)
+    }
+
+    private func isDeleted(_ id: UUID) -> Bool {
+        if FileManager.default.fileExists(atPath: deletedMarkerURL(for: id).path) { return true }
+        guard let data = try? Data(contentsOf: legacyDeletedURL),
+              let legacy = try? JSONDecoder().decode(Set<UUID>.self, from: data) else { return false }
+        return legacy.contains(id)
     }
 
     private func url(for id: UUID) -> URL {
@@ -169,7 +179,7 @@ public struct MatchLibrary: Sendable {
     /// 사용자가 지운 경기는 다시 저장하지 않고 false를 돌려준다 (확인은 그대로 보낸다).
     @discardableResult
     public func upsert(_ bundle: MatchBundle) throws -> Bool {
-        guard !deletedIDs().contains(bundle.id) else { return false }
+        guard !isDeleted(bundle.id) else { return false }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try JSONEncoder().encode(bundle).write(to: url(for: bundle.id), options: .atomic)
         try JSONEncoder().encode(MatchSummary(bundle: bundle)).write(to: summaryURL(for: bundle.id), options: .atomic)
@@ -233,8 +243,6 @@ public struct MatchLibrary: Sendable {
             try FileManager.default.removeItem(at: file)
         }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        var deleted = deletedIDs()
-        deleted.insert(id)
-        try JSONEncoder().encode(deleted).write(to: deletedURL, options: .atomic)
+        try Data().write(to: deletedMarkerURL(for: id), options: .atomic)
     }
 }
