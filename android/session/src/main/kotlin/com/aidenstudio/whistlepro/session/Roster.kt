@@ -42,7 +42,7 @@ object Roster {
     )
 
     /** Swift Character.isNewline과 같은 줄바꿈 (\r\n은 한 번) */
-    private val newline = Regex("\r\n|[\n\r\u000B\u000C\u0085  ]")
+    private val newline = Regex("\r\n|[\n\r\u000B\u000C\u0085\u2028\u2029]")
 
     /** 한 줄에 한 명: "10 홍길동", "#7, Kim", "9\tLee". 같은 번호가 다시 나오면 뒤의 것을 쓴다. 번호순으로 돌려준다. */
     fun parse(text: String): ParseResult {

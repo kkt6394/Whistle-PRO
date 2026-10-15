@@ -130,18 +130,26 @@ public enum WorkoutAnalysis {
     }
 
     /// 기간 진행 중의 값만 합친다 (휴식 제외).
-    public static func overall(_ log: WorkoutLog, state: MatchState, now: Double) -> WorkoutStats {
-        stats(log, ranges: state.periods.map { ($0.startedAt, $0.endedAt ?? now) }, label: nil)
+    /// includeZones: 속도별 거리까지 (워치는 5초마다 부르는데 보여 주지 않아 뺀다 — M7a 리뷰)
+    public static func overall(_ log: WorkoutLog, state: MatchState, now: Double, includeZones: Bool = true) -> WorkoutStats {
+        stats(log, ranges: state.periods.map { ($0.startedAt, $0.endedAt ?? now) }, label: nil, includeZones: includeZones)
     }
 
-    private static func stats(_ log: WorkoutLog, ranges: [(Double, Double)], label: String?) -> WorkoutStats {
+    private static func stats(_ log: WorkoutLog, ranges: [(Double, Double)], label: String?, includeZones: Bool = true) -> WorkoutStats {
         func inRanges(_ t: Double) -> Bool { ranges.contains { t >= $0.0 && t <= $0.1 } }
         let heartRates = log.heartRate.filter { inRanges($0.t) }.map(\.value)
         let average = heartRates.isEmpty ? nil : wholeSeconds(heartRates.reduce(0, +) / Double(heartRates.count), rounding: .toNearestOrAwayFromZero)
-        let distance = ranges.reduce(0) { $0 + delta(log.distance, restarts: log.restarts, from: $1.0, to: $1.1) }
-        // 기간마다 따로 계산해 휴식 시간을 건너는 구간이 생기지 않게 한다
-        let gpsZones = ranges.compactMap { range in speedZones(log.route.filter { $0.t >= range.0 && $0.t <= range.1 }) }
-        let zones = gpsZones.isEmpty ? nil : gpsZones.reduce(SpeedZones(), +).scaled(to: distance)
+        let distances = ranges.map { delta(log.distance, restarts: log.restarts, from: $0.0, to: $0.1) }
+        let distance = distances.reduce(0, +)
+        // 기간마다 따로 계산해 휴식 시간을 건너는 구간이 생기지 않게 한다. 비율은 GPS로, 양은 그 기간의 워치 거리로 맞춘다:
+        // GPS가 일부 기간에만 있으면 그 기간 거리에만 (전체 거리로 늘리면 그 비율이 다른 기간까지 퍼졌다),
+        // 워치 거리가 0인 기간은 넣지 않는다 (표시 거리 0km와 합이 맞지 않았다). 워치 거리 샘플이 아예 없으면 GPS 값 그대로.
+        // 서 있을 때 GPS 흔들림은 걷기에 쌓이는 근사치다 (M7a 리뷰)
+        let gpsZones = !includeZones ? [] : zip(ranges, distances).compactMap { range, watchDistance -> SpeedZones? in
+            guard log.distance.isEmpty || watchDistance > 0 else { return nil }
+            return speedZones(log.route.filter { $0.t >= range.0 && $0.t <= range.1 })?.scaled(to: watchDistance)
+        }
+        let zones = gpsZones.isEmpty ? nil : gpsZones.reduce(SpeedZones(), +)
         return WorkoutStats(
             label: label,
             averageHeartRate: average,
