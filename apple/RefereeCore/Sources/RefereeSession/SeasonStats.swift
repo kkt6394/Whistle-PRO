@@ -28,7 +28,8 @@ public struct SeasonStats: Equatable, Sendable {
             reds += s.reds ?? 0
             sinBins += s.sinBins ?? 0
             addedSeconds += s.addedSeconds ?? 0
-            if let d = s.distance {
+            // 거리 0(수집 실패 등)은 운동 경기로 세지 않는다: 경기당 이동거리를 낮췄다 (M7a 리뷰)
+            if let d = s.distance, d > 0 {
                 matchesWithWorkout += 1
                 distance += d
                 sprints += s.sprints ?? 0
@@ -46,7 +47,8 @@ public struct SeasonStats: Equatable, Sendable {
     /// 완료된 경기만 (경기당 평균용)
     public var completed = Totals()
 
-    public var abandoned: Int { all.matches - completed.matches }
+    /// 중단된 경기 (진행 중 경기는 세지 않는다)
+    public var abandoned = 0
 
     public var goalsPerMatch: Double? { per(completed.goals, completed.matches) }
     public var cardsPerMatch: Double? { per(completed.cards, completed.matches) }
@@ -71,7 +73,11 @@ public struct SeasonStats: Equatable, Sendable {
             if let from, summary.startedAt < from { continue }
             if let to, summary.startedAt >= to { continue }
             stats.all.add(summary)
-            if summary.outcome == .completed { stats.completed.add(summary) }
+            switch summary.outcome {
+            case .completed: stats.completed.add(summary)
+            case .abandoned: stats.abandoned += 1
+            case .inProgress: break
+            }
         }
         return stats
     }

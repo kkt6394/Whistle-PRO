@@ -49,6 +49,31 @@ struct SeasonStatsTests {
         #expect(stats.averageHeartRate == 155)
     }
 
+    /// M7a 리뷰: 거리 0인 운동 기록(수집 실패 등)은 경기당 이동거리를 낮추지 않는다
+    @Test func zeroDistanceIsNotAWorkoutMatch() {
+        let stats = SeasonStats.aggregate([summary(startedAt: 1, distance: 10000), summary(startedAt: 2, distance: 0)])
+        #expect(stats.distancePerMatch == 10000)
+    }
+
+    /// M7a 리뷰: 진행 중 경기는 "중단"으로 세지 않는다
+    @Test func inProgressIsNotAbandoned() {
+        let stats = SeasonStats.aggregate([summary(startedAt: 1), summary(startedAt: 2, outcome: .inProgress),
+                                           summary(startedAt: 3, outcome: .abandoned("x"))])
+        #expect(stats.abandoned == 1)
+    }
+
+    /// M7a 리뷰: 경고 누적 퇴장은 꺼낸 옐로에도 센다 (옐로 두 장 + 레드 한 장)
+    @Test func secondYellowCountsAsYellowShown() {
+        let record = makeRecord([(.startPeriod, 0),
+                                 (.recordEvent(.card(team: .home, number: 4, kind: .yellow)), 100),
+                                 (.recordEvent(.card(team: .home, number: 4, kind: .yellow)), 200),
+                                 (.endPeriod, 2700)])
+        let s = MatchSummary(bundle: MatchBundle(record: record, workout: nil))
+        #expect(s.yellows == 2)
+        #expect(s.reds == 1)
+        #expect(MatchSummary.currentVersion >= 3)
+    }
+
     @Test func matchesWithoutWorkoutDoNotLowerWorkoutAverages() {
         let stats = SeasonStats.aggregate([
             summary(startedAt: 1, yellows: 2, distance: 10000, heartRate: 150, sprints: 20),

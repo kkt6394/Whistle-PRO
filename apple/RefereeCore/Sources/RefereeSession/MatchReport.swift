@@ -116,7 +116,8 @@ public struct MatchReport: Equatable, Sendable {
 /// 목록·시즌 통계용 가벼운 요약. 경기마다 <id>.summary.json으로 저장한다.
 public struct MatchSummary: Codable, Equatable, Sendable, Identifiable {
     /// 통계 값이 들어간 요약 형식. 이보다 낮거나 없는 요약은 전체 기록에서 다시 만든다.
-    public static let currentVersion = 2
+    /// 3: 경고 누적 퇴장을 옐로에도 센다 (올리면 폰 보관함 요약을 다시 만든다)
+    public static let currentVersion = 3
 
     public var id: UUID
     public var createdAt: Double
@@ -177,7 +178,8 @@ public struct MatchSummary: Codable, Equatable, Sendable, Identifiable {
         let report = MatchReport(bundle: bundle)
         summaryVersion = Self.currentVersion
         goals = report.goals.count
-        yellows = report.discipline.filter { $0.kind == .yellow }.count
+        // 꺼낸 옐로: 경고 누적 퇴장도 옐로를 한 장 더 꺼낸다 (M7a 리뷰: 시즌 옐로 수가 실제보다 적었다)
+        yellows = report.discipline.filter { $0.kind == .yellow || $0.kind == .secondYellow }.count
         reds = report.discipline.filter { $0.kind == .red || $0.kind == .secondYellow }.count
         sinBins = report.discipline.filter { $0.kind == .sinBin }.count
         addedSeconds = report.periods.reduce(0) { $0 + $1.added }
