@@ -35,8 +35,12 @@ public struct FillResult: Equatable, Sendable {
 public enum FillLayout {
     public static func layout(available: CGFloat, spacing: CGFloat, items: [FillItem], heroCap: CGFloat? = 60) -> FillResult {
         var hidden = items.map { _ in false }
+        // 높이 0인 고정 항목은 화면이 그리지 않는 조건부 항목이라 간격도 세지 않는다
+        func shown(_ index: Int) -> Bool {
+            !hidden[index] && !(items[index].height == 0 && items[index].role == .fixed)
+        }
         func total() -> CGFloat {
-            let visible = items.indices.filter { !hidden[$0] }
+            let visible = items.indices.filter(shown)
             return visible.reduce(0) { $0 + items[$1].height } + spacing * CGFloat(max(0, visible.count - 1))
         }
         let hideOrder = items.indices.compactMap { index -> (Int, Int)? in
@@ -66,7 +70,7 @@ public enum FillLayout {
             for index in seconds { heights[index] += spare / CGFloat(seconds.count) }
             spare = 0
         }
-        let visibleCount = items.indices.filter { !hidden[$0] }.count
+        let visibleCount = items.indices.filter(shown).count
         let finalSpacing = visibleCount > 1 ? spacing + spare / CGFloat(visibleCount - 1) : spacing
         return FillResult(heights: heights, hidden: hidden, spacing: finalSpacing, fits: fits)
     }

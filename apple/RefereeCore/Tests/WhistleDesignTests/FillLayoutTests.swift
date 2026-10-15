@@ -57,4 +57,12 @@ struct FillLayoutTests {
         let r = FillLayout.layout(available: -10, spacing: 4, items: [FillItem(44, .hero)])
         #expect(r.heights == [44] && !r.fits)
     }
+
+    /// 조건부로 빠진 항목(높이 0, 고정)은 그리지 않으므로 간격도 세지 않는다 (최종 리뷰: 유령 간격으로 넘친다고 오판)
+    @Test func zeroHeightFixedItemsTakeNoSpacing() {
+        let r = FillLayout.layout(available: 100, spacing: 10, items: [FillItem(40, .hero), FillItem(0), FillItem(0), FillItem(40)], heroCap: nil)
+        #expect(r.fits)
+        #expect(r.heights == [50, 0, 0, 40])
+        #expect(r.spacing == 10)
+    }
 }
