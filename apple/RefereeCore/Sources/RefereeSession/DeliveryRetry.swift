@@ -1,3 +1,4 @@
+import Foundation
 /// 앱이 화면에 나타날 때 확인받지 못한 경기를 다시 보내는 간격 제한.
 /// 경기 중 손목을 들 때마다(앱 활성화) 파일을 다시 보내지 않게 한다.
 public struct ResendThrottle: Sendable {
@@ -12,6 +13,28 @@ public struct ResendThrottle: Sendable {
         if let last, now - last < interval { return false }
         last = now
         return true
+    }
+}
+
+/// 경기마다 마지막으로 보낸 시각: 같은 경기를 interval 안에 다시 보내지 않는다.
+/// 폰 앱이 꺼져 있으면 전송은 끝나도(파일은 폰에 도착) 확인이 오지 않아, 워치가 화면에 나타날 때마다 다시 보냈다 (경기 확인 누락 후속)
+public struct MatchSendThrottle: Sendable {
+    public let interval: Double
+    private var lastSent: [UUID: Double] = [:]
+
+    public init(interval: Double) {
+        self.interval = interval
+    }
+
+    public mutating func allows(_ matchID: UUID, at now: Double) -> Bool {
+        if let last = lastSent[matchID], now - last < interval { return false }
+        lastSent[matchID] = now
+        return true
+    }
+
+    /// 전송이 실패했으면 바로 다시 보낼 수 있게
+    public mutating func failed(_ matchID: UUID) {
+        lastSent[matchID] = nil
     }
 }
 
