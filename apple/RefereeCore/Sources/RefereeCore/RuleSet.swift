@@ -21,7 +21,6 @@ public struct RuleSet: Equatable, Sendable {
     public var secondYellowSendOff: Bool
     public var sinBin: Bool
     public var sinBinLength: Int
-    public var alternateKickoff: Bool
 
     public init(
         periodCount: Int = 2,
@@ -40,8 +39,7 @@ public struct RuleSet: Equatable, Sendable {
         extraTimeExtraSubs: Int = 0,
         secondYellowSendOff: Bool = true,
         sinBin: Bool = false,
-        sinBinLength: Int = 600,
-        alternateKickoff: Bool = true
+        sinBinLength: Int = 600
     ) {
         self.periodCount = periodCount
         self.periodLength = periodLength
@@ -60,7 +58,6 @@ public struct RuleSet: Equatable, Sendable {
         self.secondYellowSendOff = secondYellowSendOff
         self.sinBin = sinBin
         self.sinBinLength = sinBinLength
-        self.alternateKickoff = alternateKickoff
     }
 
     /// 내장 프리셋 "FIFA 표준" (수정·삭제 불가)
@@ -74,7 +71,7 @@ extension RuleSet {
         case penalties, penaltyKicksPerTeam
         case playersPerTeam, minimumPlayers
         case substitutionLimit, returnSubstitutions, extraTimeExtraSubs
-        case secondYellowSendOff, sinBin, sinBinLength, alternateKickoff
+        case secondYellowSendOff, sinBin, sinBinLength
     }
 
     /// 비교·표시용 문자열 값. 보고서의 "적용 규칙" 섹션에서도 쓴다.
@@ -97,7 +94,6 @@ extension RuleSet {
         case .secondYellowSendOff: "\(secondYellowSendOff)"
         case .sinBin: "\(sinBin)"
         case .sinBinLength: "\(sinBinLength)"
-        case .alternateKickoff: "\(alternateKickoff)"
         }
     }
 
@@ -168,8 +164,7 @@ extension RuleSet: Codable {
             extraTimeExtraSubs: try int(.extraTimeExtraSubs, d.extraTimeExtraSubs),
             secondYellowSendOff: try bool(.secondYellowSendOff, d.secondYellowSendOff),
             sinBin: try bool(.sinBin, d.sinBin),
-            sinBinLength: try int(.sinBinLength, d.sinBinLength),
-            alternateKickoff: try bool(.alternateKickoff, d.alternateKickoff)
+            sinBinLength: try int(.sinBinLength, d.sinBinLength)
         )
     }
 
@@ -193,6 +188,5 @@ extension RuleSet: Codable {
         try c.encode(secondYellowSendOff, forKey: .secondYellowSendOff)
         try c.encode(sinBin, forKey: .sinBin)
         try c.encode(sinBinLength, forKey: .sinBinLength)
-        try c.encode(alternateKickoff, forKey: .alternateKickoff)
     }
 }

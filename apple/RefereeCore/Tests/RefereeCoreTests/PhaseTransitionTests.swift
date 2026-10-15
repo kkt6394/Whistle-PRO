@@ -70,7 +70,6 @@ struct PhaseTransitionTests {
 
         let afterFirstHalf = [cmd(.setKickoffTeam(.home), at: 0), cmd(.startPeriod, at: 0), cmd(.endPeriod, at: 2700)]
         #expect(play(afterFirstHalf).kickoffTeam == .away)
-        #expect(play(RuleSet(alternateKickoff: false), afterFirstHalf).kickoffTeam == .home)
     }
 
     @Test func kickoffCannotChangeAfterStart() {

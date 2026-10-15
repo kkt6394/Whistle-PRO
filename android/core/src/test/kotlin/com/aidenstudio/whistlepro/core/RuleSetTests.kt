@@ -29,7 +29,11 @@ class RuleSetTests {
         assertTrue(r.secondYellowSendOff)
         assertEquals(false, r.sinBin)
         assertEquals(600, r.sinBinLength)
-        assertTrue(r.alternateKickoff)
+    }
+
+    /** "킥오프 교대" 규칙을 지웠다 (2026-10-15 사용자 결정: 경기 규칙 제8조는 항상 교대). 예전 데이터의 키는 무시한다 */
+    @Test fun ignoresRemovedAlternateKickoffKey() {
+        assertEquals(RuleSet.FIFA_STANDARD, decode("""{"alternateKickoff": false}"""))
     }
 
     @Test fun decodesPartialJSONOverFifaDefaults() {

@@ -74,7 +74,6 @@ class PhaseTransitionTests {
 
         val afterFirstHalf = listOf(cmd(CommandKind.SetKickoffTeam(Team.HOME), 0.0), cmd(start, 0.0), cmd(end, 2700.0))
         assertEquals(Team.AWAY, play(afterFirstHalf).kickoffTeam)
-        assertEquals(Team.HOME, play(RuleSet(alternateKickoff = false), afterFirstHalf).kickoffTeam)
     }
 
     @Test fun kickoffCannotChangeAfterStart() {

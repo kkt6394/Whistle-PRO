@@ -56,7 +56,6 @@
     ],
     "recordsRoute" : true,
     "rules" : {
-      "alternateKickoff" : true,
       "extraTime" : false,
       "extraTimeBreakLength" : 60,
       "extraTimeExtraSubs" : 0,
