@@ -4,15 +4,14 @@ import Testing
 @testable import WhistleDesign
 
 struct MainLayoutTests {
-    /// watchOS 화면(pt): SE 40mm, 41, 42, 44, 45, 46, Ultra 49mm. 상단 상태 표시줄을 뺀 높이도 함께 검사한다.
-    static let sizes: [CGSize] = {
-        let screens = [
-            CGSize(width: 162, height: 197), CGSize(width: 176, height: 215), CGSize(width: 187, height: 223),
-            CGSize(width: 184, height: 224), CGSize(width: 198, height: 242), CGSize(width: 208, height: 248),
-            CGSize(width: 205, height: 251),
-        ]
-        return screens + screens.map { CGSize(width: $0.width, height: $0.height - 30) }
-    }()
+    /// watchOS 화면(pt): SE 40mm, 41, 42, 44, 45, 46, Ultra 1·2 49mm, Ultra 3 49mm (시뮬레이터에서 잼)
+    static let screens: [CGSize] = [
+        CGSize(width: 162, height: 197), CGSize(width: 176, height: 215), CGSize(width: 187, height: 223),
+        CGSize(width: 184, height: 224), CGSize(width: 198, height: 242), CGSize(width: 208, height: 248),
+        CGSize(width: 205, height: 251), CGSize(width: 211, height: 257),
+    ]
+    /// 상단 상태 표시줄을 뺀 높이도 함께 검사한다.
+    static let sizes: [CGSize] = screens + screens.map { CGSize(width: $0.width, height: $0.height - 30) }
 
     @Test(arguments: MainLayoutTests.sizes) func rowsStayInsideRing(size: CGSize) {
         let l = MainLayout(size: size)
