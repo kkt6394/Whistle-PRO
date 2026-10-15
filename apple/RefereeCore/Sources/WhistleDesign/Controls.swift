@@ -8,26 +8,36 @@ public struct PillButtonStyle: ButtonStyle {
 
     public var kind: Kind
     public var height: CGFloat
+    /// 경기 밖 화면: 버튼 높이가 시스템 글자 크기를 따른다 (최소 44pt, B2 스펙 §4)
+    public var scalesWithText: Bool
 
-    public init(_ kind: Kind, height: CGFloat = 36) {
+    public init(_ kind: Kind, height: CGFloat = 44, scalesWithText: Bool = false) {
         self.kind = kind
         self.height = height
+        self.scalesWithText = scalesWithText
     }
 
     public func makeBody(configuration: Configuration) -> some View {
-        PillBody(configuration: configuration, kind: kind, height: height)
+        PillBody(configuration: configuration, kind: kind, baseHeight: height, scalesWithText: scalesWithText)
     }
 }
 
 private struct PillBody: View {
     let configuration: ButtonStyleConfiguration
     let kind: PillButtonStyle.Kind
-    let height: CGFloat
+    let baseHeight: CGFloat
+    let scalesWithText: Bool
     @Environment(\.isEnabled) private var isEnabled
+    /// 본문 글자 크기 비율 (기본 글자 크기에서 1)
+    @ScaledMetric(relativeTo: .body) private var textScale: CGFloat = 1
+
+    private var height: CGFloat {
+        scalesWithText ? max(44, baseHeight * textScale) : baseHeight
+    }
 
     var body: some View {
         configuration.label
-            .font(.system(size: min(height * 0.42, 17), weight: .heavy, design: .rounded))
+            .font(.system(size: min(height * 0.42, scalesWithText ? 17 * textScale : 17), weight: .heavy, design: .rounded))
             .lineLimit(1)
             .minimumScaleFactor(0.6)
             .foregroundStyle(kind == .primary ? Theme.onAccent : Theme.textPrimary)
