@@ -53,9 +53,9 @@ struct BorderTrackTests {
     }
 
     @Test func radiusIsClampedToHalfShortSide() {
-        #expect(BorderTrack(rect: CGRect(x: 0, y: 0, width: 40, height: 100), cornerRadius: 50).cornerRadius == 20)
-        #expect(BorderTrack(rect: .zero, cornerRadius: 10).cornerRadius == 0)
-        #expect(BorderTrack(rect: CGRect(x: 0, y: 0, width: 40, height: 40), cornerRadius: -3).cornerRadius == 0)
+        #expect(BorderTrack(rect: CGRect(x: 0, y: 0, width: 40, height: 100), cornerRadius: 50).topRadius == 20)
+        #expect(BorderTrack(rect: .zero, cornerRadius: 10).bottomRadius == 0)
+        #expect(BorderTrack(rect: CGRect(x: 0, y: 0, width: 40, height: 40), cornerRadius: -3).topRadius == 0)
     }
 
     @Test func squareCornersStillWork() {
@@ -63,5 +63,22 @@ struct BorderTrackTests {
         #expect(abs(square.length - 400) < 0.001)
         #expect(near(square.point(at: 0.125), CGPoint(x: 100, y: 0)))
         #expect(near(square.point(at: 0.375), CGPoint(x: 100, y: 100)))
+    }
+
+    /// 위·아래 모서리 반지름이 다를 수 있다 (B1: 테두리 윗변이 시스템 시각 아래로 내려와 위 모서리는 작게)
+    @Test func separateTopAndBottomRadii() {
+        let t = BorderTrack(rect: CGRect(x: 0, y: 0, width: 100, height: 140), topRadius: 10, bottomRadius: 30)
+        #expect(t.topRadius == 10 && t.bottomRadius == 30)
+        // 위 직선 80, 아래 직선 40, 좌우 직선 100, 모서리 둘씩 π·10/2·2 + π·30/2·2
+        #expect(abs(t.length - (80 + 40 + 2 * 100 + .pi * 10 + .pi * 30)) < 0.001)
+        // 위 가운데에서 위 직선 반(40) + 위 모서리(5π)를 가면 오른쪽 변 시작 (100, 10)
+        #expect(near(t.point(at: Double((40 + 5 * .pi) / t.length)), CGPoint(x: 100, y: 10)))
+        let end = t.path.trimmedPath(from: 0, to: 0.6).currentPoint!
+        #expect(near(end, t.point(at: 0.6), 1))
+    }
+
+    @Test func radiiFitHeightTogether() {
+        let t = BorderTrack(rect: CGRect(x: 0, y: 0, width: 200, height: 60), topRadius: 50, bottomRadius: 50)
+        #expect(t.topRadius + t.bottomRadius <= 60 + 0.001)
     }
 }
