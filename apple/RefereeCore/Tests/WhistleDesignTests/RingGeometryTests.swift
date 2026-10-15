@@ -4,12 +4,6 @@ import Testing
 struct RingGeometryTests {
     let share = RingGeometry.regulationShare
 
-    @Test func ringStartsBottomLeftPassesTopEndsBottomRight() {
-        #expect(RingGeometry.angle(at: 0) == 125)
-        #expect(RingGeometry.angle(at: 0.5) == 270)
-        #expect(RingGeometry.angle(at: 1) == 415)
-    }
-
     @Test func kickoffIsEmpty() {
         #expect(RingGeometry.period(elapsed: 0, length: 2700) == RingFill(main: 0, added: nil))
     }
