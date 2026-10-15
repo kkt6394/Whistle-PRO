@@ -96,4 +96,14 @@ struct LastCommandTests {
         s.send(.startPeriod)
         #expect(s.lastCommandID == id)
     }
+
+    /// M7b 리뷰: ＋ 버튼 음성 안내가 1초마다 모든 행을 만들었다 → 마지막 행만
+    @Test func lastRowMatchesFirstOfAllRows() {
+        let s = makeState([(.startPeriod, 0),
+                           (.recordEvent(.goal(team: .home, number: 9, ownGoal: false)), 60),
+                           (.recordEvent(.substitution(team: .away, numberOut: 7, numberIn: 14)), 120)])
+        let setup = MatchSetup()
+        #expect(s.lastEventRow(setup: setup) == s.eventRows(setup: setup).first)
+        #expect(makeState([]).lastEventRow(setup: setup) == nil)
+    }
 }
