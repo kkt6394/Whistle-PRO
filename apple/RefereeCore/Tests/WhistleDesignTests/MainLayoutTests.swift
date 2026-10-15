@@ -28,7 +28,7 @@ struct MainLayoutTests {
     @Test(arguments: MainLayoutTests.screens)
     func boxesStayInsideBorder(size: CGSize) {
         let l = MainLayout(size: size)
-        for (name, box) in [("clock", l.clock), ("home", l.home), ("away", l.away)] {
+        for (name, box) in [("clock", l.clock), ("subClock", l.subClock), ("home", l.home), ("away", l.away)] {
             for p in Self.corners(box) {
                 #expect(Self.inside(p, l.content, top: l.contentTopRadius, bottom: l.contentBottomRadius), "\(size) \(name) \(box)")
             }
@@ -74,13 +74,15 @@ struct MainLayoutTests {
     func boxesStackWithoutOverlap(size: CGSize) {
         let l = MainLayout(size: size)
         #expect(l.header.maxY <= l.border.rect.minY - l.lineWidth / 2 + 0.001, "상단 띠는 테두리 위 \(size)")
-        #expect(l.clock.maxY <= l.teams.minY + 0.001)
+        // 작은 줄(남은 시간·정지시간)은 큰 시계 바로 아래, 팀 칸 위 (2026-10-15 사용자 결정: 정지시간이 상단 띠에서 시스템 시각 옆 아이콘과 겹쳤다)
+        #expect(l.clock.maxY <= l.subClock.minY + 0.001)
+        #expect(l.subClock.maxY <= l.teams.minY + 0.001)
         #expect(l.teams.maxY <= l.buttons.minY + 0.001)
         #expect(l.home.maxX + MainLayout.dividerGap <= l.away.minX + 0.001)
         #expect(l.home.minX >= l.teams.minX - 0.001 && l.away.maxX <= l.teams.maxX + 0.001)
         // 팀 칸에 점수 줄과 일시 퇴장 줄이 다 들어간다
         #expect(l.scoreRowHeight + CGFloat(l.sinBinLines) * l.sinBinRowHeight <= l.teams.height + 0.001, "\(size)")
-        for box in [l.header, l.clock, l.home, l.away, l.buttons] {
+        for box in [l.header, l.clock, l.subClock, l.home, l.away, l.buttons] {
             #expect(box.width > 0 && box.height > 0, "\(size) \(box)")
         }
     }
@@ -93,7 +95,27 @@ struct MainLayoutTests {
         #expect(l.clockFontSize >= 44, "\(size) \(l.clockFontSize)")
         #expect(l.scoreFontSize >= 30, "\(size) \(l.scoreFontSize)")
         #expect(l.sinBinFontSize >= 13, "\(size) \(l.sinBinFontSize)")
+        #expect(l.subClockFontSize >= 13, "\(size) \(l.subClockFontSize)")
+        #expect(l.subClock.height >= l.subClockFontSize, "\(size) \(l.subClock)")
         #expect(l.sinBinLines >= 1)
+    }
+
+    /// 상단 띠는 시스템 시각 왼쪽의 상태 아이콘(아이폰 연결 끊김 등) 한 개 자리를 비운다
+    /// (2026-10-15 사용자 지적: 띠 글자가 시각 옆 아이콘과 겹쳤다)
+    @Test(arguments: MainLayoutTests.screens)
+    func headerLeavesRoomForStatusIcon(size: CGSize) {
+        let l = MainLayout(size: size)
+        let screen = WatchScreen.metrics(for: size)
+        #expect(l.header.maxX <= screen.clockLeft - 14 + 0.001, "\(size) \(l.header) \(screen.clockLeft)")
+    }
+
+    /// 버튼 셋은 폭이 높이 이상이라 둥글게 보인다 (2026-10-15 사용자 지적: 울트라에서 아래 모서리를 피하느라
+    /// 줄이 좁아져 버튼이 세로로 긴 타원이었다)
+    @Test(arguments: MainLayoutTests.screens)
+    func buttonsAreAtLeastAsWideAsTall(size: CGSize) {
+        let l = MainLayout(size: size)
+        let each = (l.buttons.width - MainLayout.buttonSpacing * 2) / 3
+        #expect(each >= l.buttons.height - 0.001, "\(size) 버튼 폭 \(each) 높이 \(l.buttons.height)")
     }
 
     /// 큰 화면에서는 모두 하한보다 커진다
@@ -102,7 +124,8 @@ struct MainLayoutTests {
         #expect(l.buttonHeight > 44)
         #expect(l.clockFontSize > 44)
         #expect(l.scoreFontSize > 30)
-        #expect(l.sinBinLines >= 2)
+        // 작은 줄을 넣은 뒤(2026-10-15) 일시 퇴장은 49mm에서도 한 줄 — 여러 명이면 "×3"으로 수를 보인다
+        #expect(l.sinBinLines >= 1)
     }
 
     /// 시계 "38:12"(다섯 글자, 약 2.8em)가 줄어들지 않고 들어간다

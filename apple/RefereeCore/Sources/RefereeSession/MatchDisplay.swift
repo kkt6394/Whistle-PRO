@@ -22,6 +22,16 @@ public struct ShootoutDisplay: Equatable, Sendable {
     public var kicksPerTeam: Int
 }
 
+/// 큰 시계 아래 작은 줄의 시계 (2026-10-15 사용자 결정)
+public enum SubClock: Equatable, Sendable {
+    /// 경과 모드: 정규시간까지 남은 시간 "32:26"
+    case remaining(String)
+    /// 남은 시간 모드: 흐른 경기 시간(90분 기준) "12:34"
+    case elapsed(String)
+    /// 추가시간: 축구 표기 "45+2:13" (큰 자리에는 +2:13)
+    case overtime(String)
+}
+
 /// 링 표시용 진행값 (초)
 public struct ClockProgress: Equatable, Sendable {
     public var elapsed: Int
@@ -48,6 +58,8 @@ public struct MatchDisplay: Equatable, Sendable {
     public var mainClock: String
     /// "+2:13" (규정 시간 초과 시에만)
     public var addedTime: String?
+    /// 큰 시계 아래 작은 줄 (기간 진행 중에만)
+    public var subClock: SubClock?
     /// 이 기간 누적 중단 시간 "1:24" (중단이 있었거나 진행 중일 때만)
     public var stoppage: String?
     public var stoppageRunning: Bool
@@ -87,8 +99,17 @@ public struct MatchDisplay: Equatable, Sendable {
             stoppageRunning = reading.stoppageRunning
             if case .period = state.phase {
                 periodProgress = ClockProgress(elapsed: reading.elapsed, length: reading.elapsed - reading.addedTime + reading.remaining)
+                let regulationEnd = reading.matchSecond - reading.addedTime
+                subClock = if reading.addedTime > 0 {
+                    .overtime("\(regulationEnd / 60)+" + Self.formatShort(reading.addedTime))
+                } else if clockDisplay == .elapsed {
+                    .remaining(Self.formatShort(reading.remaining))
+                } else {
+                    .elapsed(Self.formatShort(reading.matchSecond))
+                }
             } else {
                 periodProgress = nil
+                subClock = nil
             }
         } else {
             mainClock = Self.format(clockDisplay == .elapsed ? 0 : state.regularPeriodLength)
@@ -96,6 +117,7 @@ public struct MatchDisplay: Equatable, Sendable {
             stoppage = nil
             stoppageRunning = false
             periodProgress = nil
+            subClock = nil
         }
         if state.phase == .preExtraTime, let end = state.periods.last?.endedAt {
             intervalClock = Self.format(max(0, wholeSeconds(now - end)))

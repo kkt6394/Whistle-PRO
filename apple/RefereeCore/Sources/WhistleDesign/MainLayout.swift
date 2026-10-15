@@ -3,8 +3,8 @@ import CoreGraphics
 /// 워치 메인·휴식 화면 배치 (B1 스펙 §3).
 /// - 상단 띠: 테두리 밖, 시스템 시각 왼쪽 같은 줄
 /// - 테두리: 시스템 시각 글자 바로 아래에서 시작한다. 네 모서리 모두 화면 모서리 반지름 (2026-10-15 사용자 결정 — 시각과 겹치지 않게)
-/// - 테두리 안: 시계 줄 · 팀 칸(홈 | 원정) · 버튼 줄을 겹치지 않게 놓는다
-/// 하한(버튼 44 · 시계 44 · 점수 30 · 일시 퇴장 13)을 먼저 지키고, 남는 높이는
+/// - 테두리 안: 시계 줄 · 작은 줄(남은 시간·정지시간) · 팀 칸(홈 | 원정) · 버튼 줄을 겹치지 않게 놓는다
+/// 하한(버튼 44 · 시계 44 · 점수 30 · 일시 퇴장 13 · 작은 줄 13)을 먼저 지키고, 남는 높이는
 /// 시계 → 점수 → 일시 퇴장 줄 수 → 버튼 순으로 나눈다.
 public struct MainLayout: Equatable, Sendable {
     public static let minButtonHeight: CGFloat = 44
@@ -13,6 +13,8 @@ public struct MainLayout: Equatable, Sendable {
     public static let minSinBinFont: CGFloat = 13
     /// 두 팀 칸 사이 (가운데에 1pt 선)
     public static let dividerGap: CGFloat = 6
+    /// 버튼 셋 사이 간격
+    public static let buttonSpacing: CGFloat = 6
 
     /// 화면 끝에서 테두리 선 바깥까지 (좌우·아래)
     static let edge: CGFloat = 1.5
@@ -24,12 +26,15 @@ public struct MainLayout: Equatable, Sendable {
     static let clockDrop: CGFloat = 0.4
     /// 상단 띠: 시스템 시각 글자 위로 띄우는 높이, 글자 크기 / 시각 글자 높이
     static let headerAbove: CGFloat = 4
+    /// 상단 띠 오른쪽 끝에서 시스템 시각 글자까지: 시각 왼쪽에 뜨는 상태 아이콘(아이폰 연결 끊김 등, 약 10pt) 한 개와 간격
+    static let statusIconRoom: CGFloat = 14
     static let headerFontScale: CGFloat = 1.35
     /// 시계 글자 / 줄 높이: 줄 높이는 숫자 높이(약 0.72em)에 여유를 둔 0.82em. 숫자는 글자 줄 가운데에 있어
     /// 위아래 빈 줄 간격을 잘라도 남는다. 줄이 낮을수록 위쪽 둥근 모서리에 덜 걸려 폭이 넓다 (위 모서리가 화면 모서리만큼 크다)
     static let clockFill: CGFloat = 1 / 0.82
-    /// 점수 글자 / 줄 높이, 일시 퇴장 줄 높이 / 글자
-    static let scoreFill: CGFloat = 0.8
+    /// 점수 글자 / 줄 높이: 줄 높이 1em이면 숫자(약 0.72em) 위아래에 0.14em씩 남는다 (0.8이던 여유를 작은 줄에 줬다)
+    static let scoreFill: CGFloat = 1.0
+    /// 일시 퇴장·작은 줄 높이 / 글자
     static let sinBinLeading: CGFloat = 1.25
     /// "38:12" 폭 ≈ 2.8em, 점수 두 자리 + 점 ≈ 2em
     static let clockEm: CGFloat = 2.9
@@ -46,6 +51,8 @@ public struct MainLayout: Equatable, Sendable {
     public var contentBottomRadius: CGFloat
     public var header: CGRect
     public var clock: CGRect
+    /// 큰 시계 바로 아래 작은 줄: 남은 시간(또는 경과·45+2:13)과 정지시간 "남은 시간 12:51  ⏸ 1:35" (2026-10-15 사용자 결정)
+    public var subClock: CGRect
     public var teams: CGRect
     public var home: CGRect
     public var away: CGRect
@@ -54,6 +61,7 @@ public struct MainLayout: Equatable, Sendable {
     public var clockFontSize: CGFloat
     public var scoreFontSize: CGFloat
     public var sinBinFontSize: CGFloat
+    public var subClockFontSize: CGFloat
     public var scoreRowHeight: CGFloat
     public var sinBinRowHeight: CGFloat
     public var sinBinLines: Int
@@ -84,17 +92,22 @@ public struct MainLayout: Equatable, Sendable {
         let headerTop = max(0, screen.clockTop - Self.headerAbove)
         let headerLeft = Self.cornerInset(screenRect, top: screenRadius, bottom: screenRadius, y: headerTop) + Self.padding
         header = CGRect(x: headerLeft, y: headerTop,
-                        width: max(0, screen.clockLeft - 4 - headerLeft), height: max(0, outerTop - headerTop))
+                        width: max(0, screen.clockLeft - Self.statusIconRoom - headerLeft), height: max(0, outerTop - headerTop))
         headerFontSize = (screen.clockBottom - screen.clockTop) * Self.headerFontScale
 
         // 하한부터 채우고 남는 높이를 나눈다
         // 시계 줄은 위 모서리 반지름의 40%만큼 내려서 시작한다. 거기서는 모서리 때문에 들이는 폭이 반지름의 20%뿐이다
         let top = content.minY + contentTopRadius * Self.clockDrop
-        let available = max(0, content.maxY - top - Self.gap * 2)
+        // 버튼 셋이 둥글게(폭 ≥ 높이) 들어가도록 아래 모서리에서 버튼 줄을 올리는 높이. 하한 버튼만큼은 미리 뺀다
+        let contentRect = content, contentBottom = contentBottomRadius
+        func buttonLift(_ h: CGFloat) -> CGFloat { Self.buttonLift(content: contentRect, bottomRadius: contentBottom, height: h) }
+        let baseLift = buttonLift(Self.minButtonHeight)
+        let available = max(0, content.maxY - top - Self.gap * 2 - baseLift)
         let clockRowMin = Self.minClockFont / Self.clockFill
         let scoreRowMin = Self.minScoreFont / Self.scoreFill
         let sinBinRowMin = Self.minSinBinFont * Self.sinBinLeading
-        let minimum = Self.minButtonHeight + clockRowMin + scoreRowMin + sinBinRowMin
+        let subClockRowMin = Self.minSinBinFont * Self.sinBinLeading
+        let minimum = Self.minButtonHeight + clockRowMin + subClockRowMin + scoreRowMin + sinBinRowMin
         // 하한도 안 들어가면(아주 작은 화면) 모두 같은 비율로 줄인다
         let shrink = minimum > 0 ? min(1, available / minimum) : 1
         var spare = max(0, available - minimum)
@@ -116,7 +129,12 @@ public struct MainLayout: Equatable, Sendable {
         }
         sinBinLines = lines
         sinBinFontSize = Self.minSinBinFont * shrink
-        let buttonHeight = (Self.minButtonHeight + take(Self.maxButtonHeight - Self.minButtonHeight)) * shrink
+        subClockFontSize = Self.minSinBinFont * shrink
+        var buttonHeight = (Self.minButtonHeight + take(Self.maxButtonHeight - Self.minButtonHeight)) * shrink
+        // 더 키우면 버튼 줄을 더 올려야 하는 화면에서는 키우지 않는다 (남는 높이는 팀 칸이 받는다)
+        while buttonHeight > Self.minButtonHeight * shrink + 0.5, buttonLift(buttonHeight) > baseLift + 0.001 {
+            buttonHeight = max(Self.minButtonHeight * shrink, buttonHeight - 0.5)
+        }
 
         scoreRowHeight = scoreFontSize / Self.scoreFill
         sinBinRowHeight = sinBinFontSize * Self.sinBinLeading
@@ -125,17 +143,35 @@ public struct MainLayout: Equatable, Sendable {
         clock = Self.row(in: content, top: contentTopRadius, bottom: contentBottomRadius, minY: top, height: clockRowHeight)
         // 시계 줄이 위쪽 둥근 모서리에 걸리면 폭이 줄어든다. 그 폭에 다섯 글자가 줄지 않고 들어가게 한다
         clockFontSize = min(clockFontSize, clock.width / Self.clockEm)
-        // 버튼 줄은 맨 아래. 양 끝이 캡슐이라 모서리 반지름이 캡슐 반지름보다 클 때만 안으로 들인다
-        let buttonInset = max(0, contentBottomRadius - buttonHeight / 2)
-        buttons = CGRect(x: content.minX + buttonInset, y: content.maxY - buttonHeight,
-                         width: max(0, content.width - buttonInset * 2), height: buttonHeight)
-        // 팀 칸은 시계 줄과 버튼 줄 사이를 모두 쓴다 (남은 높이는 칸이 받는다)
-        let teamsTop = clock.maxY + Self.gap
+        // 버튼 줄은 맨 아래 가운데, 폭은 둥근 버튼 셋만큼. 아래 모서리에 걸리면 걸리지 않는 높이까지 올린다
+        let rowWidth = min(content.width, buttonHeight * 3 + Self.buttonSpacing * 2)
+        buttons = CGRect(x: content.midX - rowWidth / 2, y: content.maxY - buttonLift(buttonHeight) - buttonHeight,
+                         width: rowWidth, height: buttonHeight)
+        subClock = Self.row(in: content, top: contentTopRadius, bottom: contentBottomRadius, minY: clock.maxY,
+                            height: subClockFontSize * Self.sinBinLeading)
+        // 팀 칸은 작은 줄과 버튼 줄 사이를 모두 쓴다 (남은 높이는 칸이 받는다)
+        let teamsTop = subClock.maxY + Self.gap
         teams = Self.row(in: content, top: contentTopRadius, bottom: contentBottomRadius, minY: teamsTop,
                          height: max(0, buttons.minY - Self.gap - teamsTop))
         let half = max(0, (teams.width - Self.dividerGap) / 2)
         home = CGRect(x: teams.minX, y: teams.minY, width: half, height: teams.height)
         away = CGRect(x: teams.maxX - half, y: teams.minY, width: half, height: teams.height)
+    }
+
+    /// 높이 h인 둥근 버튼 셋(양 끝은 반지름 h/2)이 아래 모서리(반지름 bottomRadius) 안에 들어가려면
+    /// 내용 영역 아래 끝에서 얼마나 올려야 하는지. 폭이 모자라면(아주 좁은 화면) 올리지 않는다
+    static func buttonLift(content: CGRect, bottomRadius: CGFloat, height h: CGFloat) -> CGFloat {
+        let rowWidth = h * 3 + buttonSpacing * 2
+        guard rowWidth <= content.width else { return 0 }
+        let r = h / 2
+        let reach = bottomRadius - r
+        // 끝 원 중심이 모서리 원 중심보다 얼마나 바깥(가로)에 있는지
+        let dx = bottomRadius - (content.width - rowWidth) / 2 - r
+        guard dx > 0, reach > 0 else { return 0 }
+        let dy = max(0, reach * reach - dx * dx).squareRoot()
+        // 끝 원 중심은 모서리 원 중심(maxY - bottomRadius)에서 dy 아래까지
+        let lowestCenter = content.maxY - bottomRadius + dy
+        return max(0, content.maxY - (lowestCenter + r))
     }
 
     private static func inset(_ rect: CGRect, by amount: CGFloat) -> CGRect {
