@@ -8,6 +8,10 @@ extension MatchState {
 
     private mutating func applyUnchecked(_ command: Command) throws(EngineError) {
         let t = command.timestamp
+        let wasFinished = if case .finished = phase { true } else { false }
+        defer {
+            if !wasFinished, case .finished = phase { finishedAt = t }
+        }
         switch command.kind {
         case .setKickoffTeam(let team): try setKickoff(team)
         case .startPeriod: try startPeriod(at: t)
