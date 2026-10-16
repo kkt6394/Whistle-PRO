@@ -4,10 +4,10 @@ import java.util.UUID
 
 fun cmd(kind: CommandKind, at: Double, id: String = UUID.randomUUID().toString()) = Command(id, at, kind)
 
-fun goal(team: Team, at: Double, number: Int? = null, id: String = UUID.randomUUID().toString()) =
+fun goal(team: Team, at: Double, number: Long? = null, id: String = UUID.randomUUID().toString()) =
     cmd(CommandKind.RecordEvent(EventPayload.Goal(team, number, false)), at, id)
 
-fun card(team: Team, number: Int?, kind: CardKind, at: Double, id: String = UUID.randomUUID().toString()) =
+fun card(team: Team, number: Long?, kind: CardKind, at: Double, id: String = UUID.randomUUID().toString()) =
     cmd(CommandKind.RecordEvent(EventPayload.Card(team, number, kind)), at, id)
 
 fun sub(team: Team, at: Double, id: String = UUID.randomUUID().toString()) =

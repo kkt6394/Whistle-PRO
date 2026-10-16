@@ -4,8 +4,8 @@ data class PeriodRef(val kind: Kind, /** 1부터 시작 */ val index: Int) {
     enum class Kind { REGULAR, EXTRA }
 
     /** 2기간: 1H/2H, 4기간: Q1~Q4, 연장: ET1/ET2 */
-    fun label(periodCount: Int): String = when (kind) {
-        Kind.REGULAR -> if (periodCount == 4) "Q$index" else "${index}H"
+    fun label(periodCount: Long): String = when (kind) {
+        Kind.REGULAR -> if (periodCount == 4L) "Q$index" else "${index}H"
         Kind.EXTRA -> "ET$index"
     }
 }
@@ -35,7 +35,7 @@ data class PeriodRecord(
     val startedAt: Double,
     val endedAt: Double?,
     /** 규정 길이(초). adjustPeriodLength로 진행 중에도 바뀔 수 있다. */
-    val nominalLength: Int,
+    val nominalLength: Long,
     /** 이 기간 시작 시점의 누적 경기 시각(초) = 앞선 기간들의 규정 길이 합. Swift Int(64비트)와 같게 Long. */
     val offset: Long,
     val stoppages: List<StoppageInterval>,
@@ -72,9 +72,9 @@ data class MatchState(
     val extraKickoff: Team? = null,
     val shootoutFirstTeam: Team? = null,
     /** 다음 정규 기간에 쓸 길이 (adjustPeriodLength로 변경) */
-    val regularPeriodLength: Int = rules.periodLength,
+    val regularPeriodLength: Long = rules.periodLength,
     /** 다음 연장 기간에 쓸 길이 */
-    val extraPeriodLength: Int = rules.extraTimePeriodLength,
+    val extraPeriodLength: Long = rules.extraTimePeriodLength,
     /** 적용되지 못하고 무시된 명령 ID (로그 순서) */
     val ignoredCommandIds: List<String> = emptyList(),
     /** 승부차기 중에 중단했다 (킥이 없어도 라벨은 PK) */

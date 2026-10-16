@@ -3,6 +3,9 @@ package com.aidenstudio.whistlepro.session
 import com.aidenstudio.whistlepro.core.Command
 import com.aidenstudio.whistlepro.core.CommandKind
 import com.aidenstudio.whistlepro.core.RuleSet
+import com.aidenstudio.whistlepro.core.Team
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import java.io.File
 import java.util.UUID
 import kotlin.test.Test
@@ -21,6 +24,17 @@ class MatchLogStoreTests {
         assertEquals(RuleSet.FIFA_STANDARD, setup.rules)
         assertEquals(300, setup.warningBeforeEnd)
         assertEquals(ClockDisplay.ELAPSED, setup.clockDisplay)
+    }
+
+    /** 예고 시간·명단 번호도 Swift(64비트 Int)처럼 32비트를 넘어도 그대로 읽는다 (Int로 고정하면 다른 번호가 같은 선수가 됐다) */
+    @Test fun setupKeepsValuesBeyond32Bits() {
+        val json = MatchSetup(
+            homeRoster = listOf(Player(3_000_000_000L, "A"), Player(3_000_000_001L, "B")),
+            warningBeforeEnd = 3_000_000_000L,
+        ).toJson()
+        val back = MatchSetup.fromJson(Json.parseToJsonElement(json.toString()).jsonObject)
+        assertEquals(3_000_000_000L, back.warningBeforeEnd)
+        assertEquals("B", back.playerName(Team.HOME, 3_000_000_001L))
     }
 
     @Test fun noActiveMatchInEmptyDirectory() {

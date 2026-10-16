@@ -3,7 +3,7 @@ package com.aidenstudio.whistlepro.core
 data class ActiveSinBin(
     val eventId: String,
     val team: Team,
-    val number: Int?,
+    val number: Long?,
     /** 남은 일시 퇴장 시간(초). 경기 시계 기준이라 휴식 중에는 줄지 않는다. */
     val remainingSeconds: Double,
 ) {

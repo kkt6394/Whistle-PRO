@@ -1,6 +1,6 @@
 package com.aidenstudio.whistlepro.session
 
-import com.aidenstudio.whistlepro.core.int
+import com.aidenstudio.whistlepro.core.long
 import com.aidenstudio.whistlepro.core.string
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -8,30 +8,30 @@ import kotlinx.serialization.json.buildJsonObject
 import java.text.BreakIterator
 
 /** 명단의 선수 한 명 */
-data class Player(val number: Int, val name: String) {
+data class Player(val number: Long, val name: String) {
     fun toJson(): JsonObject = buildJsonObject {
         put("number", JsonPrimitive(number))
         put("name", JsonPrimitive(name))
     }
 
     companion object {
-        fun fromJson(json: JsonObject) = Player(json.int("number"), json.string("name"))
+        fun fromJson(json: JsonObject) = Player(json.long("number"), json.string("name"))
     }
 }
 
 sealed interface RosterIssue {
     /** 0~99 밖의 번호 */
-    data class NumberOutOfRange(val number: Int) : RosterIssue
-    data class DuplicateNumber(val number: Int) : RosterIssue
+    data class NumberOutOfRange(val number: Long) : RosterIssue
+    data class DuplicateNumber(val number: Long) : RosterIssue
     /** 이름이 비었거나 공백뿐 (번호로 구분) */
-    data class EmptyName(val number: Int) : RosterIssue
-    data class NameTooLong(val number: Int) : RosterIssue
+    data class EmptyName(val number: Long) : RosterIssue
+    data class NameTooLong(val number: Long) : RosterIssue
     data object TooManyPlayers : RosterIssue
 }
 
 object Roster {
     /** 워치 숫자패드가 두 자리까지라 같은 범위 */
-    val NUMBER_RANGE = 0..99
+    val NUMBER_RANGE = 0L..99L
     const val MAXIMUM_NAME_LENGTH = 20
     const val MAXIMUM_PLAYERS = 40
 
@@ -46,7 +46,7 @@ object Roster {
 
     /** 한 줄에 한 명: "10 홍길동", "#7, Kim", "9\tLee". 같은 번호가 다시 나오면 뒤의 것을 쓴다. 번호순으로 돌려준다. */
     fun parse(text: String): ParseResult {
-        val byNumber = mutableMapOf<Int, String>()
+        val byNumber = mutableMapOf<Long, String>()
         var skipped = 0
         for (rawLine in text.split(newline)) {
             val line = rawLine.trim(::isSwiftWhitespace)
@@ -60,7 +60,7 @@ object Roster {
                 skipped += 1
                 continue
             }
-            byNumber[digits.toInt()] = graphemePrefix(name, MAXIMUM_NAME_LENGTH)
+            byNumber[digits.toLong()] = graphemePrefix(name, MAXIMUM_NAME_LENGTH)
         }
         val players = byNumber.map { Player(it.key, it.value) }.sortedBy { it.number }
         return ParseResult(players, skipped)
@@ -70,7 +70,7 @@ object Roster {
     fun validate(players: List<Player>): List<RosterIssue> {
         val issues = mutableListOf<RosterIssue>()
         if (players.size > MAXIMUM_PLAYERS) issues += RosterIssue.TooManyPlayers
-        val seen = mutableSetOf<Int>()
+        val seen = mutableSetOf<Long>()
         for (player in players) {
             if (player.number !in NUMBER_RANGE) issues += RosterIssue.NumberOutOfRange(player.number)
             if (!seen.add(player.number) && RosterIssue.DuplicateNumber(player.number) !in issues) {

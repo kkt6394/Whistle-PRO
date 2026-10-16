@@ -47,18 +47,30 @@ class CommandCodingTests {
         assertFailsWith<SerializationException> { decode("""{"type": "recordDance", "t": 0, "team": "home"}""") }
     }
 
-    /** Swift(64비트 Int)는 32비트를 넘는 정수를 읽고 엔진이 무시한다. 로그 전체가 실패하면 안 된다. */
+    /** Swift(64비트 Int)처럼 32비트를 넘는 정수도 그대로 읽고 엔진이 범위 검사로 무시한다. 로그 전체가 실패하면 안 된다. */
     @Test fun integersBeyond32BitsDecodeAndEngineIgnoresThem() {
         val adjust = decode("""{"type": "adjustPeriodLength", "t": 1, "id": "a", "seconds": 3000000000}""")
         val goal = decode("""{"type": "recordGoal", "t": 2, "id": "g", "team": "home", "number": 3000000000}""")
-        assertEquals(CommandKind.AdjustPeriodLength(Int.MAX_VALUE), adjust.kind)
+        assertEquals(CommandKind.AdjustPeriodLength(3_000_000_000L), adjust.kind)
         assertEquals(listOf("a"), MatchEngine.reduce(RuleSet.FIFA_STANDARD, listOf(adjust)).ignoredCommandIds)
         assertTrue(goal.kind is CommandKind.RecordEvent)
-        assertEquals(CommandKind.AdjustPeriodLength(Int.MIN_VALUE), decode("""{"type": "adjustPeriodLength", "t": 1, "seconds": -3000000000}""").kind)
+        assertEquals(CommandKind.AdjustPeriodLength(-3_000_000_000L), decode("""{"type": "adjustPeriodLength", "t": 1, "seconds": -3000000000}""").kind)
         // 정수 문법은 Double을 거치지 않고 정확히 읽는다
         assertEquals(CommandKind.AdjustPeriodLength(1800), decode("""{"type": "adjustPeriodLength", "t": 1, "seconds": 1800}""").kind)
         // 64비트도 넘으면 Swift처럼 실패
         assertFailsWith<SerializationException> { decode("""{"type": "adjustPeriodLength", "t": 1, "seconds": 10000000000000000000}""") }
+    }
+
+    /** 선수 번호는 Swift(64비트 Int)처럼 32비트를 넘어도 그대로 읽는다: Int로 고정하면 3000000000과 3000000001이 같은 선수가 됐다 */
+    @Test fun playerNumbersBeyond32BitsKeepExactValues() {
+        val sub = decode("""{"type": "recordSubstitution", "t": 1, "team": "home", "numberOut": 3000000000, "numberIn": -3000000001}""")
+        assertEquals(CommandKind.RecordEvent(EventPayload.Substitution(Team.HOME, 3_000_000_000L, -3_000_000_001L)), sub.kind)
+        val first = card(Team.HOME, 3_000_000_000L, CardKind.YELLOW, 10.0)
+        val second = card(Team.HOME, 3_000_000_001L, CardKind.YELLOW, 20.0)
+        val s = play(listOf(cmd(start, 0.0), first, second))
+        assertTrue(s.resolvedEvents.all { it.warnings.isEmpty() })
+        // 다시 써도 같은 값
+        assertEquals(sub, Command.fromJson(Json.parseToJsonElement(sub.toJson().toString()).jsonObject))
     }
 
     /** Swift JSONDecoder는 JSON 표준 숫자·true/false만 받는다 */

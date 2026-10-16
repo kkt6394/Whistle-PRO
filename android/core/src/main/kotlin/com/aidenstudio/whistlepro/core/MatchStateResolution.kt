@@ -26,7 +26,7 @@ sealed interface MatchWarning {
     }
 }
 
-private data class PlayerKey(val team: Team, val number: Int)
+private data class PlayerKey(val team: Team, val number: Long)
 
 /** 이벤트를 기록 순서대로 해석한다. 수정·삭제가 있으면 다시 계산되므로 저장하지 않는다. */
 val MatchState.resolvedEvents: List<ResolvedEvent>
@@ -35,7 +35,7 @@ val MatchState.resolvedEvents: List<ResolvedEvent>
         var subs = TeamPair(0, 0)
         var sentOff = TeamPair(0, 0)
         val dismissed = mutableSetOf<PlayerKey>()
-        val kickers = TeamPair(mutableSetOf<Int>(), mutableSetOf<Int>())
+        val kickers = TeamPair(mutableSetOf<Long>(), mutableSetOf<Long>())
         val extraStart = extraTimeReachedAt
         return events.map { e ->
             val warnings = mutableListOf<EventWarning>()
@@ -113,7 +113,7 @@ val MatchState.sentOffCounts: TeamPair<Int>
         return counts
     }
 
-fun MatchState.playersOnField(now: Double): TeamPair<Int> {
+fun MatchState.playersOnField(now: Double): TeamPair<Long> {
     val sent = sentOffCounts
     var onField = TeamPair(rules.playersPerTeam - sent.home, rules.playersPerTeam - sent.away)
     for (s in activeSinBins(now)) onField = onField.with(s.team, onField[s.team] - 1)
@@ -130,7 +130,7 @@ fun MatchState.matchWarnings(now: Double): List<MatchWarning> {
 internal val MatchState.extraTimeReachedAt: Double?
     get() {
         if (!rules.extraTime) return null
-        val lastRegular = periods.firstOrNull { it.ref == PeriodRef(PeriodRef.Kind.REGULAR, rules.periodCount) } ?: return null
+        val lastRegular = periods.firstOrNull { it.ref.kind == PeriodRef.Kind.REGULAR && it.ref.index.toLong() == rules.periodCount } ?: return null
         val end = lastRegular.endedAt ?: return null
         if (!(phase == Phase.PreExtraTime || periods.any { it.ref.kind == PeriodRef.Kind.EXTRA })) return null
         return end

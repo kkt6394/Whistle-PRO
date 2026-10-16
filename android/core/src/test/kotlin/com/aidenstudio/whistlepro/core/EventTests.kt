@@ -108,7 +108,7 @@ class EventTests {
     @Test fun belowMinimumPlayersWarns() {
         val rules = RuleSet(playersPerTeam = 7, minimumPlayers = 6)
         val s = play(rules, listOf(cmd(start, 0.0), card(Team.HOME, 1, CardKind.RED, 100.0), card(Team.HOME, 2, CardKind.RED, 200.0)))
-        assertEquals(TeamPair(5, 7), s.playersOnField(300.0))
+        assertEquals(TeamPair(5L, 7L), s.playersOnField(300.0))
         assertEquals(listOf<MatchWarning>(MatchWarning.BelowMinimumPlayers(Team.HOME)), s.matchWarnings(300.0))
         assertEquals(listOf("belowMinimumPlayers:home"), s.matchWarnings(300.0).map { it.code })
         assertTrue(play(RuleSet(playersPerTeam = 7, minimumPlayers = null),

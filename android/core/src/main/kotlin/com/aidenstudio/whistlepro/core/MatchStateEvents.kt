@@ -4,7 +4,7 @@ package com.aidenstudio.whistlepro.core
 internal val EventPayload.scoringSide: Team?
     get() = (this as? EventPayload.Goal)?.let { if (it.ownGoal) it.team.opponent else it.team }
 
-internal val EventPayload.shirtNumbers: List<Int>
+internal val EventPayload.shirtNumbers: List<Long>
     get() = when (this) {
         is EventPayload.Goal -> listOfNotNull(number)
         is EventPayload.Card -> listOfNotNull(number)

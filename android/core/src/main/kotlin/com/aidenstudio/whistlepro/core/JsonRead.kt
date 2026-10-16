@@ -59,14 +59,8 @@ private const val TWO_TO_63 = 9.223372036854775808e18
 
 fun JsonObject.long(key: String): Long = optionalLong(key) ?: throw SerializationException("$key 없음")
 
-/**
- * 정수를 Int 범위로 고정해 읽는다. Swift는 32비트를 넘는 값(예: seconds 3000000000)도 읽고 엔진이 범위 검사로 무시하므로,
- * 여기서도 로그 전체를 실패시키지 않고 Int.MIN_VALUE~Int.MAX_VALUE로 고정한다 (엔진 범위 밖이라 똑같이 무시된다).
- */
-fun JsonObject.optionalInt(key: String): Int? =
-    optionalLong(key)?.coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong())?.toInt()
-
-fun JsonObject.int(key: String): Int = optionalInt(key) ?: throw SerializationException("$key 없음")
+// 32비트(Int)로 읽는 도우미는 두지 않는다: Swift Int는 64비트라, 잘라 읽으면 규칙(periodLength 등)·선수 번호·예고 시간에서
+// 결과가 달라졌다 (예: 번호 3000000000과 3000000001이 같은 선수가 됨). 정수 필드는 모두 optionalLong/long으로 읽는다.
 
 /** true/false 리터럴만 (kotlinx booleanOrNull은 TRUE·True도 받는다) */
 fun JsonObject.optionalBoolean(key: String): Boolean? = present(key)?.primitive(key)?.let {

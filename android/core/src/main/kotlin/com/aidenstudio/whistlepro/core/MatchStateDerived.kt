@@ -27,10 +27,10 @@ val MatchState.kickoffTeam: Team?
     }
 
 /** ref 기간이 끝난 뒤의 휴식 길이(초) */
-fun MatchState.intervalLength(after: PeriodRef): Int = when (after.kind) {
+fun MatchState.intervalLength(after: PeriodRef): Long = when (after.kind) {
     PeriodRef.Kind.EXTRA -> rules.extraTimeBreakLength
     PeriodRef.Kind.REGULAR ->
-        if (rules.periodCount == 4 && after.index != 2) rules.quarterBreakLength else rules.halfTimeLength
+        if (rules.periodCount == 4L && after.index != 2) rules.quarterBreakLength else rules.halfTimeLength
 }
 
 /** 마지막으로 시작한 기간의 라벨 (시작 전이면 null). 승부차기 중이거나 승부차기로 끝났으면 "PK". */

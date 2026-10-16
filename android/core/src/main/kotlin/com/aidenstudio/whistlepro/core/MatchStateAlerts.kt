@@ -11,7 +11,7 @@ data class MatchAlert(val kind: AlertKind, val at: Double)
  * now 이후에 울려야 할 알림(시각순). 진동은 앱이 실행한다.
  * warningBeforeEnd: 종료 N초 전 예고 (0이면 끔, 기간 길이 이상이면 생략)
  */
-fun MatchState.alerts(now: Double, warningBeforeEnd: Int): List<MatchAlert> {
+fun MatchState.alerts(now: Double, warningBeforeEnd: Long): List<MatchAlert> {
     val result = mutableListOf<MatchAlert>()
     when (val phase = phase) {
         is Phase.Period -> periods.lastOrNull()?.let { p ->
@@ -35,4 +35,4 @@ fun MatchState.alerts(now: Double, warningBeforeEnd: Int): List<MatchAlert> {
     return result.filter { it.at > now }.sortedBy { it.at }
 }
 
-fun MatchState.nextAlert(now: Double, warningBeforeEnd: Int): MatchAlert? = alerts(now, warningBeforeEnd).firstOrNull()
+fun MatchState.nextAlert(now: Double, warningBeforeEnd: Long): MatchAlert? = alerts(now, warningBeforeEnd).firstOrNull()

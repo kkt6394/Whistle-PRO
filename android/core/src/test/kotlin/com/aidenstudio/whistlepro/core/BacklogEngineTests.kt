@@ -1,5 +1,7 @@
 package com.aidenstudio.whistlepro.core
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -23,7 +25,7 @@ class BacklogEngineTests {
             card(Team.HOME, 5, CardKind.SIN_BIN, 6200.0), cmd(end, 6300.0)))
         assertEquals(Phase.Penalties, s.phase)
         assertTrue(s.activeSinBins(6300.0).isEmpty())
-        assertEquals(TeamPair(11, 11), s.playersOnField(6300.0))
+        assertEquals(TeamPair(11L, 11L), s.playersOnField(6300.0))
     }
 
     @Test fun sinBinsEndWhenMatchFinishes() {
@@ -64,9 +66,22 @@ class BacklogEngineTests {
         assertEquals(4_000_000_010L, s.clock(50.0)?.matchSecond)
     }
 
+    /** 32비트를 넘는 규칙·예고 값도 Swift(64비트 Int)처럼 그대로 읽고 계산한다 (Int로 고정하면 기간 끝·예고 시각이 달라졌다) */
+    @Test fun rulesAndWarningBeyond32BitsKeepExactValues() {
+        val json = Json.parseToJsonElement("""{"periodLength": 4000000000, "substitutionLimit": -3000000000}""").jsonObject
+        val rules = RuleSet.fromJson(json)
+        assertEquals("4000000000", rules.value(RuleSet.Field.periodLength))
+        assertEquals(-3_000_000_000L, rules.substitutionLimit)
+        val s = play(rules, listOf(cmd(start, 0.0)))
+        assertEquals(listOf(
+            MatchAlert(AlertKind.WARNING_BEFORE_END, 1e9),
+            MatchAlert(AlertKind.PERIOD_END, 4e9),
+        ), s.alerts(0.0, 3_000_000_000L))
+    }
+
     /** 교체 한도 + 연장 추가 교체가 Int를 넘어도 경고가 붙지 않는다 (Swift와 같음) */
     @Test fun hugeSubstitutionLimitDoesNotOverflow() {
-        val rules = RuleSet(extraTime = true, substitutionLimit = Int.MAX_VALUE, extraTimeExtraSubs = 1)
+        val rules = RuleSet(extraTime = true, substitutionLimit = Int.MAX_VALUE.toLong(), extraTimeExtraSubs = 1)
         val s = play(rules, twoHalves() + listOf(cmd(start, 6400.0), sub(Team.HOME, 6500.0)))
         assertTrue(s.resolvedEvents.single().warnings.isEmpty())
     }

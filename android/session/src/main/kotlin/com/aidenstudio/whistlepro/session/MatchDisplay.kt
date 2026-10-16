@@ -22,7 +22,7 @@ import kotlin.math.max
 
 data class SinBinBadge(
     val team: Team,
-    val number: Int?,
+    val number: Long?,
     /** 남은 시간 "4:12" */
     val remaining: String,
     /** 남은 시간(초). 가장 먼저 끝나는 일시 퇴장을 고를 때 쓴다. */
@@ -38,7 +38,7 @@ data class ShootoutDisplay(
     /** 팀별 킥 성공 여부 (찬 순서) */
     val results: TeamPair<List<Boolean>>,
     /** 기본 키커 수 */
-    val kicksPerTeam: Int,
+    val kicksPerTeam: Long,
 )
 
 /** 링 표시용 진행값 (초) */

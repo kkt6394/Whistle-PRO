@@ -9,7 +9,7 @@ import kotlin.test.assertTrue
 
 private val pkRules = RuleSet(penalties = true)
 
-private fun kick(team: Team, scored: Boolean, at: Double, number: Int? = null, id: String) =
+private fun kick(team: Team, scored: Boolean, at: Double, number: Long? = null, id: String) =
     cmd(CommandKind.RecordEvent(EventPayload.PenaltyKick(team, number, scored)), at, id)
 
 /** first 팀부터 번갈아 찬다. results[i]는 i번째 킥 성공 여부, ID는 "k0", "k1", ... */

@@ -10,13 +10,13 @@ class SinBinTests {
     @Test fun countsDownWithPlayedTime() {
         val s = play(sinBinRules, listOf(cmd(start, 0.0), card(Team.AWAY, 8, CardKind.SIN_BIN, 300.0, id = "s")))
         assertEquals(listOf(ActiveSinBin("s", Team.AWAY, 8, 500.0)), s.activeSinBins(400.0))
-        assertEquals(TeamPair(11, 10), s.playersOnField(400.0))
+        assertEquals(TeamPair(11L, 10L), s.playersOnField(400.0))
     }
 
     @Test fun expiresAfterLength() {
         val s = play(sinBinRules, listOf(cmd(start, 0.0), card(Team.AWAY, 8, CardKind.SIN_BIN, 300.0)))
         assertTrue(s.activeSinBins(900.0).isEmpty())
-        assertEquals(TeamPair(11, 11), s.playersOnField(900.0))
+        assertEquals(TeamPair(11L, 11L), s.playersOnField(900.0))
     }
 
     @Test fun pausesDuringInterval() {

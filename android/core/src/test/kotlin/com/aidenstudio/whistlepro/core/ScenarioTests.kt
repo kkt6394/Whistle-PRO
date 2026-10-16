@@ -23,7 +23,7 @@ private object Scenarios {
 }
 
 /** 생략하거나 null이면 300. Swift 러너처럼 정수로 읽어 300.0도 받는다. */
-internal fun scenarioWarningBeforeEnd(raw: JsonObject): Int = raw.optionalInt("warningBeforeEnd") ?: 300
+internal fun scenarioWarningBeforeEnd(raw: JsonObject): Long = raw.optionalLong("warningBeforeEnd") ?: 300
 
 class ScenarioTests {
     @Test fun scenarioDirectoryIsFound() {

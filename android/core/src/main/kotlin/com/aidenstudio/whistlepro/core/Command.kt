@@ -21,10 +21,10 @@ sealed interface EventPayload {
     /** 자책골이면 자책한 선수의 팀이다. */
     val team: Team
 
-    data class Goal(override val team: Team, val number: Int?, val ownGoal: Boolean) : EventPayload
-    data class Card(override val team: Team, val number: Int?, val kind: CardKind) : EventPayload
-    data class Substitution(override val team: Team, val numberOut: Int?, val numberIn: Int?) : EventPayload
-    data class PenaltyKick(override val team: Team, val number: Int?, val scored: Boolean) : EventPayload
+    data class Goal(override val team: Team, val number: Long?, val ownGoal: Boolean) : EventPayload
+    data class Card(override val team: Team, val number: Long?, val kind: CardKind) : EventPayload
+    data class Substitution(override val team: Team, val numberOut: Long?, val numberIn: Long?) : EventPayload
+    data class PenaltyKick(override val team: Team, val number: Long?, val scored: Boolean) : EventPayload
 
     val typeName: String
         get() = when (this) {
@@ -57,13 +57,13 @@ sealed interface EventPayload {
         /** type 외의 필드를 읽는다. Command의 평평한 JSON에서도 쓴다. */
         internal fun fromFields(type: String, json: JsonObject): EventPayload {
             val team = json.team("team")
-            val number = json.optionalInt("number")
+            val number = json.optionalLong("number")
             return when (type) {
                 "goal" -> Goal(team, number, json.optionalBoolean("ownGoal") ?: false)
                 "card" -> Card(team, number, json.string("kind").let {
                     CardKind.fromCode(it) ?: throw SerializationException("알 수 없는 카드: $it")
                 })
-                "substitution" -> Substitution(team, json.optionalInt("numberOut"), json.optionalInt("numberIn"))
+                "substitution" -> Substitution(team, json.optionalLong("numberOut"), json.optionalLong("numberIn"))
                 "penaltyKick" -> PenaltyKick(team, number, json.boolean("scored"))
                 else -> throw SerializationException("알 수 없는 이벤트: $type")
             }
@@ -73,7 +73,7 @@ sealed interface EventPayload {
 
 private fun JsonObjectBuilder.putFields(payload: EventPayload) {
     put("team", JsonPrimitive(payload.team.code))
-    fun putIfPresent(key: String, value: Int?) { if (value != null) put(key, JsonPrimitive(value)) }
+    fun putIfPresent(key: String, value: Long?) { if (value != null) put(key, JsonPrimitive(value)) }
     when (payload) {
         is EventPayload.Goal -> {
             putIfPresent("number", payload.number)
@@ -98,7 +98,7 @@ sealed interface CommandKind {
     data class SetKickoffTeam(val team: Team) : CommandKind
     data object StartPeriod : CommandKind
     data object EndPeriod : CommandKind
-    data class AdjustPeriodLength(val seconds: Int) : CommandKind
+    data class AdjustPeriodLength(val seconds: Long) : CommandKind
     data object ToggleStoppage : CommandKind
     data class SetShootoutFirstTeam(val team: Team) : CommandKind
     data class RecordEvent(val payload: EventPayload) : CommandKind
@@ -169,7 +169,7 @@ data class Command(
                 "setKickoffTeam" -> CommandKind.SetKickoffTeam(json.team("team"))
                 "startPeriod" -> CommandKind.StartPeriod
                 "endPeriod" -> CommandKind.EndPeriod
-                "adjustPeriodLength" -> CommandKind.AdjustPeriodLength(json.int("seconds"))
+                "adjustPeriodLength" -> CommandKind.AdjustPeriodLength(json.long("seconds"))
                 "toggleStoppage" -> CommandKind.ToggleStoppage
                 "setShootoutFirstTeam" -> CommandKind.SetShootoutFirstTeam(json.team("team"))
                 "editEvent" -> CommandKind.EditEvent(json.string("eventId"), EventPayload.fromJson(json.obj("event")))

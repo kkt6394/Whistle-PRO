@@ -26,7 +26,7 @@ data class MatchSnapshot(
     val stoppageTotals: List<Long>,
     val stoppageRunning: Boolean,
     val kickoffTeam: Team?,
-    val playersOnField: TeamPair<Int>,
+    val playersOnField: TeamPair<Long>,
     val substitutions: TeamPair<Int>,
     val events: List<Event>,
     val sinBins: List<SinBin>,
@@ -38,9 +38,9 @@ data class MatchSnapshot(
         val id: String,
         val type: String,
         val team: Team,
-        val number: Int?,
-        val numberOut: Int?,
-        val numberIn: Int?,
+        val number: Long?,
+        val numberOut: Long?,
+        val numberIn: Long?,
         val matchSecond: Long,
         val warnings: List<String>,
     ) {
@@ -56,7 +56,7 @@ data class MatchSnapshot(
         }
     }
 
-    data class SinBin(val eventId: String, val team: Team, val number: Int?, val remaining: Long) {
+    data class SinBin(val eventId: String, val team: Team, val number: Long?, val remaining: Long) {
         fun toJson(): JsonObject = buildJsonObject {
             put("eventId", JsonPrimitive(eventId))
             put("team", JsonPrimitive(team.code))
@@ -98,7 +98,7 @@ data class MatchSnapshot(
     }
 }
 
-private fun TeamPair<Int>.toJson() = JsonArray(listOf(JsonPrimitive(home), JsonPrimitive(away)))
+private fun <T : Number> TeamPair<T>.toJson() = JsonArray(listOf(JsonPrimitive(home), JsonPrimitive(away)))
 
 private fun JsonObjectBuilder.putIfPresent(key: String, value: Number?) {
     if (value != null) put(key, JsonPrimitive(value))
@@ -120,9 +120,9 @@ private val Phase.code: String
 
 private fun snapshotEvent(resolved: ResolvedEvent): MatchSnapshot.Event {
     val p = resolved.event.payload
-    var number: Int? = null
-    var numberOut: Int? = null
-    var numberIn: Int? = null
+    var number: Long? = null
+    var numberOut: Long? = null
+    var numberIn: Long? = null
     when (p) {
         is EventPayload.Goal -> number = p.number
         is EventPayload.Card -> number = p.number
@@ -144,7 +144,7 @@ private fun snapshotEvent(resolved: ResolvedEvent): MatchSnapshot.Event {
     )
 }
 
-fun MatchState.snapshot(now: Double, warningBeforeEnd: Int): MatchSnapshot {
+fun MatchState.snapshot(now: Double, warningBeforeEnd: Long): MatchSnapshot {
     val reading = clock(now)
     val shootoutStatus = shootout
     val reason = (phase as? Phase.Finished)?.reason

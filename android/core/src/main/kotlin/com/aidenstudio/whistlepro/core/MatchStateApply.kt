@@ -45,7 +45,7 @@ private fun MatchState.endPeriod(t: Double): MatchState {
 }
 
 /** 정규/연장 중 지금 해당하는 쪽의 길이를 바꾼다. 기간 진행 중이면 그 기간에도 즉시 적용된다. */
-private fun MatchState.adjustPeriodLength(seconds: Int): MatchState {
+private fun MatchState.adjustPeriodLength(seconds: Long): MatchState {
     if (seconds !in 60..5400) fail(EngineError.INVALID_VALUE)
     val targetsExtra = when (val p = phase) {
         Phase.NotStarted -> false

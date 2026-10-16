@@ -13,7 +13,7 @@ enum class EventKindChoice {
     val needsSecondNumber: Boolean get() = this == SUBSTITUTION
 
     /** 자책골의 team은 자책한 선수의 팀이다 (득점은 상대 팀). */
-    fun payload(team: Team, number: Int?, secondNumber: Int?): EventPayload = when (this) {
+    fun payload(team: Team, number: Long?, secondNumber: Long?): EventPayload = when (this) {
         GOAL -> EventPayload.Goal(team, number, false)
         OWN_GOAL -> EventPayload.Goal(team, number, true)
         YELLOW -> EventPayload.Card(team, number, CardKind.YELLOW)
@@ -38,7 +38,7 @@ data class NumberEntry private constructor(
     /** 번호 수정으로 미리 채운 번호: 처음 누른 숫자가 바꾼다 (뒤에 이어 붙으면 4 → 5가 45가 된다) */
     private val prefilled: Boolean,
 ) {
-    constructor(value: Int? = null) : this(value?.toString() ?: "", value != null)
+    constructor(value: Long? = null) : this(value?.toString() ?: "", value != null)
 
     fun append(digit: Int): NumberEntry {
         if (digit !in 0..9) return this
@@ -51,7 +51,7 @@ data class NumberEntry private constructor(
     fun deleteLast(): NumberEntry = NumberEntry(digits.dropLast(1), false)
 
     /** Swift Int(String)처럼 ASCII 숫자만 (toIntOrNull은 아랍 숫자 '٣' 같은 유니코드 숫자도 읽는다) */
-    val value: Int? get() = digits.takeIf { asciiInteger.matches(it) }?.toIntOrNull()
+    val value: Long? get() = digits.takeIf { asciiInteger.matches(it) }?.toLongOrNull()
 
     private companion object {
         val asciiInteger = Regex("[+-]?[0-9]+")
@@ -61,7 +61,7 @@ data class NumberEntry private constructor(
 /** 이벤트의 등번호 자리. 교체는 PRIMARY=나가는 번호, INCOMING=들어오는 번호. */
 enum class NumberSlot { PRIMARY, INCOMING }
 
-fun EventPayload.number(slot: NumberSlot): Int? = when {
+fun EventPayload.number(slot: NumberSlot): Long? = when {
     this is EventPayload.Substitution -> if (slot == NumberSlot.PRIMARY) numberOut else numberIn
     slot != NumberSlot.PRIMARY -> null
     this is EventPayload.Goal -> number
@@ -70,7 +70,7 @@ fun EventPayload.number(slot: NumberSlot): Int? = when {
     else -> null
 }
 
-fun EventPayload.withNumber(number: Int?, slot: NumberSlot): EventPayload = when (this) {
+fun EventPayload.withNumber(number: Long?, slot: NumberSlot): EventPayload = when (this) {
     is EventPayload.Substitution -> if (slot == NumberSlot.PRIMARY) copy(numberOut = number) else copy(numberIn = number)
     is EventPayload.Goal -> if (slot == NumberSlot.PRIMARY) copy(number = number) else this
     is EventPayload.Card -> if (slot == NumberSlot.PRIMARY) copy(number = number) else this

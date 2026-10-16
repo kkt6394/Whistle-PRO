@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 class ReviewFixTests {
     @Test fun sinBinnedPlayerLaterSentOffIsCountedOnce() {
         val s = play(RuleSet(sinBin = true), listOf(cmd(start, 0.0), card(Team.HOME, 5, CardKind.SIN_BIN, 100.0), card(Team.HOME, 5, CardKind.RED, 160.0)))
-        assertEquals(TeamPair(10, 11), s.playersOnField(200.0))
+        assertEquals(TeamPair(10L, 11L), s.playersOnField(200.0))
         assertTrue(s.activeSinBins(200.0).isEmpty())
         assertTrue(s.alerts(200.0, 0).all { it.kind != AlertKind.SIN_BIN_END })
     }
@@ -17,7 +17,7 @@ class ReviewFixTests {
         val s = play(listOf(cmd(start, 0.0), card(Team.HOME, 5, CardKind.YELLOW, 100.0), card(Team.HOME, 5, CardKind.YELLOW, 200.0),
             card(Team.HOME, 5, CardKind.RED, 201.0, id = "r")))
         assertEquals(TeamPair(1, 0), s.sentOffCounts)
-        assertEquals(TeamPair(10, 11), s.playersOnField(300.0))
+        assertEquals(TeamPair(10L, 11L), s.playersOnField(300.0))
         assertEquals(listOf(EventWarning.PLAYER_ALREADY_SENT_OFF), s.resolvedEvents.last().warnings)
     }
 
