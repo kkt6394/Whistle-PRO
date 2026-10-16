@@ -36,8 +36,8 @@ data class PeriodRecord(
     val endedAt: Double?,
     /** 규정 길이(초). adjustPeriodLength로 진행 중에도 바뀔 수 있다. */
     val nominalLength: Int,
-    /** 이 기간 시작 시점의 누적 경기 시각(초) = 앞선 기간들의 규정 길이 합 */
-    val offset: Int,
+    /** 이 기간 시작 시점의 누적 경기 시각(초) = 앞선 기간들의 규정 길이 합. Swift Int(64비트)와 같게 Long. */
+    val offset: Long,
     val stoppages: List<StoppageInterval>,
 )
 

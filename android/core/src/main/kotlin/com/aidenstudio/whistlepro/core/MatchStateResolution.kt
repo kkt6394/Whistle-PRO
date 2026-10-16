@@ -136,9 +136,10 @@ internal val MatchState.extraTimeReachedAt: Double?
         return end
     }
 
-private fun MatchState.substitutionLimit(t: Double, extraStart: Double?): Int? {
+/** Long으로 더한다: validate() 범위 밖 규칙에서 Int가 넘치면 Swift(64비트 Int)와 결과가 달라진다. */
+private fun MatchState.substitutionLimit(t: Double, extraStart: Double?): Long? {
     if (rules.returnSubstitutions) return null
-    val limit = rules.substitutionLimit ?: return null
+    val limit = rules.substitutionLimit?.toLong() ?: return null
     if (extraStart != null && t >= extraStart) return limit + rules.extraTimeExtraSubs
     return limit
 }

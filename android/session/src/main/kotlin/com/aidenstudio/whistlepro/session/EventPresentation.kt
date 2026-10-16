@@ -79,7 +79,7 @@ private fun MatchState.rows(name: (Team, Int?) -> String?): List<EventRow> = res
 fun MatchState.minute(time: EventTime): EventMinute {
     val p = periods.firstOrNull { it.ref == time.period }
     if (!time.duringPlay || p == null) return EventMinute.AfterPeriod(time.period.label(rules.periodCount))
-    val end = (p.offset + p.nominalLength).toLong()
+    val end = p.offset + p.nominalLength
     if (time.matchSecond >= end) return EventMinute.Added(end / 60, (time.matchSecond - end) / 60 + 1)
     return EventMinute.Regular(time.matchSecond / 60 + 1)
 }

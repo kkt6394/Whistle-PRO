@@ -54,6 +54,23 @@ class BacklogEngineTests {
         assertEquals(-6L, wholeSeconds(-5.5))
     }
 
+    /** validate() 범위 밖 규칙에서도 Swift(64비트 Int)와 같은 값: 기간 offset 합이 Int를 넘는다 */
+    @Test fun hugePeriodLengthOffsetsDoNotOverflow() {
+        val rules = RuleSet(periodCount = 4, periodLength = 2_000_000_000, quarterBreakLength = 0)
+        val s = play(rules, listOf(cmd(start, 0.0), cmd(end, 10.0), cmd(start, 20.0), cmd(end, 30.0), cmd(start, 40.0),
+            goal(Team.HOME, 50.0, id = "g")))
+        assertEquals(4_000_000_000L, s.periods.last().offset)
+        assertEquals(4_000_000_010L, s.events.single().time.matchSecond)
+        assertEquals(4_000_000_010L, s.clock(50.0)?.matchSecond)
+    }
+
+    /** 교체 한도 + 연장 추가 교체가 Int를 넘어도 경고가 붙지 않는다 (Swift와 같음) */
+    @Test fun hugeSubstitutionLimitDoesNotOverflow() {
+        val rules = RuleSet(extraTime = true, substitutionLimit = Int.MAX_VALUE, extraTimeExtraSubs = 1)
+        val s = play(rules, twoHalves() + listOf(cmd(start, 6400.0), sub(Team.HOME, 6500.0)))
+        assertTrue(s.resolvedEvents.single().warnings.isEmpty())
+    }
+
     @Test fun deletingDecisiveKickReopensShootout() {
         val reopened = play(pkRules, decidedShootout() + cmd(CommandKind.DeleteEvent("last"), 6500.0))
         assertEquals(Phase.Penalties, reopened.phase)

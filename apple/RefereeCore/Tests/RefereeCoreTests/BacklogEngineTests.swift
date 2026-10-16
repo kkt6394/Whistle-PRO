@@ -55,6 +55,24 @@ struct BacklogEngineTests {
         #expect(wholeSeconds(-5.5) == -6)
     }
 
+    /// Kotlin BacklogEngineTests와 같은 값: validate() 범위 밖 규칙에서 기간 offset 합이 32비트를 넘는다
+    @Test func hugePeriodLengthOffsetsDoNotOverflow() {
+        let rules = RuleSet(periodCount: 4, periodLength: 2_000_000_000, quarterBreakLength: 0)
+        let s = play(rules, [cmd(.startPeriod, at: 0), cmd(.endPeriod, at: 10), cmd(.startPeriod, at: 20), cmd(.endPeriod, at: 30),
+                             cmd(.startPeriod, at: 40), goal(.home, at: 50, id: "g")])
+        #expect(s.periods.last?.offset == 4_000_000_000)
+        #expect(s.events.map(\.time.matchSecond) == [4_000_000_010])
+        #expect(s.clock(at: 50)?.matchSecond == 4_000_000_010)
+    }
+
+    /// Kotlin과 같은 값: 교체 한도 + 연장 추가 교체가 32비트를 넘어도 경고가 붙지 않는다
+    @Test func hugeSubstitutionLimitDoesNotOverflow() {
+        let rules = RuleSet(extraTime: true, substitutionLimit: Int(Int32.max), extraTimeExtraSubs: 1)
+        let s = play(rules, twoHalves() + [cmd(.startPeriod, at: 6400), sub(.home, at: 6500)])
+        #expect(s.resolvedEvents.count == 1)
+        #expect(s.resolvedEvents.allSatisfy { $0.warnings.isEmpty })
+    }
+
     @Test func deletingDecisiveKickReopensShootout() {
         let reopened = play(pkRules, decidedShootout() + [cmd(.deleteEvent(id: "last"), at: 6500)])
         #expect(reopened.phase == .penalties)
