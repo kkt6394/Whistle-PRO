@@ -56,4 +56,20 @@ class MatchLogStoreTests {
         assertFalse("active.json" in names)
         assertTrue(names.any { it.startsWith("active-corrupt-") })
     }
+
+    /** Swift SyncTests.storeDeletesArchivedMatchAndWorkout와 같다 */
+    @Test fun storeDeletesArchivedMatchAndWorkout() {
+        val store = FileMatchLogStore(tempDirectory())
+        val r = record()
+        val other = record(5.0)
+        store.saveActive(r)
+        store.saveActiveWorkout(WorkoutLog(r.id))
+        store.finishActive(r)
+        store.finishActive(other)
+        store.deleteArchived(r.id)
+        assertEquals(listOf(other), store.archived())
+        assertNull(store.archivedWorkout(r.id))
+        // 없는 경기를 지워도 실패하지 않는다
+        store.deleteArchived(UUID.randomUUID())
+    }
 }
