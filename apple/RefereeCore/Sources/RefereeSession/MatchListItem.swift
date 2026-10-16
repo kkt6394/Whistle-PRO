@@ -47,6 +47,11 @@ public struct MatchListItem: Equatable, Sendable, Identifiable {
         self.chips = chips
     }
 
+    /// 목록 날짜에 연도를 붙일지: 올해(기기 달력) 경기가 아니면 붙인다 ("2025년 12월 3일 (수)")
+    public static func showsYear(startedAt: Double, now: Date, calendar: Calendar) -> Bool {
+        calendar.component(.year, from: Date(timeIntervalSince1970: startedAt)) != calendar.component(.year, from: now)
+    }
+
     // ruleText 튜플 때문에 직접 비교한다
     public static func == (a: Self, b: Self) -> Bool {
         a.id == b.id && a.startedAt == b.startedAt && a.homeName == b.homeName && a.awayName == b.awayName
@@ -66,6 +71,14 @@ public struct MonthSummary: Equatable, Sendable {
         self.matches = matches
         self.distance = distance
         self.cardsPerMatch = cardsPerMatch
+    }
+
+    /// 요약 카드의 거리 숫자 (km, 단위 없이). 10km 미만은 소수 한 자리("0.4", "9.8"), 이상은 정수.
+    /// 정수로만 반올림하면 0.4km가 "0"으로 보였다 (디자인 개편 리뷰)
+    public static func distanceText(meters: Double) -> String {
+        let km = meters / 1000
+        let tenths = (km * 10).rounded() / 10
+        return tenths < 10 ? String(format: "%.1f", tenths) : String(format: "%.0f", km.rounded())
     }
 
     public static func of(_ summaries: [MatchSummary], now: Date, calendar: Calendar) -> MonthSummary {
