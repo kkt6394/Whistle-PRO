@@ -56,6 +56,8 @@ public struct MatchReport: Equatable, Sendable {
     public var periodScores: [TeamPair<Int>]
     /// 팀별 골·옐로·퇴장·교체 합계
     public var totals: TeamPair<ReportTotals>
+    /// 경기 규칙 (제출용 보고서의 "경기 방식" 줄)
+    public var rules: RuleSet
     /// FIFA 표준과 다른 규칙
     public var ruleDeviations: [RuleLine]
     public var workoutPeriods: [WorkoutStats]
@@ -118,6 +120,7 @@ public struct MatchReport: Equatable, Sendable {
             home: ReportTotals(lines: timeline.filter { $0.columnTeam == .home }),
             away: ReportTotals(lines: timeline.filter { $0.columnTeam == .away }))
 
+        rules = setup.rules
         ruleDeviations = setup.rules.deviations().map { RuleLine(field: $0, value: setup.rules.value(of: $0)) }
 
         if let workout = bundle.workout {

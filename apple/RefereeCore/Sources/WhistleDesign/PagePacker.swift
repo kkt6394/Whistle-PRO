@@ -37,10 +37,18 @@ public enum PagePacker {
         var bottom: CGFloat = 0
         var empty = true
         for (index, piece) in pieces.enumerated() {
-            var need = (empty ? 0 : piece.spacingBefore) + piece.height
-            if piece.keepWithNext, index + 1 < pieces.count {
-                need += pieces[index + 1].spacingBefore + pieces[index + 1].height
+            // keepWithNext가 이어지면 사슬 끝 조각까지 같은 쪽에 (굵은 줄 → 열 머리 → 첫 줄).
+            // 사슬이 한 쪽보다 길면 바로 다음 조각까지만 본다
+            var chain = piece.height
+            var next = index
+            while pieces[next].keepWithNext, next + 1 < pieces.count {
+                next += 1
+                chain += pieces[next].spacingBefore + pieces[next].height
             }
+            if chain > contentHeight, piece.keepWithNext, index + 1 < pieces.count {
+                chain = piece.height + pieces[index + 1].spacingBefore + pieces[index + 1].height
+            }
+            let need = (empty ? 0 : piece.spacingBefore) + chain
             if !empty && bottom + need > contentHeight {
                 page += 1
                 bottom = 0

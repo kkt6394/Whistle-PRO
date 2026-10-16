@@ -26,6 +26,13 @@ struct MatchReportTests {
         #expect(report.fileStem(timeZone: TimeZone(identifier: "America/Los_Angeles")!).hasPrefix("WhistlePRO 2026-10-15 "))
     }
 
+    /// 제출용 보고서의 "경기 방식" 줄은 기간 수·길이·연장·승부차기를 규칙에서 읽는다
+    @Test func reportCarriesRules() {
+        let rules = RuleSet(periodCount: 4, periodLength: 1500, extraTime: true, penalties: true)
+        let report = MatchReport(bundle: MatchBundle(record: makeRecord(MatchSetup(rules: rules), [(.startPeriod, 0)]), workout: nil))
+        #expect(report.rules == rules)
+    }
+
     @Test func reportSummarizesMatch() {
         let report = MatchReport(bundle: MatchBundle(record: makeRecord(match, createdAt: -10), workout: nil))
         #expect(report.outcome == .completed)
