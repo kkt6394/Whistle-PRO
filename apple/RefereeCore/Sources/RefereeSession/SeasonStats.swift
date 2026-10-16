@@ -82,3 +82,50 @@ public struct SeasonStats: Equatable, Sendable {
         return stats
     }
 }
+
+/// 시즌 통계 표 한 줄: 이름 · 합계 · 경기당. 값이 없으면 nil (화면에 "--")
+public struct StatLine: Equatable, Sendable {
+    public enum Kind: Equatable, Sendable {
+        case goals, yellows, reds, sinBins
+        /// 초
+        case addedTime
+        /// 미터
+        case distance
+        case sprints
+    }
+
+    public var kind: Kind
+    public var total: Double?
+    public var perMatch: Double?
+
+    public init(kind: Kind, total: Double?, perMatch: Double?) {
+        self.kind = kind
+        self.total = total
+        self.perMatch = perMatch
+    }
+}
+
+extension SeasonStats {
+    /// 표 줄 순서. 일시 퇴장은 있을 때만, 거리·스프린트는 운동 기록이 있는 경기가 있을 때만.
+    /// 추가시간·이동 거리도 합계와 경기당을 둘 다 채운다 (예전에는 한쪽 칸이 비어 있었다)
+    public var lines: [StatLine] {
+        var lines = [
+            StatLine(kind: .goals, total: Double(all.goals), perMatch: goalsPerMatch),
+            StatLine(kind: .yellows, total: Double(all.yellows), perMatch: perCompleted(completed.yellows)),
+            StatLine(kind: .reds, total: Double(all.reds), perMatch: perCompleted(completed.reds)),
+        ]
+        if all.sinBins > 0 {
+            lines.append(StatLine(kind: .sinBins, total: Double(all.sinBins), perMatch: perCompleted(completed.sinBins)))
+        }
+        lines.append(StatLine(kind: .addedTime, total: Double(all.addedSeconds), perMatch: addedSecondsPerMatch))
+        if all.matchesWithWorkout > 0 {
+            lines.append(StatLine(kind: .distance, total: all.distance, perMatch: distancePerMatch))
+            lines.append(StatLine(kind: .sprints, total: Double(all.sprints), perMatch: sprintsPerMatch))
+        }
+        return lines
+    }
+
+    private func perCompleted(_ total: Int) -> Double? {
+        completed.matches > 0 ? Double(total) / Double(completed.matches) : nil
+    }
+}
