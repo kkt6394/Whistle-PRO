@@ -33,6 +33,9 @@ public struct FillResult: Equatable, Sendable {
 
 /// 남는 높이 배분: 숨길 줄 → 주인공(상한) → 두 번째 → 간격 (B2 스펙 §2)
 public enum FillLayout {
+    /// 화면이 높이를 나눌 때 남겨 두는 여유: 배분한 높이를 그대로 쓰면 반올림으로 넘쳐 스크롤이 생긴다 (B2 리뷰: 화면마다 쓰던 4)
+    public static let slack: CGFloat = 4
+
     public static func layout(available: CGFloat, spacing: CGFloat, items: [FillItem], heroCap: CGFloat? = 60) -> FillResult {
         var hidden = items.map { _ in false }
         // 높이 0인 고정 항목은 화면이 그리지 않는 조건부 항목이라 간격도 세지 않는다
@@ -56,14 +59,16 @@ public enum FillLayout {
         let fits = shortfall >= -0.001
         var spare = max(0, shortfall)
 
-        let heroes = items.indices.filter { !hidden[$0] && items[$0].role == .hero }
-        if !heroes.isEmpty, spare > 0 {
-            let each = spare / CGFloat(heroes.count)
-            for index in heroes {
-                let grow = heroCap.map { min(each, max(0, $0 - items[index].height)) } ?? each
+        // 주인공끼리 똑같이 나누고, 상한에 닿은 주인공의 남은 몫은 아직 덜 찬 주인공에게 다시 나눈다
+        var growing = items.indices.filter { !hidden[$0] && items[$0].role == .hero }
+        while !growing.isEmpty, spare > 0.001 {
+            let each = spare / CGFloat(growing.count)
+            for index in growing {
+                let grow = heroCap.map { min(each, max(0, $0 - heights[index])) } ?? each
                 heights[index] += grow
                 spare -= grow
             }
+            growing = growing.filter { index in heroCap.map { heights[index] < $0 - 0.001 } ?? true }
         }
         let seconds = items.indices.filter { !hidden[$0] && items[$0].role == .second }
         if !seconds.isEmpty, spare > 0 {

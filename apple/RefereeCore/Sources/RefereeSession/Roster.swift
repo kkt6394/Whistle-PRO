@@ -56,6 +56,20 @@ public enum Roster {
         return ParseResult(players: players, skippedLines: skipped)
     }
 
+    /// 붙여넣기 결과 안내용: 새 번호 수와 이름이 바뀐 번호 수 (같은 이름은 세지 않는다)
+    public static func pasteCounts(existing: [Player], pasted: [Player]) -> (added: Int, renamed: Int) {
+        let names = Dictionary(existing.map { ($0.number, $0.name) }, uniquingKeysWith: { first, _ in first })
+        var added = 0, renamed = 0
+        for player in pasted {
+            if let name = names[player.number] {
+                if name != player.name { renamed += 1 }
+            } else {
+                added += 1
+            }
+        }
+        return (added, renamed)
+    }
+
     /// 저장 전에 확인할 문제 (없으면 빈 목록)
     public static func validate(_ players: [Player]) -> [RosterIssue] {
         var issues: [RosterIssue] = []

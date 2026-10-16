@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import RefereeSession
 
@@ -22,5 +23,26 @@ struct DeliveryRetryTests {
     @Test func waitGivesUpAfterTimeout() async {
         let done = await waitUntil(timeout: .milliseconds(100), poll: .milliseconds(10)) { false }
         #expect(!done)
+    }
+}
+
+/// 경기 확인 누락 후속: 폰 앱이 꺼져 있는 동안 워치가 화면에 나타날 때마다 같은 경기를 다시 보냈다
+struct MatchSendThrottleTests {
+    @Test func sameMatchIsNotResentWithinInterval() {
+        var throttle = MatchSendThrottle(interval: 600)
+        let a = UUID(), b = UUID()
+        do { let ok = throttle.allows(a, at: 0); #expect(ok) }
+        do { let ok = throttle.allows(a, at: 30); #expect(!ok) }
+        do { let ok = throttle.allows(b, at: 30); #expect(ok) }
+        do { let ok = throttle.allows(a, at: 601); #expect(ok) }
+    }
+
+    /// 전송이 실패하면 바로 다시 보낼 수 있다
+    @Test func failureClearsTheMatch() {
+        var throttle = MatchSendThrottle(interval: 600)
+        let a = UUID()
+        do { let ok = throttle.allows(a, at: 0); #expect(ok) }
+        throttle.failed(a)
+        do { let ok = throttle.allows(a, at: 1); #expect(ok) }
     }
 }

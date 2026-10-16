@@ -269,7 +269,8 @@ struct MatchSummaryTests {
         log.matchID = record.id
         let summary = MatchSummary(bundle: MatchBundle(record: record, workout: log))
         #expect(summary.goals == 2)
-        #expect(summary.yellows == 1)
+        // 꺼낸 옐로 두 장 (두 번째는 경고 누적 퇴장으로 레드에도 센다)
+        #expect(summary.yellows == 2)
         #expect(summary.reds == 2)
         #expect(summary.sinBins == 0)
         #expect(summary.addedSeconds == 100)

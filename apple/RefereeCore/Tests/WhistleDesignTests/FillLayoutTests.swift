@@ -65,4 +65,12 @@ struct FillLayoutTests {
         #expect(r.heights == [50, 0, 0, 40])
         #expect(r.spacing == 10)
     }
+
+    /// 주인공 최소 높이가 달라 하나가 먼저 상한에 닿으면, 남은 몫은 다른 주인공이 받는다 (B2 리뷰)
+    @Test func heroLeftoverGoesToOtherHeroes() {
+        let r = FillLayout.layout(available: 120 + 0, spacing: 0,
+                                  items: [FillItem(50, .hero), FillItem(30, .hero)], heroCap: 60)
+        #expect(r.heights == [60, 60])
+        #expect(r.spacing == 0)
+    }
 }

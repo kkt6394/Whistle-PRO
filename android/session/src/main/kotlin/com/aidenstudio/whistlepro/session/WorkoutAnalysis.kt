@@ -140,10 +140,14 @@ object WorkoutAnalysis {
     private fun stats(log: WorkoutLog, ranges: List<Pair<Double, Double>>, label: String?): WorkoutStats {
         fun inRanges(t: Double) = ranges.any { t >= it.first && t <= it.second }
         val heartRates = log.heartRate.filter { inRanges(it.t) }.map { it.value }
-        val distance = ranges.sumOf { delta(log.distance, log.restarts, it.first, it.second) }
-        // 기간마다 따로 계산해 휴식 시간을 건너는 구간이 생기지 않게 한다
-        val gpsZones = ranges.mapNotNull { range -> speedZones(log.route.filter { it.t >= range.first && it.t <= range.second }) }
-        val zones = if (gpsZones.isEmpty()) null else gpsZones.fold(SpeedZones()) { a, b -> a + b }.scaled(to = distance)
+        val distances = ranges.map { delta(log.distance, log.restarts, it.first, it.second) }
+        val distance = distances.sum()
+        // Swift와 같다: 비율은 GPS로, 양은 그 기간의 워치 거리로. 워치 거리 0인 기간은 빼고, 거리 샘플이 아예 없으면 GPS 그대로
+        val gpsZones = ranges.zip(distances).mapNotNull { (range, watchDistance) ->
+            if (log.distance.isNotEmpty() && watchDistance <= 0) null
+            else speedZones(log.route.filter { it.t >= range.first && it.t <= range.second })?.scaled(to = watchDistance)
+        }
+        val zones = if (gpsZones.isEmpty()) null else gpsZones.fold(SpeedZones()) { a, b -> a + b }
         return WorkoutStats(
             label = label,
             averageHeartRate = if (heartRates.isEmpty()) null else roundedSeconds(heartRates.sum() / heartRates.size),

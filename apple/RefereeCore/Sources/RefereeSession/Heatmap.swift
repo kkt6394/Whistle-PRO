@@ -77,7 +77,9 @@ public struct HeatmapBounds: Equatable, Sendable {
 
     /// 한국은 위성 사진을 경기장 크기까지 확대할 수 없어(Apple 지도 제한) 일반 지도로 그린다.
     public var inKorea: Bool {
-        (33.0...38.7).contains(centerLatitude) && (124.5...131.9).contains(centerLongitude)
+        guard (33.0...38.7).contains(centerLatitude), (124.5...131.9).contains(centerLongitude) else { return false }
+        // 상자의 남동쪽 모서리는 일본 (후쿠오카·시모노세키·쓰시마·이키). 부산·거제는 북위 35도 위이거나 동경 128.9도 서쪽 (M7a 리뷰)
+        return !(centerLatitude < 35.0 && centerLongitude > 128.9)
     }
 }
 

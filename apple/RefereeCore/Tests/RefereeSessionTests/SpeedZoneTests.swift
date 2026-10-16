@@ -55,6 +55,30 @@ struct SpeedZoneTests {
         #expect(abs(zones.sprinting - 20) < 0.01)
     }
 
+    /// M7a 리뷰: GPS가 전반에만 있으면 속도별 거리는 전반 워치 거리에만 맞춘다 (전체 거리로 늘리면 전반 비율이 후반까지 퍼졌다)
+    @Test func zonesScaleOnlyToPeriodsWithGPS() throws {
+        var log = WorkoutLog(matchID: UUID())
+        log.distance = [WorkoutSample(t: 0, value: 0), WorkoutSample(t: 2700, value: 3000),
+                        WorkoutSample(t: 3600, value: 3000), WorkoutSample(t: 6300, value: 7000)]
+        log.route = [point(0, north: 0, kmh: 5), point(1, north: 10, kmh: 5)]
+        let zones = try #require(WorkoutAnalysis.overall(log, state: makeState(halves), now: 7000).zones)
+        #expect(abs(zones.total - 3000) < 0.01)
+    }
+
+    /// 워치 거리가 0인 기간의 GPS는 속도별 거리에 넣지 않는다 (표시 거리 0km와 합이 맞지 않았다)
+    @Test func zeroWatchDistanceHasNoZones() {
+        var log = WorkoutLog(matchID: UUID())
+        log.distance = [WorkoutSample(t: 0, value: 0), WorkoutSample(t: 2700, value: 0)]
+        log.route = [point(0, north: 0, kmh: 5), point(1, north: 10, kmh: 5)]
+        #expect(WorkoutAnalysis.overall(log, state: makeState(halves), now: 7000).zones == nil)
+    }
+
+    @Test func zonesCanBeSkipped() {
+        var log = WorkoutLog(matchID: UUID())
+        log.route = [point(0, north: 0, kmh: 5), point(1, north: 10, kmh: 5)]
+        #expect(WorkoutAnalysis.overall(log, state: makeState(halves), now: 7000, includeZones: false).zones == nil)
+    }
+
     @Test func zonesSplitByPeriodAndExcludeBreaks() throws {
         var log = WorkoutLog(matchID: UUID())
         log.route = [point(100, north: 0, kmh: 5), point(101, north: 1, kmh: 5),

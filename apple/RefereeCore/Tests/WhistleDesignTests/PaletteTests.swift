@@ -29,6 +29,14 @@ struct PaletteTests {
         }
     }
 
+    /// 보조 버튼 바탕(surfaceRaised) 위 글자·아이콘: 버튼 글자는 굵은 큰 글자라 3:1 기준 (UI 리뷰: 이 바탕이 검사에서 빠져 있었다)
+    @Test func foregroundsReadableOnSecondaryButtons() {
+        for swatch in Palette.foregrounds {
+            #expect(RGB.contrast(swatch.dark, Palette.surfaceRaised.dark) >= 3, "\(swatch.dark)")
+            #expect(RGB.contrast(swatch.light, Palette.surfaceRaised.light) >= 3, "\(swatch.light)")
+        }
+    }
+
     @Test func textOnAccentButtonReadable() {
         #expect(RGB.contrast(Palette.onAccent.dark, Palette.accent.dark) >= 4.5)
         #expect(RGB.contrast(Palette.onAccent.light, Palette.accent.light) >= 4.5)

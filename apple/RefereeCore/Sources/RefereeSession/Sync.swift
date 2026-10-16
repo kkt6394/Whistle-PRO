@@ -211,6 +211,12 @@ public struct MatchLibrary: Sendable {
                 let stem = String(file.lastPathComponent.dropLast(".json".count))
                 guard summaries[stem]?.isCurrent != true else { continue }
                 if let bundle = try? decoder.decode(MatchBundle.self, from: Data(contentsOf: file)) {
+                    // 그사이 경기 수신(upsert)이 최신 요약을 썼으면 옛 기록으로 만든 요약으로 덮지 않는다 (M7a 리뷰)
+                    if let fresh = try? decoder.decode(MatchSummary.self, from: Data(contentsOf: summaryURL(for: bundle.id))),
+                       fresh.isCurrent {
+                        summaries[stem] = fresh
+                        continue
+                    }
                     let summary = MatchSummary(bundle: bundle)
                     try? JSONEncoder().encode(summary).write(to: summaryURL(for: bundle.id), options: .atomic)
                     summaries[stem] = summary
