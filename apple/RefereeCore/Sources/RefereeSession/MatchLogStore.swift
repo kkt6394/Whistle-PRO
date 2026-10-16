@@ -135,6 +135,20 @@ public struct FileMatchLogStore: MatchLogStore {
         try records(in: archiveDirectory).sorted { $0.createdAt < $1.createdAt }
     }
 
+    /// 보관된 경기 ID (오래 보관된 순). 기록을 디코딩하지 않고 finished/<id>.json 파일 이름에서 뽑는다:
+    /// 폰에 "받았니?"를 물을 때 경기마다 기록 전체를 읽지 않게 (리뷰)
+    public func archivedIDs() throws -> [UUID] {
+        guard FileManager.default.fileExists(atPath: archiveDirectory.path) else { return [] }
+        let files = try FileManager.default.contentsOfDirectory(at: archiveDirectory, includingPropertiesForKeys: [.contentModificationDateKey])
+        let entries: [(id: UUID, date: Date)] = files.compactMap { file in
+            guard file.pathExtension == "json",
+                  let id = UUID(uuidString: file.deletingPathExtension().lastPathComponent) else { return nil }
+            let date = (try? file.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            return (id, date)
+        }
+        return entries.sorted { $0.date != $1.date ? $0.date < $1.date : $0.id.uuidString < $1.id.uuidString }.map(\.id)
+    }
+
     public func saveActiveWorkout(_ log: WorkoutLog) throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try JSONEncoder().encode(log).write(to: activeWorkoutURL, options: .atomic)

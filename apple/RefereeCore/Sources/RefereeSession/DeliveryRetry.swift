@@ -52,10 +52,17 @@ public struct ReceiptCheck: Sendable {
         self.interval = interval
     }
 
+    /// 지금 물을 수 있는지 (답 대기 중이 아니고 간격이 지났다). 상태를 바꾸지 않는다.
+    /// 보관함을 읽기 전에 먼저 본다: reachable이 깜빡일 때마다 디스크를 읽지 않게 (리뷰)
+    public func canAsk(at now: Double) -> Bool {
+        guard !inFlight else { return false }
+        if let lastAnswered, now - lastAnswered < interval { return false }
+        return true
+    }
+
     /// 물을 경기 목록. 묻지 않을 때(답 대기 중, 간격 안, 남은 경기 없음)는 nil.
     public mutating func begin(pending: [UUID], at now: Double) -> [UUID]? {
-        guard !inFlight, !pending.isEmpty else { return nil }
-        if let lastAnswered, now - lastAnswered < interval { return nil }
+        guard canAsk(at: now), !pending.isEmpty else { return nil }
         inFlight = true
         return Array(pending.prefix(Self.maxIDs))
     }
@@ -64,6 +71,12 @@ public struct ReceiptCheck: Sendable {
     public mutating func answered(asked: [UUID], received: [UUID], at now: Double) -> [UUID] {
         inFlight = false
         lastAnswered = now
+        return Self.toDelete(asked: asked, received: received)
+    }
+
+    /// 답을 받고 지울 경기: 물은 경기 중 폰이 받았다고 한 것만.
+    /// 묻고 난 뒤 보관된 경기는 답에 들어 있어도 지우지 않는다 (아직 보내지 않았을 수 있다)
+    public static func toDelete(asked: [UUID], received: [UUID]) -> [UUID] {
         let receivedSet = Set(received)
         return asked.filter { receivedSet.contains($0) }
     }

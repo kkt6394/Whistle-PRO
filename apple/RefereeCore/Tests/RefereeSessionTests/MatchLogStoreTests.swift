@@ -140,4 +140,24 @@ struct MatchLogStoreTests {
         try store.finishActive(r)
         #expect(try store.archived() == [r])
     }
+
+    /// 받았는지 물을 경기 ID는 기록을 디코딩하지 않고 finished/ 파일 이름에서 뽑는다 (운동 기록·이름이 다른 파일은 빼고)
+    @Test func archivedIDsComeFromFileNames() throws {
+        let dir = tempDirectory()
+        let store = FileMatchLogStore(directory: dir)
+        let a = record(createdAt: 10), b = record(createdAt: 20)
+        try store.finishActive(a)
+        try store.saveActiveWorkout(WorkoutLog(matchID: b.id))
+        try store.saveActive(b)
+        try store.finishActive(b)
+        let finished = dir.appendingPathComponent("finished", isDirectory: true)
+        try Data("x".utf8).write(to: finished.appendingPathComponent("notes.json"))
+        #expect(Set(try store.archivedIDs()) == [a.id, b.id])
+        try store.deleteArchived(a.id)
+        #expect(try store.archivedIDs() == [b.id])
+    }
+
+    @Test func noArchivedIDsInEmptyDirectory() throws {
+        #expect(try FileMatchLogStore(directory: tempDirectory()).archivedIDs() == [])
+    }
 }

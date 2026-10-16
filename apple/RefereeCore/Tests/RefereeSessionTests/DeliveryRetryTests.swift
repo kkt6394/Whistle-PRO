@@ -109,4 +109,27 @@ struct ReceiptCheckTests {
         let size = try PropertyListSerialization.data(fromPropertyList: SyncPayload.receiptQuery(asked), format: .binary, options: 0).count
         #expect(size < 65_536)
     }
+
+    /// 디스크를 읽기 전에 물을 수 있는지부터 본다: 답 대기 중이거나 간격 안이면 false, 상태는 바꾸지 않는다
+    @Test func canAskWithoutTouchingState() {
+        var check = ReceiptCheck(interval: 60)
+        let a = UUID()
+        #expect(check.canAsk(at: 0))
+        #expect(check.canAsk(at: 0))
+        #expect(!check.inFlight)
+        let asked = check.begin(pending: [a], at: 0)!
+        #expect(!check.canAsk(at: 1))
+        _ = check.answered(asked: asked, received: [], at: 1)
+        #expect(!check.canAsk(at: 30))
+        #expect(check.canAsk(at: 61))
+        check.failed()
+        #expect(check.canAsk(at: 61))
+    }
+
+    /// 물은 경기 중 폰이 받았다고 한 것만 지운다: 묻고 난 뒤 보관된 경기는 폰이 받았다고 해도 남긴다
+    @Test func deletesOnlyAskedMatchesNotThoseArchivedAfterAsking() {
+        let a = UUID(), b = UUID(), later = UUID()
+        #expect(ReceiptCheck.toDelete(asked: [a, b], received: [b, later]) == [b])
+        #expect(ReceiptCheck.toDelete(asked: [a], received: []) == [])
+    }
 }
