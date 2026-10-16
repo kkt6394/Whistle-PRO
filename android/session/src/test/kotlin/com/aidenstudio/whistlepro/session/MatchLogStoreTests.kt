@@ -113,4 +113,16 @@ class MatchLogStoreTests {
         assertEquals(listOf("active.json"), dir.list().orEmpty().toList())
         assertEquals("new", file.readText())
     }
+
+    /** Swift UUID(uuidString:)처럼 8-4-4-4-12 16진수 36자만 받는다 (java UUID.fromString은 "1-2-3-4-5"도 받는다) */
+    @Test fun uuidMustBeCanonical36Characters() {
+        fun read(id: String) = kotlinx.serialization.json.buildJsonObject { put("id", kotlinx.serialization.json.JsonPrimitive(id)) }.uuid("id")
+        val id = UUID.randomUUID()
+        assertEquals(id, read(id.swiftString))
+        assertEquals(id, read(id.toString()))
+        for (bad in listOf("1-2-3-4-5", "", "${id.swiftString}0", id.swiftString.drop(1), id.swiftString.replace("-", ""),
+            "G" + id.swiftString.drop(1), "{${id.swiftString}}", "+" + id.swiftString.drop(1))) {
+            kotlin.test.assertFailsWith<kotlinx.serialization.SerializationException>(bad) { read(bad) }
+        }
+    }
 }

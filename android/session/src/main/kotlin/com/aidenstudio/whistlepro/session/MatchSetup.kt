@@ -135,10 +135,11 @@ data class MatchRecord(
 /** Swift UUID.uuidString과 같은 대문자 표기 */
 val UUID.swiftString: String get() = toString().uppercase()
 
+/** 8-4-4-4-12 16진수 36자 (Swift UUID(uuidString:)와 같음) */
+private val uuidPattern = Regex("[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}")
+
+/** java UUID.fromString은 "1-2-3-4-5"처럼 짧은 형식도 받으므로 먼저 36자 형식을 검사한다 (Swift는 거부). */
 internal fun JsonObject.uuid(key: String): UUID = string(key).let {
-    try {
-        UUID.fromString(it)
-    } catch (e: IllegalArgumentException) {
-        throw SerializationException("$key: UUID가 아님 $it")
-    }
+    if (!uuidPattern.matches(it)) throw SerializationException("$key: UUID가 아님 $it")
+    UUID.fromString(it)
 }
