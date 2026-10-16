@@ -22,6 +22,16 @@ struct EntitlementTests {
         #expect(!Entitlement(expiresAt: 100 * day, checkedAt: 0).isActive(at: 107 * day + 1))
     }
 
+    /// 홈 화면 리뷰: 워치가 이 시각에 맞춰 잠금을 다시 계산한다 (시각으로 계산해 관찰되지 않았다)
+    @Test func activeUntilIsExpiryPlusGrace() {
+        let e = Entitlement(expiresAt: 100 * day, checkedAt: 0)
+        #expect(e.activeUntil == 107 * day)
+        #expect(e.isActive(at: e.activeUntil!))
+        #expect(!e.isActive(at: e.activeUntil! + 1))
+        #expect(Entitlement.none.activeUntil == nil)
+        #expect(Entitlement(expiresAt: 100 * day, checkedAt: 0, revoked: true).activeUntil == nil)
+    }
+
     @Test func mergeKeepsLaterExpiry() {
         let phone = Entitlement(expiresAt: 200, checkedAt: 10)
         let watch = Entitlement(expiresAt: 300, checkedAt: 5)
