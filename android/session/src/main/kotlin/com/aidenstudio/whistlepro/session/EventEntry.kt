@@ -28,9 +28,13 @@ enum class EventKindChoice {
     }
 }
 
-/** 숫자 패드 입력 (최대 두 자리). 불변 값이라 append·deleteLast는 새 값을 돌려준다 (Compose 상태로 쓰기 쉽게). */
-data class NumberEntry(val digits: String = "") {
-    constructor(value: Int?) : this(value?.toString() ?: "")
+/**
+ * 숫자 패드 입력 (최대 두 자리). 불변 값이라 append·deleteLast는 새 값을 돌려준다 (Compose 상태로 쓰기 쉽게).
+ * Swift private(set)처럼 숫자 문자열로는 만들 수 없다 (3자리·비숫자 문자열을 막는다).
+ */
+@ConsistentCopyVisibility
+data class NumberEntry private constructor(val digits: String) {
+    constructor(value: Int? = null) : this(value?.toString() ?: "")
 
     fun append(digit: Int): NumberEntry {
         if (digit !in 0..9 || digits.length >= 2) return this
@@ -40,7 +44,12 @@ data class NumberEntry(val digits: String = "") {
 
     fun deleteLast(): NumberEntry = if (digits.isEmpty()) this else NumberEntry(digits.dropLast(1))
 
-    val value: Int? get() = digits.toIntOrNull()
+    /** Swift Int(String)처럼 ASCII 숫자만 (toIntOrNull은 아랍 숫자 '٣' 같은 유니코드 숫자도 읽는다) */
+    val value: Int? get() = digits.takeIf { asciiInteger.matches(it) }?.toIntOrNull()
+
+    private companion object {
+        val asciiInteger = Regex("[+-]?[0-9]+")
+    }
 }
 
 /** 이벤트의 등번호 자리. 교체는 PRIMARY=나가는 번호, INCOMING=들어오는 번호. */
