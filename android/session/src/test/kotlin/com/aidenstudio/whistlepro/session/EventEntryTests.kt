@@ -42,6 +42,26 @@ class EventEntryTests {
         assertEquals("9", NumberEntry(9).digits)
     }
 
+    /** 번호 수정: 미리 채운 번호 뒤에 이어 붙지 않고, 처음 누른 숫자가 바꾼다 (실기기: 4 → 5를 눌러 45가 됨) */
+    @Test fun firstDigitReplacesPrefilledNumber() {
+        var e = NumberEntry(4)
+        e = e.append(5)
+        assertEquals("5", e.digits)
+        e = e.append(1)
+        assertEquals("51", e.digits)
+    }
+
+    @Test fun firstDigitReplacesPrefilledTwoDigitNumber() {
+        val e = NumberEntry(10).append(7)
+        assertEquals("7", e.digits)
+    }
+
+    /** 지우기로 고치기 시작하면 그 뒤로는 이어서 입력한다 */
+    @Test fun deletingPrefilledNumberContinuesEditing() {
+        val e = NumberEntry(45).deleteLast().append(7)
+        assertEquals("47", e.digits)
+    }
+
     /** Swift private(set)처럼 숫자 문자열로는 만들 수 없다 (3자리·비숫자·아랍 숫자를 막는다). 공개 생성자는 Int?만 받는다. */
     @Test fun numberEntryCannotBeBuiltFromDigitString() {
         val public = NumberEntry::class.java.constructors.toList()
@@ -51,10 +71,10 @@ class EventEntryTests {
 
     /** Swift Int(String)처럼 ASCII 숫자만 값이 된다 (Kotlin toIntOrNull은 아랍 숫자 '٣'도 3으로 읽는다) */
     @Test fun numberEntryValueAcceptsOnlyAsciiDigits() {
-        val private = NumberEntry::class.java.getDeclaredConstructor(String::class.java).apply { isAccessible = true }
-        assertNull(private.newInstance("\u0663").value)
-        assertNull(private.newInstance("\uFF13").value)
-        assertEquals(12, private.newInstance("12").value)
+        val private = NumberEntry::class.java.getDeclaredConstructor(String::class.java, Boolean::class.javaPrimitiveType).apply { isAccessible = true }
+        assertNull(private.newInstance("\u0663", false).value)
+        assertNull(private.newInstance("\uFF13", false).value)
+        assertEquals(12, private.newInstance("12", false).value)
         assertEquals(-5, NumberEntry(-5).value)
     }
 

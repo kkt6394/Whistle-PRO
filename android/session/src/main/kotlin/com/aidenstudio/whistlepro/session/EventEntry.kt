@@ -33,16 +33,22 @@ enum class EventKindChoice {
  * Swift private(set)처럼 숫자 문자열로는 만들 수 없다 (3자리·비숫자 문자열을 막는다).
  */
 @ConsistentCopyVisibility
-data class NumberEntry private constructor(val digits: String) {
-    constructor(value: Int? = null) : this(value?.toString() ?: "")
+data class NumberEntry private constructor(
+    val digits: String,
+    /** 번호 수정으로 미리 채운 번호: 처음 누른 숫자가 바꾼다 (뒤에 이어 붙으면 4 → 5가 45가 된다) */
+    private val prefilled: Boolean,
+) {
+    constructor(value: Int? = null) : this(value?.toString() ?: "", value != null)
 
     fun append(digit: Int): NumberEntry {
-        if (digit !in 0..9 || digits.length >= 2) return this
-        val base = if (digits == "0") "" else digits
-        return NumberEntry(base + digit)
+        if (digit !in 0..9) return this
+        val current = if (prefilled) "" else digits
+        if (current.length >= 2) return this
+        val base = if (current == "0") "" else current
+        return NumberEntry(base + digit, false)
     }
 
-    fun deleteLast(): NumberEntry = if (digits.isEmpty()) this else NumberEntry(digits.dropLast(1))
+    fun deleteLast(): NumberEntry = NumberEntry(digits.dropLast(1), false)
 
     /** Swift Int(String)처럼 ASCII 숫자만 (toIntOrNull은 아랍 숫자 '٣' 같은 유니코드 숫자도 읽는다) */
     val value: Int? get() = digits.takeIf { asciiInteger.matches(it) }?.toIntOrNull()
