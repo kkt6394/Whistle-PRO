@@ -49,6 +49,19 @@ class WorkoutAnalysisTests {
         assertEquals(150L, stats[1].averageHeartRate)
     }
 
+    /** Swift .toNearestOrAwayFromZero와 같게: floor(v + 0.5)는 0.49999999999999994를 1로 올린다 */
+    @Test fun heartRateRoundingMatchesSwiftAtBoundary() {
+        fun max(value: Double) = WorkoutAnalysis.perPeriod(
+            WorkoutLog(UUID.randomUUID(), heartRate = listOf(WorkoutSample(100.0, value))), makeState(halves), 7000.0,
+        )[0].maxHeartRate
+        assertEquals(0L, max(0.49999999999999994))
+        assertEquals(0L, max(-0.49999999999999994))
+        assertEquals(1L, max(0.5))
+        assertEquals(-1L, max(-0.5))
+        assertEquals(3L, max(2.5))
+        assertEquals(-3L, max(-2.5))
+    }
+
     @Test fun overallExcludesHalfTime() {
         val log = WorkoutLog(
             UUID.randomUUID(),

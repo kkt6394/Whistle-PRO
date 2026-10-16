@@ -15,6 +15,19 @@ import kotlin.test.assertTrue
 private fun point(t: Double, kmh: Double) = RoutePoint(t, 0.0, 0.0, kmh / 3.6, 5.0)
 
 class BacklogSessionTests {
+    /** restarts 원소도 표준 숫자만 (Swift [Double] 디코딩과 같게 NaN·Infinity·1e400 거부) */
+    @Test fun workoutRestartsRejectNonStandardNumbers() {
+        val id = UUID.randomUUID()
+        fun decode(restarts: String) = WorkoutLog.fromJson(kotlinx.serialization.json.Json.parseToJsonElement(
+            """{"matchID": "${id.toString().uppercase()}", "heartRate": [], "distance": [], "energy": [], "route": [], "restarts": $restarts}""",
+        ) as JsonObject)
+        assertEquals(listOf(1.5, 1000.0), decode("[1.5, 1e3]").restarts)
+        assertEquals(null, decode("null").restarts)
+        for (bad in listOf("[NaN]", "[Infinity]", "[1e400]", "[12d]", "[\"1\"]", "1")) {
+            kotlin.test.assertFailsWith<kotlinx.serialization.SerializationException>(bad) { decode(bad) }
+        }
+    }
+
     @Test fun distanceSurvivesWorkoutRestart() {
         // 1000초에 2000m, 운동 세션 재시작으로 1500초에 100m부터 다시, 2700초에 1500m
         val log = WorkoutLog(UUID.randomUUID(), distance = listOf(

@@ -36,7 +36,7 @@ class PhaseTransitionTests {
         val done = play(rules, commands + listOf(cmd(start, t), cmd(end, t + 1500)))
         assertEquals(completed, done.phase)
         assertEquals(listOf("Q1", "Q2", "Q3", "Q4"), done.periods.map { it.ref.label(4) })
-        assertEquals(listOf(0, 1500, 3000, 4500), done.periods.map { it.offset })
+        assertEquals(listOf(0L, 1500L, 3000L, 4500L), done.periods.map { it.offset })
     }
 
     @Test fun tiedMatchGoesThroughExtraTimeToPenalties() {

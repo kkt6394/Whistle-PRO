@@ -114,7 +114,12 @@ data class Command(
     val timestamp: Double,
     val kind: CommandKind,
 ) {
+    /**
+     * NaN·무한대 타임스탬프는 SerializationException. kotlinx는 따옴표 없는 NaN/Infinity를 써서 Swift가 읽지 못하는 JSON이 된다
+     * (Swift JSONEncoder도 EncodingError.invalidValue로 실패한다).
+     */
     fun toJson(): JsonObject = buildJsonObject {
+        if (!timestamp.isFinite()) throw SerializationException("t: 유한하지 않은 숫자 $timestamp")
         put("id", JsonPrimitive(id))
         put("t", JsonPrimitive(timestamp))
         fun type(name: String) = put("type", JsonPrimitive(name))

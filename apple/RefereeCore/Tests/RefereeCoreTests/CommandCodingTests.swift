@@ -14,6 +14,34 @@ struct CommandCodingTests {
         #expect(c.kind == .startPeriod)
     }
 
+    /// Kotlin CommandCodingTests와 같게: 32비트를 넘는 정수는 읽고 엔진이 무시한다, 64비트를 넘으면 실패
+    @Test func integersBeyond32BitsDecodeAndEngineIgnoresThem() throws {
+        let adjust = try decode(#"{"type": "adjustPeriodLength", "t": 1, "id": "a", "seconds": 3000000000}"#)
+        #expect(MatchEngine.reduce(rules: .fifaStandard, commands: [adjust]).ignoredCommandIDs == ["a"])
+        _ = try decode(#"{"type": "recordGoal", "t": 2, "id": "g", "team": "home", "number": 3000000000}"#)
+        #expect(throws: (any Error).self) {
+            try decode(#"{"type": "adjustPeriodLength", "t": 1, "seconds": 10000000000000000000}"#)
+        }
+    }
+
+    /// Kotlin CommandCodingTests.nonStandardLiteralsAreRejected와 같은 목록: 표준이 아닌 숫자·불리언 리터럴은 거부
+    @Test func nonStandardLiteralsAreRejected() throws {
+        for literal in ["NaN", "Infinity", "-Infinity", "12d", "0x1p3", "9f", "1e400", "-1e400", "+5", "01", ".5", "5.", "1e", "TRUE"] {
+            #expect(throws: (any Error).self, "\(literal)") { try decode(#"{"type": "startPeriod", "t": \#(literal)}"#) }
+            #expect(throws: (any Error).self, "\(literal)") {
+                try decode(#"{"type": "adjustPeriodLength", "t": 1, "seconds": \#(literal)}"#)
+            }
+        }
+        for literal in ["TRUE", "True", "1", "0", "yes"] {
+            #expect(throws: (any Error).self, "\(literal)") {
+                try decode(#"{"type": "recordGoal", "t": 1, "team": "home", "ownGoal": \#(literal)}"#)
+            }
+        }
+        for (literal, value) in [("12", 12.0), ("-0.5", -0.5), ("1e3", 1000), ("1E+3", 1000), ("2.5e-1", 0.25)] {
+            #expect(try decode(#"{"type": "startPeriod", "t": \#(literal)}"#).timestamp == value)
+        }
+    }
+
     @Test func missingIdsAreUnique() throws {
         let a = try decode(#"{"type": "startPeriod", "t": 0}"#)
         let b = try decode(#"{"type": "startPeriod", "t": 0}"#)

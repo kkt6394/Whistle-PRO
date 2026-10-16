@@ -42,6 +42,22 @@ class EventEntryTests {
         assertEquals("9", NumberEntry(9).digits)
     }
 
+    /** Swift private(set)처럼 숫자 문자열로는 만들 수 없다 (3자리·비숫자·아랍 숫자를 막는다). 공개 생성자는 Int?만 받는다. */
+    @Test fun numberEntryCannotBeBuiltFromDigitString() {
+        val public = NumberEntry::class.java.constructors.toList()
+        assertTrue(public.isNotEmpty())
+        assertTrue(public.none { c -> c.parameterTypes.any { it == String::class.java } }, public.toString())
+    }
+
+    /** Swift Int(String)처럼 ASCII 숫자만 값이 된다 (Kotlin toIntOrNull은 아랍 숫자 '٣'도 3으로 읽는다) */
+    @Test fun numberEntryValueAcceptsOnlyAsciiDigits() {
+        val private = NumberEntry::class.java.getDeclaredConstructor(String::class.java).apply { isAccessible = true }
+        assertNull(private.newInstance("\u0663").value)
+        assertNull(private.newInstance("\uFF13").value)
+        assertEquals(12, private.newInstance("12").value)
+        assertEquals(-5, NumberEntry(-5).value)
+    }
+
     @Test fun numberSlotsReadAndReplace() {
         val sub = EventPayload.Substitution(Team.HOME, 7, 14)
         assertEquals(7, sub.number(NumberSlot.PRIMARY))

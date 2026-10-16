@@ -32,7 +32,7 @@ private fun MatchState.startPeriod(t: Double): MatchState {
         else -> fail(EngineError.INVALID_IN_PHASE)
     }
     val length = if (ref.kind == PeriodRef.Kind.REGULAR) regularPeriodLength else extraPeriodLength
-    val offset = periods.sumOf { it.nominalLength }
+    val offset = periods.sumOf { it.nominalLength.toLong() }
     return copy(
         periods = periods + PeriodRecord(ref, t, null, length, offset, emptyList()),
         phase = Phase.Period(ref),

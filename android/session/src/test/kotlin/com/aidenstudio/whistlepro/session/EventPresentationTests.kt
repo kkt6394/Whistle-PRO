@@ -60,10 +60,10 @@ class EventPresentationTests {
             Command("r", 21.0, event(EventPayload.Card(Team.HOME, 4, CardKind.RED))),
         )
         val s = MatchEngine.reduce(RuleSet.FIFA_STANDARD, commands)
-        assertEquals(RecordFeedback.None, s.feedback("y1"))
-        assertEquals(RecordFeedback.SecondYellow("y2"), s.feedback("y2"))
-        assertEquals(RecordFeedback.Warning(EventWarning.PLAYER_ALREADY_SENT_OFF), s.feedback("r"))
-        assertEquals(RecordFeedback.None, s.feedback("missing"))
+        assertEquals(RecordFeedback.None, s.feedback(forEvent = "y1"))
+        assertEquals(RecordFeedback.SecondYellow("y2"), s.feedback(forEvent = "y2"))
+        assertEquals(RecordFeedback.Warning(EventWarning.PLAYER_ALREADY_SENT_OFF), s.feedback(forEvent = "r"))
+        assertEquals(RecordFeedback.None, s.feedback(forEvent = "missing"))
     }
 
     @Test fun sinBinBadgesAndShortHandedTeams() {
@@ -103,11 +103,11 @@ class EventPresentationTests {
 class LastCommandTests {
     @Test fun lastCommandIDTracksAcceptedCommandsOnly() {
         val s = MatchSession.start(MatchSetup(), MemoryStore(), now = { 0.0 })
-        assertNull(s.lastCommandId)
+        assertNull(s.lastCommandID)
         s.send(start)
-        val id = assertNotNull(s.lastCommandId)
+        val id = assertNotNull(s.lastCommandID)
         assertEquals(s.record.commands.last().id, id)
         s.send(start)
-        assertEquals(id, s.lastCommandId)
+        assertEquals(id, s.lastCommandID)
     }
 }
