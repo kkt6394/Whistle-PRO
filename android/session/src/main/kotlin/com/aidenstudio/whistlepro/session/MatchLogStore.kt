@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import java.io.File
+import java.io.FileOutputStream
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 import java.nio.file.Files
@@ -118,17 +119,32 @@ class FileMatchLogStore(val directory: File) : MatchLogStore {
         return Json.parseToJsonElement(text).jsonObject
     }
 
-    /** 임시 파일에 쓰고 원자적으로 바꾼다 (Swift .atomic과 같음) */
     private fun writeAtomically(file: File, json: JsonObject) {
         requireFinite(json, file.name)
-        val temp = File(file.parentFile, ".${file.name}.${UUID.randomUUID()}.tmp")
-        temp.writeText(json.toString())
-        try {
-            Files.move(temp.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
-        } catch (e: Exception) {
-            temp.delete()
-            throw e
+        writeFileAtomically(file, json.toString().toByteArray(Charsets.UTF_8))
+    }
+}
+
+/**
+ * 임시 파일에 쓰고 원자적으로 바꾼다 (Swift .atomic과 같음). android.util.AtomicFile처럼 이름을 바꾸기 전에 fsync해,
+ * 전원이 갑자기 꺼져도 빈 파일로 바뀌지 않는다. 쓰기가 실패하면(디스크 가득 참 등) 임시 파일을 지운다.
+ * write는 테스트에서 쓰기 실패를 흉내 내려고 바꿀 수 있다.
+ */
+internal fun writeFileAtomically(
+    file: File,
+    bytes: ByteArray,
+    write: (FileOutputStream, ByteArray) -> Unit = { out, b -> out.write(b) },
+) {
+    val temp = File(file.parentFile, ".${file.name}.${UUID.randomUUID()}.tmp")
+    try {
+        FileOutputStream(temp).use { out ->
+            write(out, bytes)
+            out.fd.sync()
         }
+        Files.move(temp.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+    } catch (e: Exception) {
+        temp.delete()
+        throw e
     }
 }
 

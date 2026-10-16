@@ -88,4 +88,29 @@ class MatchLogStoreTests {
         // 없는 경기를 지워도 실패하지 않는다
         store.deleteArchived(UUID.randomUUID())
     }
+
+    /** 쓰다가 실패해도(디스크 가득 참 등) 임시 파일이 남지 않고 원래 파일은 그대로다 */
+    @Test fun failedWriteLeavesNoTempFileAndKeepsOriginal() {
+        val dir = tempDirectory().also { it.mkdirs() }
+        val file = File(dir, "active.json")
+        file.writeText("old")
+        val failure = runCatching {
+            writeFileAtomically(file, "new".toByteArray()) { out, bytes ->
+                out.write(bytes, 0, 1)
+                throw java.io.IOException("디스크 가득 참")
+            }
+        }
+        assertTrue(failure.isFailure)
+        assertEquals(listOf("active.json"), dir.list().orEmpty().toList())
+        assertEquals("old", file.readText())
+    }
+
+    @Test fun atomicWriteReplacesFile() {
+        val dir = tempDirectory().also { it.mkdirs() }
+        val file = File(dir, "active.json")
+        file.writeText("old")
+        writeFileAtomically(file, "new".toByteArray())
+        assertEquals(listOf("active.json"), dir.list().orEmpty().toList())
+        assertEquals("new", file.readText())
+    }
 }
