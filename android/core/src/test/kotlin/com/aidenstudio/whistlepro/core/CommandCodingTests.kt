@@ -61,6 +61,33 @@ class CommandCodingTests {
         assertFailsWith<SerializationException> { decode("""{"type": "adjustPeriodLength", "t": 1, "seconds": 10000000000000000000}""") }
     }
 
+    /** Swift JSONDecoder는 JSON 표준 숫자·true/false만 받는다 */
+    @Test fun nonStandardLiteralsAreRejected() {
+        for (literal in listOf("NaN", "Infinity", "-Infinity", "12d", "0x1p3", "9f", "1e400", "-1e400", "+5", "01", ".5", "5.", "1e", "TRUE")) {
+            assertFailsWith<SerializationException>(literal) { decode("""{"type": "startPeriod", "t": $literal}""") }
+            assertFailsWith<SerializationException>(literal) {
+                decode("""{"type": "adjustPeriodLength", "t": 1, "seconds": $literal}""")
+            }
+        }
+        for (literal in listOf("TRUE", "True", "1", "0", "yes")) {
+            assertFailsWith<SerializationException>(literal) {
+                decode("""{"type": "recordGoal", "t": 1, "team": "home", "ownGoal": $literal}""")
+            }
+        }
+        for ((literal, value) in listOf("12" to 12.0, "-0.5" to -0.5, "1e3" to 1000.0, "1E+3" to 1000.0, "2.5e-1" to 0.25, "-0" to -0.0)) {
+            assertEquals(value, decode("""{"type": "startPeriod", "t": $literal}""").timestamp, literal)
+        }
+        assertEquals(CommandKind.RecordEvent(EventPayload.Goal(Team.HOME, null, true)),
+            decode("""{"type": "recordGoal", "t": 1, "team": "home", "ownGoal": true}""").kind)
+    }
+
+    /** Swift JSONEncoder처럼 NaN·무한대 타임스탬프는 쓰지 않는다 (따옴표 없는 NaN은 Swift가 읽지 못한다) */
+    @Test fun nonFiniteTimestampCannotBeEncoded() {
+        for (t in listOf(Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY)) {
+            assertFailsWith<SerializationException>("$t") { Command("c", t, CommandKind.StartPeriod).toJson() }
+        }
+    }
+
     @Test fun everyKindRoundTrips() {
         val kinds = listOf(
             CommandKind.SetKickoffTeam(Team.HOME),

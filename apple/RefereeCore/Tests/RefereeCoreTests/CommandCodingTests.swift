@@ -24,6 +24,24 @@ struct CommandCodingTests {
         }
     }
 
+    /// Kotlin CommandCodingTests.nonStandardLiteralsAreRejected와 같은 목록: 표준이 아닌 숫자·불리언 리터럴은 거부
+    @Test func nonStandardLiteralsAreRejected() throws {
+        for literal in ["NaN", "Infinity", "-Infinity", "12d", "0x1p3", "9f", "1e400", "-1e400", "+5", "01", ".5", "5.", "1e", "TRUE"] {
+            #expect(throws: (any Error).self, "\(literal)") { try decode(#"{"type": "startPeriod", "t": \#(literal)}"#) }
+            #expect(throws: (any Error).self, "\(literal)") {
+                try decode(#"{"type": "adjustPeriodLength", "t": 1, "seconds": \#(literal)}"#)
+            }
+        }
+        for literal in ["TRUE", "True", "1", "0", "yes"] {
+            #expect(throws: (any Error).self, "\(literal)") {
+                try decode(#"{"type": "recordGoal", "t": 1, "team": "home", "ownGoal": \#(literal)}"#)
+            }
+        }
+        for (literal, value) in [("12", 12.0), ("-0.5", -0.5), ("1e3", 1000), ("1E+3", 1000), ("2.5e-1", 0.25)] {
+            #expect(try decode(#"{"type": "startPeriod", "t": \#(literal)}"#).timestamp == value)
+        }
+    }
+
     @Test func missingIdsAreUnique() throws {
         let a = try decode(#"{"type": "startPeriod", "t": 0}"#)
         let b = try decode(#"{"type": "startPeriod", "t": 0}"#)

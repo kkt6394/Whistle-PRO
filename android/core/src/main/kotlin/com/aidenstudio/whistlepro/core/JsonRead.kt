@@ -6,8 +6,6 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.doubleOrNull
 import kotlin.math.floor
 
 // Swift Decodable과 같은 규칙으로 JSON 객체를 읽는 도우미. 형식이 틀리면 SerializationException.
@@ -25,10 +23,23 @@ fun JsonObject.optionalString(key: String): String? = present(key)?.primitive(ke
 
 fun JsonObject.string(key: String): String = optionalString(key) ?: throw SerializationException("$key 없음")
 
-fun JsonObject.optionalDouble(key: String): Double? = present(key)?.primitive(key)?.let {
-    if (it.isString) throw SerializationException("$key: 숫자가 아님")
-    it.doubleOrNull ?: throw SerializationException("$key: 숫자가 아님")
+/** JSON 표준(RFC 8259) 숫자 문법. NaN·Infinity·12d·0x1p3·+5·01 같은 kotlinx 비표준 리터럴은 Swift처럼 거부한다. */
+private val jsonNumber = Regex("-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?")
+
+/** 표준 문법의 숫자 리터럴 텍스트 */
+private fun JsonPrimitive.numberText(key: String): String {
+    if (isString || !jsonNumber.matches(content)) throw SerializationException("$key: 숫자가 아님")
+    return content
 }
+
+/** 유한한 실수. 1e400처럼 넘치는 값은 Swift처럼 거부한다. 배열 원소 등 키 없는 값에도 쓴다. */
+fun JsonElement.finiteDouble(key: String): Double {
+    val d = primitive(key).numberText(key).toDouble()
+    if (!d.isFinite()) throw SerializationException("$key: 유한한 숫자가 아님")
+    return d
+}
+
+fun JsonObject.optionalDouble(key: String): Double? = present(key)?.finiteDouble(key)
 
 fun JsonObject.double(key: String): Double = optionalDouble(key) ?: throw SerializationException("$key 없음")
 
@@ -37,10 +48,7 @@ fun JsonObject.double(key: String): Double = optionalDouble(key) ?: throw Serial
  * 정수 문법은 Double을 거치지 않고 정확히 읽는다. 범위를 넘으면 실패.
  */
 fun JsonObject.optionalLong(key: String): Long? {
-    val text = present(key)?.primitive(key)?.let {
-        if (it.isString) throw SerializationException("$key: 숫자가 아님")
-        it.content
-    } ?: return null
+    val text = present(key)?.primitive(key)?.numberText(key) ?: return null
     text.toLongOrNull()?.let { return it }
     val d = optionalDouble(key)!!
     if (d != floor(d) || d < -TWO_TO_63 || d >= TWO_TO_63) throw SerializationException("$key: 정수가 아님")
@@ -60,9 +68,14 @@ fun JsonObject.optionalInt(key: String): Int? =
 
 fun JsonObject.int(key: String): Int = optionalInt(key) ?: throw SerializationException("$key 없음")
 
+/** true/false 리터럴만 (kotlinx booleanOrNull은 TRUE·True도 받는다) */
 fun JsonObject.optionalBoolean(key: String): Boolean? = present(key)?.primitive(key)?.let {
     if (it.isString) throw SerializationException("$key: 불리언이 아님")
-    it.booleanOrNull ?: throw SerializationException("$key: 불리언이 아님")
+    when (it.content) {
+        "true" -> true
+        "false" -> false
+        else -> throw SerializationException("$key: 불리언이 아님")
+    }
 }
 
 fun JsonObject.boolean(key: String): Boolean = optionalBoolean(key) ?: throw SerializationException("$key 없음")

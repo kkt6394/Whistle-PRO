@@ -2,13 +2,14 @@ package com.aidenstudio.whistlepro.session
 
 import com.aidenstudio.whistlepro.core.array
 import com.aidenstudio.whistlepro.core.double
+import com.aidenstudio.whistlepro.core.finiteDouble
 import com.aidenstudio.whistlepro.core.objects
+import com.aidenstudio.whistlepro.core.present
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.double
-import kotlinx.serialization.json.jsonPrimitive
 import java.util.UUID
 
 data class WorkoutSample(
@@ -81,7 +82,7 @@ data class WorkoutLog(
             distance = json.array("distance").objects("distance").map(WorkoutSample::fromJson),
             energy = json.array("energy").objects("energy").map(WorkoutSample::fromJson),
             route = json.array("route").objects("route").map(RoutePoint::fromJson),
-            restarts = (json["restarts"] as? JsonArray)?.map { it.jsonPrimitive.double },
+            restarts = json.present("restarts")?.let { r -> (r as? JsonArray ?: throw SerializationException("restarts: 배열이 아님")).map { it.finiteDouble("restarts") } },
         )
     }
 }
