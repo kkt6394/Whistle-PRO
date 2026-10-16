@@ -86,6 +86,21 @@ struct ShootoutTests {
         #expect(s.resolvedEvents.filter { $0.event.id != "repeat" }.allSatisfy { $0.warnings.isEmpty })
     }
 
+    @Test func repeatKickerAfterEveryoneHasKickedDoesNotWarn() {
+        // 자격 있는 선수 3명이 모두 찬 뒤에는 처음 찬 선수가 다시 차도 된다 (경계: 찬 인원 == 자격 인원)
+        let rules = RuleSet(penalties: true, playersPerTeam: 3, minimumPlayers: nil)
+        let s = play(rules, twoHalves() + [
+            cmd(.setShootoutFirstTeam(.home), at: 6900),
+            kick(.home, true, at: 7000, number: 1, id: "h1"), kick(.away, true, at: 7001, number: 7, id: "a1"),
+            kick(.home, true, at: 7002, number: 2, id: "h2"), kick(.away, true, at: 7003, number: 8, id: "a2"),
+            kick(.home, true, at: 7004, number: 3, id: "h3"), kick(.away, true, at: 7005, number: 9, id: "a3"),
+            kick(.home, true, at: 7006, number: 1, id: "again"),
+        ])
+        #expect(s.ignoredCommandIDs.isEmpty)
+        #expect(s.resolvedEvents.count == 7)
+        #expect(s.resolvedEvents.allSatisfy { $0.warnings.isEmpty })
+    }
+
     @Test func onlyLastKickCanBeDeleted() {
         let base = twoHalves() + [cmd(.setShootoutFirstTeam(.home), at: 6900)] + kicks(first: .home, [true, false])
         let middle = play(pkRules, base + [cmd(.deleteEvent(id: "k0"), at: 7100, id: "d")])

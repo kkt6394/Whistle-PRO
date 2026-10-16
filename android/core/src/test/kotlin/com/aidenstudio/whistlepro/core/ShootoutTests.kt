@@ -88,6 +88,21 @@ class ShootoutTests {
         assertTrue(s.resolvedEvents.filter { it.event.id != "repeat" }.all { it.warnings.isEmpty() })
     }
 
+    @Test fun repeatKickerAfterEveryoneHasKickedDoesNotWarn() {
+        // 자격 있는 선수 3명이 모두 찬 뒤에는 처음 찬 선수가 다시 차도 된다 (경계: 찬 인원 == 자격 인원)
+        val rules = RuleSet(penalties = true, playersPerTeam = 3, minimumPlayers = null)
+        val s = play(rules, twoHalves() + listOf(
+            cmd(CommandKind.SetShootoutFirstTeam(Team.HOME), 6900.0),
+            kick(Team.HOME, true, 7000.0, number = 1, id = "h1"), kick(Team.AWAY, true, 7001.0, number = 7, id = "a1"),
+            kick(Team.HOME, true, 7002.0, number = 2, id = "h2"), kick(Team.AWAY, true, 7003.0, number = 8, id = "a2"),
+            kick(Team.HOME, true, 7004.0, number = 3, id = "h3"), kick(Team.AWAY, true, 7005.0, number = 9, id = "a3"),
+            kick(Team.HOME, true, 7006.0, number = 1, id = "again"),
+        ))
+        assertTrue(s.ignoredCommandIds.isEmpty())
+        assertEquals(7, s.resolvedEvents.size)
+        assertTrue(s.resolvedEvents.all { it.warnings.isEmpty() })
+    }
+
     @Test fun onlyLastKickCanBeDeleted() {
         val base = twoHalves() + cmd(CommandKind.SetShootoutFirstTeam(Team.HOME), 6900.0) + kicks(Team.HOME, listOf(true, false))
         val middle = play(pkRules, base + cmd(CommandKind.DeleteEvent("k0"), 7100.0, id = "d"))
