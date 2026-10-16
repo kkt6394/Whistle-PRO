@@ -149,10 +149,14 @@ public struct MatchSummary: Codable, Equatable, Sendable, Identifiable {
     public var sprints: Int?
     public var zones: SpeedZones?
 
-    /// 경기 기록만으로 만드는 가벼운 요약 (통계 값 없음). 워치 지난 경기 목록이 행마다 부른다.
+    /// 경기 기록만으로 만드는 가벼운 요약 (통계 값 없음).
     public init(record: MatchRecord) {
+        self.init(record: record, state: MatchEngine.reduce(rules: record.setup.rules, commands: record.commands))
+    }
+
+    /// 이미 재생한 상태로 만든다 (워치 지난 경기: 상세·목록이 같은 경기를 다시 재생하지 않게)
+    public init(record: MatchRecord, state: MatchState) {
         let setup = record.setup
-        let state = MatchEngine.reduce(rules: setup.rules, commands: record.commands)
         id = record.id
         createdAt = record.createdAt
         startedAt = state.periods.first?.startedAt ?? record.createdAt

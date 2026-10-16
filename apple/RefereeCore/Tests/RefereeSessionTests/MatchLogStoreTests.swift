@@ -80,6 +80,20 @@ struct MatchLogStoreTests {
         #expect(!history.contains(records[0]) && !history.contains(records[1]))
     }
 
+    /// 지난 경기 리뷰: 워치 목록에서 지울 수 있다. 폰으로 보낼 보관함은 그대로 둔다
+    @Test func deleteHistoryRemovesOnlyThatMatch() throws {
+        let store = FileMatchLogStore(directory: tempDirectory())
+        let keep = record(createdAt: 10)
+        let gone = record(createdAt: 20)
+        try store.finishActive(keep)
+        try store.finishActive(gone)
+        try store.deleteHistory(gone.id)
+        #expect(try store.history() == [keep])
+        #expect(try store.archived() == [keep, gone])
+        // 없는 경기를 지워도 오류가 아니다
+        try store.deleteHistory(UUID())
+    }
+
     @Test func emptyHistoryWithoutFinishedMatches() throws {
         #expect(try FileMatchLogStore(directory: tempDirectory()).history() == [])
     }

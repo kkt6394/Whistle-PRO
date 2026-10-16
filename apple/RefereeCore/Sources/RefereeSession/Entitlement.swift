@@ -33,9 +33,16 @@ public struct Entitlement: Codable, Equatable, Sendable {
 
     public static let none = Entitlement(expiresAt: nil, checkedAt: 0)
 
+    /// 유료 기능이 열려 있는 마지막 시각 (만료 + 유예). 구독이 없거나 회수됐으면 nil.
+    /// 워치는 이 시각에 맞춰 잠금을 다시 그린다.
+    public var activeUntil: Double? {
+        guard !revoked, let expiresAt else { return nil }
+        return expiresAt + Self.gracePeriod
+    }
+
     public func isActive(at now: Double) -> Bool {
-        guard !revoked, let expiresAt else { return false }
-        return now <= expiresAt + Self.gracePeriod
+        guard let activeUntil else { return false }
+        return now <= activeUntil
     }
 
     /// 두 출처 중 더 늦은 만료를 쓴다.
