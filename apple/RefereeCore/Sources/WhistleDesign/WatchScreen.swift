@@ -30,6 +30,20 @@ public struct WatchScreen: Equatable, Sendable {
         min(max(0, cornerRadius - inset), height / 2)
     }
 
+    /// 화면 아래 모서리 곁 버튼(바닥 줄)의 모서리 반지름과 좌우 들임.
+    /// - bottom: 화면 바닥에서 버튼 아래까지, side: 바라는 좌우 들임, height: 버튼 높이
+    /// 반지름은 아래 여백·좌우 들임 중 큰 쪽만큼 화면 모서리와 동심이다. 버튼이 낮아 캡슐(높이 절반)에 막히면
+    /// 끝 둥근 곳이 곡선에 닿으므로, 곡선과 side 이상 떨어지도록 좌우를 더 들인다 (46mm [지난 경기] 44pt 등).
+    public func bottomCorner(bottom: CGFloat, side: CGFloat, height: CGFloat) -> BottomCorner {
+        let radius = concentricRadius(inset: max(bottom, side), height: height)
+        let gap = min(bottom, side)
+        // 버튼 모서리 원 중심이 화면 모서리 원 중심에서 reach 안에 있으면 곡선과 gap 이상 떨어진다
+        let reach = max(0, cornerRadius - gap - radius)
+        let dy = max(0, cornerRadius - bottom - radius)
+        let dx = max(0, reach * reach - dy * dy).squareRoot()
+        return BottomCorner(radius: radius, side: max(side, cornerRadius - radius - dx))
+    }
+
     /// 표에서 가로·세로가 가장 가까운 화면
     public static func metrics(for size: CGSize) -> WatchScreen {
         table.min { distance($0.size, size) < distance($1.size, size) } ?? table[0]
@@ -37,5 +51,16 @@ public struct WatchScreen: Equatable, Sendable {
 
     private static func distance(_ a: CGSize, _ b: CGSize) -> CGFloat {
         hypot(a.width - b.width, a.height - b.height)
+    }
+}
+
+/// 바닥 줄 버튼의 모서리 반지름과 좌우 들임 (`WatchScreen.bottomCorner`)
+public struct BottomCorner: Equatable, Sendable {
+    public var radius: CGFloat
+    public var side: CGFloat
+
+    public init(radius: CGFloat, side: CGFloat) {
+        self.radius = radius
+        self.side = side
     }
 }

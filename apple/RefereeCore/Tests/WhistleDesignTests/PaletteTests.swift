@@ -1,4 +1,5 @@
 import Testing
+import RefereeSession
 @testable import WhistleDesign
 
 struct PaletteTests {
@@ -48,5 +49,16 @@ struct PaletteTests {
         #expect(RGB.mix(black, white, 0.5) == RGB(red: 0.5, green: 0.5, blue: 0.5))
         #expect(RGB.mix(black, white, 2) == white)
         #expect(RGB.mix(black, white, -1) == black)
+    }
+
+    /// 팀 칸의 작은 ＋는 팀 색이다. 검정·남색 팀도 검은 바탕에서 보이게 3:1 이상이 될 때까지 흰색 쪽으로 섞는다
+    @Test func teamMarkReadableOnBlack() {
+        let black = Palette.background.dark
+        for hex in ["#000000", "#001F5B", "#FF3B30", "#FFFFFF", "#34C759", "#3A3A3C"] {
+            let mark = TeamColor(hex: hex)!.markOnDark
+            #expect(RGB.contrast(mark, black) >= 3, "\(hex)")
+        }
+        // 이미 잘 보이는 색은 그대로
+        #expect(TeamColor.red.markOnDark == RGB(red: TeamColor.red.red, green: TeamColor.red.green, blue: TeamColor.red.blue))
     }
 }
