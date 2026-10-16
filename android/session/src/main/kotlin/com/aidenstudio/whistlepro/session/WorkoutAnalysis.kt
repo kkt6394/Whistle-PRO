@@ -159,11 +159,20 @@ object WorkoutAnalysis {
         )
     }
 
-    /** Swift wholeSeconds(_, rounding: .toNearestOrAwayFromZero)와 같다: 무한대·NaN은 0, ±1조로 자른 뒤 반올림(0에서 먼 쪽) */
+    /**
+     * Swift wholeSeconds(_, rounding: .toNearestOrAwayFromZero)와 같다: 무한대·NaN은 0, ±1조로 자른 뒤 반올림(0에서 먼 쪽).
+     * floor(v + 0.5)는 덧셈에서 반올림 오차가 나 0.49999999999999994를 1로 올리므로, 정수부를 뗀 나머지로 비교한다.
+     */
     private fun roundedSeconds(value: Double): Long {
         if (!value.isFinite()) return 0
         val v = value.coerceIn(-1e12, 1e12)
-        return (if (v >= 0) floor(v + 0.5) else ceil(v - 0.5)).toLong()
+        return if (v >= 0) {
+            val f = floor(v)
+            if (v - f >= 0.5) f + 1 else f
+        } else {
+            val c = ceil(v)
+            if (c - v >= 0.5) c - 1 else c
+        }.toLong()
     }
 
     /** 누적값 샘플에서 구간 동안 늘어난 양 (Swift와 같다). 재시작 시각을 지나면 0부터 다시, 그 밖에 값이 잠깐 줄면 늘어난 양 없음 */
