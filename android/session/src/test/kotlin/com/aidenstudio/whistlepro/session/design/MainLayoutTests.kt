@@ -1,9 +1,12 @@
 package com.aidenstudio.whistlepro.session.design
 
 import kotlin.math.atan2
+import kotlin.math.cos
 import kotlin.math.hypot
+import kotlin.math.sin
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class MainLayoutTests {
@@ -106,25 +109,40 @@ class RoundLayoutTests {
         }
     }
 
-    /** 버튼은 화면 원 안에 있고, 링 선과 겹치지 않으며(겹치는 반지름이면 링이 비어 있는 아래 70° 안), 줄들 아래에 있다 */
+    /**
+     * 버튼은 화면 원 안에 있고, 링 선(둥근 끝 캡 포함)과 겹치지 않으며, 줄들 아래에 있다.
+     * 네 모서리만 보면 버튼 위쪽 변이 링 끝 캡을 가로지르는 경우를 놓치므로 버튼 영역을 고르게 찍어 본다.
+     */
     @Test fun roundButtonsAvoidRingAndStayOnScreen() {
         for (d in diameters) {
             val l = MainLayout.round(d)
             val c = l.ringCenter
             for (p in l.buttons.corners) {
-                val r = hypot(p.x - c.x, p.y - c.y)
-                assertTrue(r <= d / 2, "$d 버튼 모서리가 화면 밖 $p")
-                if (r >= l.ringRadius - l.lineWidth / 2 && r <= l.ringRadius + l.lineWidth / 2) {
-                    val degrees = Math.toDegrees(atan2(p.y - c.y, p.x - c.x))
-                    assertTrue(degrees in 55.0..125.0, "$d 버튼이 링과 겹침 $p ($degrees°)")
-                }
+                assertTrue(hypot(p.x - c.x, p.y - c.y) <= d / 2, "$d 버튼 모서리가 화면 밖 $p")
             }
-            // 버튼 위쪽 변이 링 선을 가로지르지 않도록: 버튼 폭이 링 끝 안쪽 모서리보다 좁다
-            val endInnerX = (l.ringRadius - l.lineWidth / 2) * kotlin.math.cos(Math.toRadians(55.0))
-            assertTrue(l.buttons.width / 2 <= endInnerX, "$d")
+            for (p in l.buttons.samples()) {
+                assertFalse(l.ringStrokeContains(p), "$d 버튼이 링과 겹침 $p")
+            }
+            // 링 끝 둥근 캡의 가장 안쪽(rr·cos55° − lw/2)보다 버튼이 좁다
+            val capInnerX = l.ringRadius * cos(Math.toRadians(90.0 - MainLayout.OPEN_HALF_DEGREES)) - l.lineWidth / 2
+            assertTrue(l.buttons.width / 2 <= capInnerX, "$d 버튼 폭 ${l.buttons.width / 2} > 캡 안쪽 $capInnerX")
             assertTrue(l.rows.last().maxY <= l.buttons.minY, "$d 줄과 버튼이 겹침")
             assertTrue(l.buttons.height >= 22 && l.buttons.width >= 80, "$d 버튼이 너무 작음 ${l.buttons}")
         }
+    }
+
+    /** 검사 도구 자체: 링이 비어 있는 각도(57°)라도 끝 캡 안의 점은 링으로 본다, 모서리만 보면 놓치는 겹침을 찾는다 */
+    @Test fun ringStrokeIncludesRoundEndCaps() {
+        val l = MainLayout.round(192.0)
+        val c = l.ringCenter
+        val angle = Math.toRadians(90.0 - MainLayout.OPEN_HALF_DEGREES + 2)
+        val inCap = Point(c.x + l.ringRadius * cos(angle), c.y + l.ringRadius * sin(angle))
+        assertTrue(l.ringStrokeContains(inCap))
+        assertFalse(l.ringStrokeContains(Point(c.x, c.y + l.ringRadius)))
+        // 캡 바로 옆을 지나는 가로 막대: 네 모서리는 모두 링 밖이지만 가운데가 캡을 가로지른다
+        val bar = Rect(c.x - l.ringRadius, inCap.y - 0.5, l.ringRadius, 1.0)
+        assertTrue(bar.corners.none { l.ringStrokeContains(it) })
+        assertTrue(bar.samples().any { l.ringStrokeContains(it) })
     }
 
     /** 작은 원형 워치에서도 시계가 크고, 상단 줄·상태 줄 글자가 10dp 이상 */
@@ -135,3 +153,21 @@ class RoundLayoutTests {
         assertTrue(l.rows[4].height * 0.8 >= 10, "${l.rows[4].height}")
     }
 }
+
+/** 링 선(290° 호, 굵기 lineWidth, 양 끝 둥근 캡)이 점을 덮는지 */
+private fun MainLayout.ringStrokeContains(p: Point): Boolean {
+    val c = ringCenter
+    val half = lineWidth / 2
+    val r = hypot(p.x - c.x, p.y - c.y)
+    val degrees = Math.toDegrees(atan2(p.y - c.y, p.x - c.x))
+    val open = 90.0 - MainLayout.OPEN_HALF_DEGREES..90.0 + MainLayout.OPEN_HALF_DEGREES
+    if (r >= ringRadius - half && r <= ringRadius + half && degrees !in open) return true
+    return listOf(open.start, open.endInclusive).any { end ->
+        val a = Math.toRadians(end)
+        hypot(p.x - (c.x + ringRadius * cos(a)), p.y - (c.y + ringRadius * sin(a))) <= half
+    }
+}
+
+/** 사각형 안(변 포함)을 고르게 찍은 점들 */
+private fun Rect.samples(columns: Int = 64, rows: Int = 32): List<Point> =
+    (0..columns).flatMap { i -> (0..rows).map { j -> Point(minX + width * i / columns, minY + height * j / rows) } }
