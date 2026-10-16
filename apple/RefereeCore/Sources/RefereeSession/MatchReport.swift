@@ -32,6 +32,10 @@ public enum ReportOutcome: Codable, Equatable, Sendable {
 
 /// 경기 보고서·상세 화면에 쓰는 요약. 경기 기록을 재생해서 만든다.
 public struct MatchReport: Equatable, Sendable {
+    /// 보고서 머리 값 (공백을 다듬어 비면 nil). 대회명은 경기 노트가 프리셋보다 앞선다.
+    public var competition: String?
+    public var venue: String?
+    public var referee: String?
     public var homeName: String
     public var awayName: String
     public var homeColor: TeamColor
@@ -57,11 +61,19 @@ public struct MatchReport: Equatable, Sendable {
     public var workoutPeriods: [WorkoutStats]
     public var workoutOverall: WorkoutStats?
 
-    public init(bundle: MatchBundle) {
+    public init(bundle: MatchBundle, note: MatchNote? = nil, referee: String? = nil) {
         let setup = bundle.record.setup
         let state = MatchEngine.reduce(rules: setup.rules, commands: bundle.record.commands)
         let end = state.periods.last.map { $0.endedAt ?? $0.startedAt } ?? bundle.record.createdAt
 
+        func trimmed(_ text: String?) -> String? {
+            guard let value = text?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else { return nil }
+            return value
+        }
+        // 노트의 값이 비면(공백뿐이면) 프리셋 대회명으로 돌아간다
+        competition = trimmed(note?.competition) ?? trimmed(setup.competition)
+        venue = trimmed(note?.venue)
+        self.referee = trimmed(referee)
         homeName = setup.homeName
         awayName = setup.awayName
         homeColor = setup.homeColor

@@ -37,4 +37,19 @@ struct MatchNoteTests {
         try library.delete(id: bundle.id)
         #expect(library.note(id: bundle.id) == nil)
     }
+
+    @Test func reportHeaderPrefersNoteOverPreset() {
+        let setup = MatchSetup(competition: "프리셋 리그")
+        let bundle = MatchBundle(record: makeRecord(setup, [(.startPeriod, 0)]), workout: nil)
+        #expect(MatchReport(bundle: bundle).competition == "프리셋 리그")
+        #expect(MatchReport(bundle: bundle, note: MatchNote(competition: "노트 리그", venue: "A구장"), referee: " 김기태 ").competition == "노트 리그")
+        let r = MatchReport(bundle: bundle, note: MatchNote(competition: nil, venue: "A구장"), referee: "  ")
+        #expect(r.competition == "프리셋 리그" && r.venue == "A구장" && r.referee == nil)
+    }
+
+    @Test func reportHeaderTrimsWhitespaceOnlyValues() {
+        let bundle = MatchBundle(record: makeRecord(MatchSetup(competition: "  "), [(.startPeriod, 0)]), workout: nil)
+        let r = MatchReport(bundle: bundle, note: MatchNote(competition: " ", venue: "\n"), referee: " 김기태 ")
+        #expect(r.competition == nil && r.venue == nil && r.referee == "김기태")
+    }
 }
