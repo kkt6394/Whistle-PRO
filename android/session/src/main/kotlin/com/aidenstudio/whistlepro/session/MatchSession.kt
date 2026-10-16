@@ -33,7 +33,7 @@ class MatchSession(
     var saveError: String? = null
         private set
     /** 마지막으로 받아들인 명령의 id (방금 기록한 이벤트를 찾을 때 쓴다) */
-    var lastCommandId: String? = null
+    var lastCommandID: String? = null
         private set
 
     val setup: MatchSetup get() = record.setup
@@ -61,7 +61,7 @@ class MatchSession(
             return false
         }
         record = record.copy(commands = record.commands + command)
-        lastCommandId = command.id
+        lastCommandID = command.id
         state = next
         persist()
         return true

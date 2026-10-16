@@ -84,10 +84,11 @@ fun MatchState.minute(time: EventTime): EventMinute {
     return EventMinute.Regular(time.matchSecond / 60 + 1)
 }
 
-fun MatchState.feedback(eventId: String): RecordFeedback {
-    val r = resolvedEvents.firstOrNull { it.event.id == eventId } ?: return RecordFeedback.None
+/** Swift feedback(forEvent:)와 같은 이름. 부를 때 `feedback(forEvent = id)`로 쓴다. */
+fun MatchState.feedback(forEvent: String): RecordFeedback {
+    val r = resolvedEvents.firstOrNull { it.event.id == forEvent } ?: return RecordFeedback.None
     if (r.kind == ResolvedEventKind.SECOND_YELLOW && EventWarning.PLAYER_ALREADY_SENT_OFF !in r.warnings) {
-        return RecordFeedback.SecondYellow(eventId)
+        return RecordFeedback.SecondYellow(forEvent)
     }
     r.warnings.firstOrNull()?.let { return RecordFeedback.Warning(it) }
     return RecordFeedback.None
