@@ -132,4 +132,18 @@ struct ReceiptCheckTests {
         #expect(ReceiptCheck.toDelete(asked: [a, b], received: [b, later]) == [b])
         #expect(ReceiptCheck.toDelete(asked: [a], received: []) == [])
     }
+
+    /// 앱을 켤 때 다시 보내기: 폰에 닿고 물을 수 있거나 답을 기다리는 중이면 답(또는 실패) 뒤에 보낸다 — 이미 받은 경기를 다시 보내지 않게.
+    /// 닿지 않거나 간격 안이라 묻지 않으면 바로 보낸다
+    @Test func resendWaitsForReceiptAnswerOnlyWhenAsking() {
+        var check = ReceiptCheck(interval: 60)
+        #expect(!check.sendsAfterAnswer(reachable: false, at: 0))
+        #expect(check.sendsAfterAnswer(reachable: true, at: 0))
+        let asked = check.begin(pending: [UUID()], at: 0)!
+        #expect(check.sendsAfterAnswer(reachable: true, at: 1))
+        #expect(!check.sendsAfterAnswer(reachable: false, at: 1))
+        _ = check.answered(asked: asked, received: [], at: 1)
+        #expect(!check.sendsAfterAnswer(reachable: true, at: 30))
+        #expect(check.sendsAfterAnswer(reachable: true, at: 61))
+    }
 }

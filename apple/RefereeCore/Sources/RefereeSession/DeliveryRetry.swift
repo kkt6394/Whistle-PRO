@@ -60,6 +60,12 @@ public struct ReceiptCheck: Sendable {
         return true
     }
 
+    /// 남은 경기를 다시 보낼 때 답을 기다릴지: 폰에 닿고 지금 묻거나(물을 수 있다) 이미 답을 기다리는 중이면 답(또는 실패) 뒤에 보낸다.
+    /// 폰이 이미 받은 경기를 다시 보내지 않게 (리뷰). 닿지 않거나 간격 안이라 묻지 않으면 바로 보낸다.
+    public func sendsAfterAnswer(reachable: Bool, at now: Double) -> Bool {
+        reachable && (inFlight || canAsk(at: now))
+    }
+
     /// 물을 경기 목록. 묻지 않을 때(답 대기 중, 간격 안, 남은 경기 없음)는 nil.
     public mutating func begin(pending: [UUID], at now: Double) -> [UUID]? {
         guard canAsk(at: now), !pending.isEmpty else { return nil }
