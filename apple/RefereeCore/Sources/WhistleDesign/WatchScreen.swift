@@ -24,6 +24,12 @@ public struct WatchScreen: Equatable, Sendable {
         WatchScreen(size: CGSize(width: 211, height: 257), cornerRadius: 58, clockTop: 22.5, clockBottom: 33.5, clockLeft: 149),     // Ultra 3
     ]
 
+    /// 화면 끝에서 inset만큼 들어온 버튼의 모서리 반지름. 화면 모서리와 동심이라 곡선과 나란하고 잘리지 않는다.
+    /// 버튼 높이 절반을 넘으면 캡슐이 된다.
+    public func concentricRadius(inset: CGFloat, height: CGFloat) -> CGFloat {
+        min(max(0, cornerRadius - inset), height / 2)
+    }
+
     /// 표에서 가로·세로가 가장 가까운 화면
     public static func metrics(for size: CGSize) -> WatchScreen {
         table.min { distance($0.size, size) < distance($1.size, size) } ?? table[0]
