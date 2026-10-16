@@ -87,7 +87,7 @@ extension WorkoutAnalysis {
     }
 }
 
-/// 히트맵 전체(와 이벤트 위치)가 들어오는 지도 범위. 상세 화면 지도와 활동 카드 스냅숏이 함께 쓴다.
+/// 히트맵 전체(와 이벤트 위치)가 들어오는 지도 범위. 상세 화면 지도와 SNS 카드 스냅숏이 함께 쓴다.
 public struct HeatmapBounds: Equatable, Sendable {
     public var centerLatitude: Double
     public var centerLongitude: Double

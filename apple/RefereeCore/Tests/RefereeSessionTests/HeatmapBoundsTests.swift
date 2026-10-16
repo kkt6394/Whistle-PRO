@@ -1,7 +1,7 @@
 import Testing
 @testable import RefereeSession
 
-/// 히트맵 전체가 보이는 지도 범위 (상세 화면 지도·활동 카드 스냅숏이 함께 쓴다)
+/// 히트맵 전체가 보이는 지도 범위 (상세 화면 지도·SNS 카드 스냅숏이 함께 쓴다)
 struct HeatmapBoundsTests {
     private func cell(_ lat: Double, _ lon: Double) -> HeatCell {
         HeatCell(minLatitude: lat, minLongitude: lon, maxLatitude: lat + 0.0001, maxLongitude: lon + 0.0001, count: 1, intensity: 1)

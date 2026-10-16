@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import RefereeSession
 
-/// 지도 스냅숏처럼 오래 걸릴 수 있는 작업을 기다리는 시간 상한 (활동 카드)
+/// 지도 스냅숏처럼 오래 걸릴 수 있는 작업을 기다리는 시간 상한 (SNS 카드)
 struct TimeoutTests {
     @Test func returnsValueWhenFastEnough() async {
         let value = await withTimeout(seconds: 1) { () -> Int? in 7 }
