@@ -182,6 +182,13 @@ struct MatchSummaryTests {
         #expect(summary.outcome == .abandoned("폭우"))
     }
 
+    /// 지난 경기 리뷰: 워치가 이미 재생한 상태로 요약을 만들어 같은 경기를 두 번 재생하지 않는다
+    @Test func summaryFromReducedStateMatches() {
+        let record = makeRecord(MatchSetup(homeName: "A", awayName: "B"), match, createdAt: 50)
+        let state = MatchEngine.reduce(rules: record.setup.rules, commands: record.commands)
+        #expect(MatchSummary(record: record, state: state) == MatchSummary(record: record))
+    }
+
     @Test func upsertWritesSummaryNewestFirst() throws {
         let library = MatchLibrary(directory: tempDirectory())
         let old = makeRecord(match, createdAt: 10)

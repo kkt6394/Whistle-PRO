@@ -80,6 +80,14 @@ public struct FileMatchLogStore: MatchLogStore {
         try historyEntries().map(\.record)
     }
 
+    /// 워치 [지난 경기] 목록에서 지운다. 폰으로 보낼 보관함(finished/)은 건드리지 않는다.
+    /// 폰에서 지운 경기도 워치에는 남으므로 워치에서 따로 지울 길을 둔다 (지난 경기 리뷰).
+    public func deleteHistory(_ matchID: UUID) throws {
+        let url = historyDirectory.appendingPathComponent("\(matchID.uuidString).json")
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        try FileManager.default.removeItem(at: url)
+    }
+
     /// 무료 경기는 이벤트가 없고 지난 경기 조회는 유료 기능이라 남기지 않는다.
     /// 방금 끝낸 경기는 시작 시각이 같은 기록이 있어도 정리하지 않는다.
     private func addToHistory(_ record: MatchRecord) throws {
