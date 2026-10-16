@@ -49,6 +49,30 @@ public struct ChartPoint: Equatable, Sendable {
     public var value: Double
     /// 몇 번째 기간의 점인지 (그래프가 기간마다 따로 선을 그려 휴식 구간을 잇지 않게)
     public var period: Int = 0
+
+    /// 상세 심박 선 그래프용: 같은 기간 안에서 `minutes` 칸마다 평균 한 점으로 줄인다.
+    /// 5초마다 찍힌 점을 그대로 이으면 선이 빽빽한 막대처럼 보였다. 기간이 바뀌면 칸을 새로 시작한다 (휴식 구간을 잇지 않게)
+    public static func bucketed(_ points: [ChartPoint], minutes: Double) -> [ChartPoint] {
+        var result: [ChartPoint] = []
+        var bucket: [ChartPoint] = []
+        func flush() {
+            guard !bucket.isEmpty else { return }
+            let n = Double(bucket.count)
+            result.append(ChartPoint(minute: bucket.map(\.minute).reduce(0, +) / n,
+                                     value: bucket.map(\.value).reduce(0, +) / n,
+                                     period: bucket[0].period))
+            bucket.removeAll()
+        }
+        for point in points {
+            if let first = bucket.first,
+               first.period != point.period || (point.minute / minutes).rounded(.down) != (first.minute / minutes).rounded(.down) {
+                flush()
+            }
+            bucket.append(point)
+        }
+        flush()
+        return result
+    }
 }
 
 extension WorkoutAnalysis {

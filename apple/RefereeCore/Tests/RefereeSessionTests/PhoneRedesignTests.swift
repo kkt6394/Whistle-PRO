@@ -92,6 +92,23 @@ import RefereeCore
         #expect(report.timeline.first == report.goals.first)
     }
 
+    /// 상세 심박 선 그래프: 1분 칸 평균으로 줄이고, 기간이 다르면 같은 칸이어도 섞지 않는다
+    @Test func heartRateBucketsAveragePerMinuteWithinPeriod() {
+        let points = [
+            ChartPoint(minute: 0.0, value: 120, period: 0),
+            ChartPoint(minute: 0.5, value: 140, period: 0),   // 0분 칸 평균 130
+            ChartPoint(minute: 1.2, value: 150, period: 0),   // 1분 칸
+            ChartPoint(minute: 1.9, value: 100, period: 1),   // 같은 1분 칸이지만 다음 기간 → 따로
+            ChartPoint(minute: 60.25, value: 160, period: 1),
+            ChartPoint(minute: 60.75, value: 170, period: 1),
+        ]
+        let smoothed = ChartPoint.bucketed(points, minutes: 1)
+        #expect(smoothed.map(\.value) == [130, 150, 100, 165])
+        #expect(smoothed.map(\.period) == [0, 0, 1, 1])
+        #expect(smoothed.map(\.minute) == [0.25, 1.2, 1.9, 60.5])   // 칸 안 점들의 평균 시각
+        #expect(ChartPoint.bucketed([], minutes: 1).isEmpty)
+    }
+
     @Test func v3SummaryDecodesWithoutRuleFields() throws {
         let s = summary(0)
         var json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(s)) as! [String: Any]
