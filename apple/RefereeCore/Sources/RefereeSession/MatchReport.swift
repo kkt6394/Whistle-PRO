@@ -117,7 +117,8 @@ public struct MatchReport: Equatable, Sendable {
 public struct MatchSummary: Codable, Equatable, Sendable, Identifiable {
     /// 통계 값이 들어간 요약 형식. 이보다 낮거나 없는 요약은 전체 기록에서 다시 만든다.
     /// 3: 경고 누적 퇴장을 옐로에도 센다 (올리면 폰 보관함 요약을 다시 만든다)
-    public static let currentVersion = 3
+    /// 4: 목록 규칙 요약(기간 수·기간 분)
+    public static let currentVersion = 4
 
     public var id: UUID
     public var createdAt: Double
@@ -149,6 +150,11 @@ public struct MatchSummary: Codable, Equatable, Sendable, Identifiable {
     public var sprints: Int?
     public var zones: SpeedZones?
 
+    // 아래는 버전 4부터: 목록 카드의 "45분 × 2"
+    public var periodCount: Int?
+    /// 기간 하나의 규정 길이 (분)
+    public var periodMinutes: Int?
+
     /// 경기 기록만으로 만드는 가벼운 요약 (통계 값 없음).
     public init(record: MatchRecord) {
         self.init(record: record, state: MatchEngine.reduce(rules: record.setup.rules, commands: record.commands))
@@ -174,6 +180,8 @@ public struct MatchSummary: Codable, Equatable, Sendable, Identifiable {
         case .finished(.abandoned(let reason)): .abandoned(reason)
         default: .inProgress
         }
+        periodCount = setup.rules.periodCount
+        periodMinutes = setup.rules.periodLength / 60
     }
 
     /// 폰 보관함용: 시즌 통계 값까지 (보고서를 한 번 만든다)
