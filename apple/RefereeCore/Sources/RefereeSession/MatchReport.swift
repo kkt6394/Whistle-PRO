@@ -45,6 +45,8 @@ public struct MatchReport: Equatable, Sendable {
     /// 옐로·경고 누적 퇴장·레드·일시 퇴장
     public var discipline: [ReportLine]
     public var substitutions: [ReportLine]
+    /// 골·징계·교체를 기록한 순서대로 (상세 [기록] 탭)
+    public var timeline: [ReportLine]
     public var periods: [PeriodSummary]
     /// FIFA 표준과 다른 규칙
     public var ruleDeviations: [RuleLine]
@@ -78,6 +80,7 @@ public struct MatchReport: Equatable, Sendable {
         goals = lines([.goal, .ownGoal])
         discipline = lines([.yellow, .secondYellow, .red, .sinBin])
         substitutions = lines([.substitution])
+        timeline = lines([.goal, .ownGoal, .yellow, .secondYellow, .red, .sinBin, .substitution])
 
         let stoppages = state.stoppageTotals(at: end)
         periods = state.periods.enumerated().map { index, p in

@@ -65,6 +65,33 @@ import RefereeCore
         #expect(m.matches == 0 && m.distance == 0 && m.cardsPerMatch == nil)
     }
 
+    @Test func detailTabsFollowData() {
+        #expect(DetailTab.available(hasWorkout: true, hasMap: true) == [.record, .workout, .map])
+        #expect(DetailTab.available(hasWorkout: true, hasMap: false) == [.record, .workout])
+        #expect(DetailTab.available(hasWorkout: false, hasMap: false) == [.record])
+        // GPS만 있고 운동 통계가 없는 경우는 없지만, 있으면 지도만 더한다
+        #expect(DetailTab.available(hasWorkout: false, hasMap: true) == [.record, .map])
+    }
+
+    /// 상세 [기록] 탭: 골·징계·교체를 기록한 순서대로 한 줄씩
+    @Test func timelineMergesInRecordedOrder() {
+        let match: [(CommandKind, Double)] = [
+            (.startPeriod, 0),
+            (.recordEvent(.goal(team: .home, number: 9, ownGoal: false)), 600),
+            (.recordEvent(.card(team: .away, number: 4, kind: .yellow)), 900),
+            (.recordEvent(.card(team: .away, number: 4, kind: .yellow)), 1200),
+            (.endPeriod, 2820),
+            (.startPeriod, 3720),
+            (.recordEvent(.substitution(team: .home, numberOut: 7, numberIn: 14)), 4000),
+            (.recordEvent(.goal(team: .away, number: 5, ownGoal: true)), 5000),
+            (.endPeriod, 6420),
+        ]
+        let report = MatchReport(bundle: MatchBundle(record: makeRecord(match), workout: nil))
+        #expect(report.timeline.count == report.goals.count + report.discipline.count + report.substitutions.count)
+        #expect(report.timeline.map(\.kind) == [.goal, .yellow, .secondYellow, .substitution, .ownGoal])
+        #expect(report.timeline.first == report.goals.first)
+    }
+
     @Test func v3SummaryDecodesWithoutRuleFields() throws {
         let s = summary(0)
         var json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(s)) as! [String: Any]
