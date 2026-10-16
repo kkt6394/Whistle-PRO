@@ -10,15 +10,19 @@ public struct PillButtonStyle: ButtonStyle {
     public var height: CGFloat
     /// 경기 밖 화면: 버튼 높이가 시스템 글자 크기를 따른다 (최소 44pt, B2 스펙 §4)
     public var scalesWithText: Bool
+    /// 모서리 반지름. nil이면 캡슐. 화면 아래 모서리 곁 버튼은 화면 모서리와 동심인 반지름을 받는다 (`WatchScreen.bottomCorner`)
+    public var cornerRadius: CGFloat?
 
-    public init(_ kind: Kind, height: CGFloat = 44, scalesWithText: Bool = false) {
+    public init(_ kind: Kind, height: CGFloat = 44, scalesWithText: Bool = false, cornerRadius: CGFloat? = nil) {
         self.kind = kind
         self.height = height
         self.scalesWithText = scalesWithText
+        self.cornerRadius = cornerRadius
     }
 
     public func makeBody(configuration: Configuration) -> some View {
-        PillBody(configuration: configuration, kind: kind, baseHeight: height, scalesWithText: scalesWithText)
+        PillBody(configuration: configuration, kind: kind, baseHeight: height, scalesWithText: scalesWithText,
+                 cornerRadius: cornerRadius)
     }
 }
 
@@ -27,6 +31,7 @@ private struct PillBody: View {
     let kind: PillButtonStyle.Kind
     let baseHeight: CGFloat
     let scalesWithText: Bool
+    let cornerRadius: CGFloat?
     @Environment(\.isEnabled) private var isEnabled
     /// 본문 글자 크기 비율 (기본 글자 크기에서 1)
     @ScaledMetric(relativeTo: .body) private var textScale: CGFloat = 1
@@ -48,9 +53,13 @@ private struct PillBody: View {
             .padding(.vertical, scalesWithText ? 4 : 0)
             .frame(maxWidth: .infinity)
             .frame(minHeight: height, maxHeight: scalesWithText ? nil : height)
-            .background(Capsule().fill(kind == .primary ? Theme.accent : Theme.surfaceRaised))
-            .contentShape(Capsule())
+            .background(shape.fill(kind == .primary ? Theme.accent : Theme.surfaceRaised))
+            .contentShape(shape)
             .opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.4)
+    }
+
+    private var shape: AnyShape {
+        cornerRadius.map { AnyShape(RoundedRectangle(cornerRadius: $0, style: .continuous)) } ?? AnyShape(Capsule())
     }
 }
 
