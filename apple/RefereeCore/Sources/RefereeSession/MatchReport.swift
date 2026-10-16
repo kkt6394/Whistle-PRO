@@ -48,6 +48,10 @@ public struct MatchReport: Equatable, Sendable {
     /// 골·징계·교체를 기록한 순서대로 (상세 [기록] 탭)
     public var timeline: [ReportLine]
     public var periods: [PeriodSummary]
+    /// `periods`와 같은 길이: 그 기간에 난 골 (자책골 포함, 승부차기 제외). 휴식 중 골은 직전에 끝난 기간에 센다.
+    public var periodScores: [TeamPair<Int>]
+    /// 팀별 골·옐로·퇴장·교체 합계
+    public var totals: TeamPair<ReportTotals>
     /// FIFA 표준과 다른 규칙
     public var ruleDeviations: [RuleLine]
     public var workoutPeriods: [WorkoutStats]
@@ -91,6 +95,17 @@ public struct MatchReport: Equatable, Sendable {
                 stoppage: stoppages[index],
                 added: max(0, played - p.nominalLength))
         }
+        var scores = Array(repeating: TeamPair(home: 0, away: 0), count: state.periods.count)
+        for resolved in state.resolvedEvents where resolved.kind == .goal || resolved.kind == .ownGoal {
+            guard let index = state.periods.firstIndex(where: { $0.ref == resolved.event.time.period }) else { continue }
+            let team = resolved.event.payload.team
+            scores[index][resolved.kind == .ownGoal ? team.opponent : team] += 1
+        }
+        periodScores = scores
+        totals = TeamPair(
+            home: ReportTotals(lines: timeline.filter { $0.columnTeam == .home }),
+            away: ReportTotals(lines: timeline.filter { $0.columnTeam == .away }))
+
         ruleDeviations = setup.rules.deviations().map { RuleLine(field: $0, value: setup.rules.value(of: $0)) }
 
         if let workout = bundle.workout {
