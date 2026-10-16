@@ -7,6 +7,8 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import java.io.File
+import java.nio.ByteBuffer
+import java.nio.charset.CodingErrorAction
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.UUID
@@ -42,9 +44,8 @@ class FileMatchLogStore(val directory: File) : MatchLogStore {
     /** 읽을 수 없는 파일은 지우지 않고 active-corrupt-<uuid>.json 으로 옮긴 뒤 null을 돌려준다. */
     override fun loadActive(): MatchRecord? {
         if (!activeFile.exists()) return null
-        val text = activeFile.readText()
         return try {
-            MatchRecord.fromJson(parse(text))
+            MatchRecord.fromJson(read(activeFile))
         } catch (e: Exception) {
             val quarantine = File(directory, "active-corrupt-${UUID.randomUUID().swiftString}.json")
             try {
@@ -77,7 +78,7 @@ class FileMatchLogStore(val directory: File) : MatchLogStore {
         val files = archiveDirectory.listFiles() ?: return emptyList()
         return files
             .filter { it.extension == "json" && !it.name.endsWith("-workout.json") }
-            .mapNotNull { runCatching { MatchRecord.fromJson(parse(it.readText())) }.getOrNull() }
+            .mapNotNull { runCatching { MatchRecord.fromJson(read(it)) }.getOrNull() }
             .sortedBy { it.createdAt }
     }
 
@@ -89,13 +90,13 @@ class FileMatchLogStore(val directory: File) : MatchLogStore {
     /** 읽을 수 없으면 null (운동 기록은 경기 기록보다 덜 중요해서 격리하지 않는다) */
     override fun loadActiveWorkout(): WorkoutLog? {
         if (!activeWorkoutFile.exists()) return null
-        return runCatching { WorkoutLog.fromJson(parse(activeWorkoutFile.readText())) }.getOrNull()
+        return runCatching { WorkoutLog.fromJson(read(activeWorkoutFile)) }.getOrNull()
     }
 
     override fun archivedWorkout(matchID: UUID): WorkoutLog? {
         val file = archivedWorkoutFile(matchID)
         if (!file.exists()) return null
-        return WorkoutLog.fromJson(parse(file.readText()))
+        return WorkoutLog.fromJson(read(file))
     }
 
     override fun deleteArchived(matchID: UUID) {
@@ -104,7 +105,18 @@ class FileMatchLogStore(val directory: File) : MatchLogStore {
         }
     }
 
-    private fun parse(text: String): JsonObject = Json.parseToJsonElement(text).jsonObject
+    /**
+     * 엄격한 UTF-8로 읽는다. readText()는 깨진 바이트를 대체 문자(U+FFFD)로 바꿔 읽어 버려 격리되지 않는다
+     * (Swift JSONDecoder는 깨진 UTF-8을 거부한다).
+     */
+    private fun read(file: File): JsonObject {
+        val text = Charsets.UTF_8.newDecoder()
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT)
+            .decode(ByteBuffer.wrap(file.readBytes()))
+            .toString()
+        return Json.parseToJsonElement(text).jsonObject
+    }
 
     /** 임시 파일에 쓰고 원자적으로 바꾼다 (Swift .atomic과 같음) */
     private fun writeAtomically(file: File, json: JsonObject) {

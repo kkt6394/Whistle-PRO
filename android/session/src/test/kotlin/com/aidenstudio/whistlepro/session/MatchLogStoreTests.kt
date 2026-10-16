@@ -57,6 +57,22 @@ class MatchLogStoreTests {
         assertTrue(names.any { it.startsWith("active-corrupt-") })
     }
 
+    /** Swift처럼 UTF-8이 깨진 파일은 대체 문자로 읽지 않고 격리한다 */
+    @Test fun invalidUtf8ActiveIsQuarantined() {
+        val dir = tempDirectory()
+        val store = FileMatchLogStore(dir)
+        store.saveActive(record().copy(setup = MatchSetup(homeName = "AB")))
+        val file = File(dir, "active.json")
+        val bytes = file.readBytes()
+        val at = String(bytes, Charsets.UTF_8).indexOf("\"AB\"") + 2
+        file.writeBytes(bytes.copyOfRange(0, at) + byteArrayOf(0xFF.toByte()) + bytes.copyOfRange(at, bytes.size))
+
+        assertNull(store.loadActive())
+        val names = dir.list().orEmpty().toList()
+        assertFalse("active.json" in names)
+        assertTrue(names.any { it.startsWith("active-corrupt-") })
+    }
+
     /** Swift SyncTests.storeDeletesArchivedMatchAndWorkout와 같다 */
     @Test fun storeDeletesArchivedMatchAndWorkout() {
         val store = FileMatchLogStore(tempDirectory())
