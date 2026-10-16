@@ -241,7 +241,7 @@ public struct MatchLibrary: Sendable {
         }
         if rebuild {
             for file in files where file.pathExtension == "json" && file.lastPathComponent != "deleted.json"
-                && !file.lastPathComponent.hasSuffix(Self.summarySuffix) {
+                && file.lastPathComponent != Self.notesFileName && !file.lastPathComponent.hasSuffix(Self.summarySuffix) {
                 let stem = String(file.lastPathComponent.dropLast(".json".count))
                 guard summaries[stem]?.isCurrent != true else { continue }
                 if let bundle = try? decoder.decode(MatchBundle.self, from: Data(contentsOf: file)) {
@@ -272,7 +272,7 @@ public struct MatchLibrary: Sendable {
         let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
         let decoder = JSONDecoder()
         return files
-            .filter { $0.pathExtension == "json" && !$0.lastPathComponent.hasSuffix(Self.summarySuffix) && $0.lastPathComponent != "deleted.json" }
+            .filter { $0.pathExtension == "json" && !$0.lastPathComponent.hasSuffix(Self.summarySuffix) && $0.lastPathComponent != "deleted.json" && $0.lastPathComponent != Self.notesFileName }
             .compactMap { try? decoder.decode(MatchBundle.self, from: Data(contentsOf: $0)) }
             .sorted { $0.record.createdAt > $1.record.createdAt }
     }
@@ -296,6 +296,10 @@ public struct MatchLibrary: Sendable {
         try Data().write(to: deletedMarkerURL(for: id), options: .atomic)
         for file in [url(for: id), summaryURL(for: id)] where FileManager.default.fileExists(atPath: file.path) {
             try FileManager.default.removeItem(at: file)
+        }
+        // 노트는 기록과 함께 지운다 (노트 파일이 없거나 깨졌으면 할 일 없음)
+        if var notes = readNotes(), notes.removeValue(forKey: id) != nil {
+            try writeNotes(notes)
         }
     }
 }
