@@ -113,4 +113,17 @@ public enum Theme {
 /// 팀 색 (sRGB 코드) → 화면 색. 워치·아이폰이 같이 쓴다
 extension TeamColor {
     public var color: Color { Color(.sRGB, red: red, green: green, blue: blue) }
+
+    /// 검은 바탕 위 작은 표시(팀 칸의 ＋)에 쓰는 팀 색: 대비가 3:1에 못 미치면(검정·남색 팀) 흰색 쪽으로 섞는다
+    public var markOnDark: RGB {
+        let own = RGB(red: red, green: green, blue: blue)
+        let black = Palette.background.dark, white = RGB(hex: 0xFFFFFF)
+        var t = 0.0
+        var mark = own
+        while RGB.contrast(mark, black) < 3, t < 1 {
+            t = min(1, t + 0.05)
+            mark = RGB.mix(own, white, t)
+        }
+        return mark
+    }
 }
