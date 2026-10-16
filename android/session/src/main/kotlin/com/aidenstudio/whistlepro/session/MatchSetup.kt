@@ -11,6 +11,7 @@ import com.aidenstudio.whistlepro.core.long
 import com.aidenstudio.whistlepro.core.obj
 import com.aidenstudio.whistlepro.core.objects
 import com.aidenstudio.whistlepro.core.optionalBoolean
+import com.aidenstudio.whistlepro.core.optionalString
 import com.aidenstudio.whistlepro.core.present
 import com.aidenstudio.whistlepro.core.string
 import kotlinx.serialization.SerializationException
@@ -61,6 +62,8 @@ data class MatchSetup(
     /** 선수 명단 (없으면 등번호만 입력한다) */
     val homeRoster: List<Player> = emptyList(),
     val awayRoster: List<Player> = emptyList(),
+    /** 대회명 (선택, 보고서 머리에 쓴다). 없으면 null — JSON에서도 키를 생략한다 */
+    val competition: String? = null,
 ) {
     fun roster(team: Team): List<Player> = if (team == Team.HOME) homeRoster else awayRoster
 
@@ -81,6 +84,7 @@ data class MatchSetup(
         put("recordsRoute", JsonPrimitive(recordsRoute))
         put("homeRoster", JsonArray(homeRoster.map { it.toJson() }))
         put("awayRoster", JsonArray(awayRoster.map { it.toJson() }))
+        competition?.let { put("competition", JsonPrimitive(it)) }
     }
 
     companion object {
@@ -96,6 +100,7 @@ data class MatchSetup(
             recordsRoute = json.optionalBoolean("recordsRoute") ?: true,
             homeRoster = json.roster("homeRoster"),
             awayRoster = json.roster("awayRoster"),
+            competition = json.optionalString("competition"),
         )
 
         private fun JsonObject.roster(key: String): List<Player> =

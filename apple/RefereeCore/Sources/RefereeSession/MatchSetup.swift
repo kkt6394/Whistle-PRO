@@ -101,6 +101,8 @@ public struct MatchSetup: Codable, Equatable, Sendable {
     /// 선수 명단 (없으면 등번호만 입력한다)
     public var homeRoster: [Player]
     public var awayRoster: [Player]
+    /// 대회명 (선택, 보고서 머리에 쓴다). 없으면 nil — JSON에서도 키를 생략한다
+    public var competition: String?
 
     public init(
         rules: RuleSet = .fifaStandard,
@@ -112,7 +114,8 @@ public struct MatchSetup: Codable, Equatable, Sendable {
         warningBeforeEnd: Int = 300,
         recordsRoute: Bool = true,
         homeRoster: [Player] = [],
-        awayRoster: [Player] = []
+        awayRoster: [Player] = [],
+        competition: String? = nil
     ) {
         self.rules = rules
         self.homeName = homeName
@@ -124,11 +127,12 @@ public struct MatchSetup: Codable, Equatable, Sendable {
         self.recordsRoute = recordsRoute
         self.homeRoster = homeRoster
         self.awayRoster = awayRoster
+        self.competition = competition
     }
 
     private enum CodingKeys: String, CodingKey {
         case rules, homeName, awayName, homeColor, awayColor, clockDisplay, warningBeforeEnd, recordsRoute
-        case homeRoster, awayRoster
+        case homeRoster, awayRoster, competition
     }
 
     /// 나중에 추가된 필드는 없으면 기본값을 쓴다 (이전 버전 기록 호환).
@@ -144,7 +148,8 @@ public struct MatchSetup: Codable, Equatable, Sendable {
             warningBeforeEnd: try c.decode(Int.self, forKey: .warningBeforeEnd),
             recordsRoute: try c.decodeIfPresent(Bool.self, forKey: .recordsRoute) ?? true,
             homeRoster: try c.decodeIfPresent([Player].self, forKey: .homeRoster) ?? [],
-            awayRoster: try c.decodeIfPresent([Player].self, forKey: .awayRoster) ?? [])
+            awayRoster: try c.decodeIfPresent([Player].self, forKey: .awayRoster) ?? [],
+            competition: try c.decodeIfPresent(String.self, forKey: .competition))
     }
 
     public func roster(of team: Team) -> [Player] {

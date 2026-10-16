@@ -29,6 +29,13 @@ class WorkoutStoreTests {
         assertEquals(setup, MatchSetup.fromJson(Json.parseToJsonElement(setup.toJson().toString()).jsonObject))
     }
 
+    @Test fun competitionRoundTripsAndOmittedWhenNull() {
+        val setup = MatchSetup(competition = "2026 서울 리그")
+        assertEquals(setup, MatchSetup.fromJson(Json.parseToJsonElement(setup.toJson().toString()).jsonObject))
+        assertNull(MatchSetup().toJson()["competition"])
+        assertNull(MatchSetup.fromJson(JsonObject(MatchSetup().toJson() - "competition")).competition)
+    }
+
     @Test fun noActiveWorkoutInitially() {
         assertNull(FileMatchLogStore(tempDirectory()).loadActiveWorkout())
     }
