@@ -191,10 +191,19 @@ public struct MatchLibrary: Sendable {
     }
 
     private func isDeleted(_ id: UUID) -> Bool {
-        if FileManager.default.fileExists(atPath: deletedMarkerURL(for: id).path) { return true }
+        isDeleted(id, legacy: legacyDeleted())
+    }
+
+    /// legacy: 예전 목록 파일(deleted.json)을 읽은 값. 여러 경기를 볼 때는 한 번만 읽어 넘긴다
+    private func isDeleted(_ id: UUID, legacy: Set<UUID>) -> Bool {
+        FileManager.default.fileExists(atPath: deletedMarkerURL(for: id).path) || legacy.contains(id)
+    }
+
+    /// 예전 형식으로 지운 경기 id (파일이 없거나 읽을 수 없으면 빈 집합)
+    private func legacyDeleted() -> Set<UUID> {
         guard let data = try? Data(contentsOf: legacyDeletedURL),
-              let legacy = try? JSONDecoder().decode(Set<UUID>.self, from: data) else { return false }
-        return legacy.contains(id)
+              let legacy = try? JSONDecoder().decode(Set<UUID>.self, from: data) else { return [] }
+        return legacy
     }
 
     private func url(for id: UUID) -> URL {
@@ -270,7 +279,9 @@ public struct MatchLibrary: Sendable {
 
     /// 워치가 물은 경기 중 이미 받은 경기: 저장돼 있거나 사용자가 지운 경기 (지운 경기도 받을 때 확인을 보낸다)
     public func received(among ids: [UUID]) -> [UUID] {
-        ids.filter { FileManager.default.fileExists(atPath: url(for: $0).path) || isDeleted($0) }
+        // 예전 목록 파일은 ID마다 다시 읽지 않고 한 번만 읽는다 (리뷰)
+        let legacy = legacyDeleted()
+        return ids.filter { FileManager.default.fileExists(atPath: url(for: $0).path) || isDeleted($0, legacy: legacy) }
     }
 
     public func bundle(id: UUID) throws -> MatchBundle? {

@@ -121,6 +121,20 @@ struct BacklogSessionTests {
         #expect(try !library.upsert(bundle))
     }
 
+    /// 받았는지 답할 때 예전 목록(deleted.json)으로 지운 경기도 받은 것으로 센다 (목록은 한 번만 읽는다)
+    @Test func receivedAmongIncludesLegacyDeletedList() throws {
+        let directory = tempDirectory()
+        let library = MatchLibrary(directory: directory)
+        let stored = MatchBundle(record: makeRecord([(.startPeriod, 0)]), workout: nil)
+        let marked = MatchBundle(record: makeRecord([(.startPeriod, 5)]), workout: nil)
+        let legacyA = UUID(), legacyB = UUID(), missing = UUID()
+        try library.upsert(stored)
+        try library.upsert(marked)
+        try library.delete(id: marked.id)
+        try JSONEncoder().encode(Set([legacyA, legacyB])).write(to: directory.appendingPathComponent("deleted.json"))
+        #expect(library.received(among: [legacyA, missing, stored.id, marked.id, legacyB]) == [legacyA, stored.id, marked.id, legacyB])
+    }
+
     /// 백로그: 같은 경기를 다시 보내면 끝난 이전 전송이 새 전송의 파일(같은 이름)을 지울 수 있었다 → 전송마다 다른 파일
     @Test func outboxFileNameIsUniquePerTransfer() {
         let id = UUID()
