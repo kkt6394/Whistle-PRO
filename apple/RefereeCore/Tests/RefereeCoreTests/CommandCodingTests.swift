@@ -14,6 +14,16 @@ struct CommandCodingTests {
         #expect(c.kind == .startPeriod)
     }
 
+    /// Kotlin CommandCodingTests와 같게: 32비트를 넘는 정수는 읽고 엔진이 무시한다, 64비트를 넘으면 실패
+    @Test func integersBeyond32BitsDecodeAndEngineIgnoresThem() throws {
+        let adjust = try decode(#"{"type": "adjustPeriodLength", "t": 1, "id": "a", "seconds": 3000000000}"#)
+        #expect(MatchEngine.reduce(rules: .fifaStandard, commands: [adjust]).ignoredCommandIDs == ["a"])
+        _ = try decode(#"{"type": "recordGoal", "t": 2, "id": "g", "team": "home", "number": 3000000000}"#)
+        #expect(throws: (any Error).self) {
+            try decode(#"{"type": "adjustPeriodLength", "t": 1, "seconds": 10000000000000000000}"#)
+        }
+    }
+
     @Test func missingIdsAreUnique() throws {
         let a = try decode(#"{"type": "startPeriod", "t": 0}"#)
         let b = try decode(#"{"type": "startPeriod", "t": 0}"#)

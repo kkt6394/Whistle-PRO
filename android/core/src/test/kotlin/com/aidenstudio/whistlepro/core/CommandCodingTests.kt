@@ -47,6 +47,20 @@ class CommandCodingTests {
         assertFailsWith<SerializationException> { decode("""{"type": "recordDance", "t": 0, "team": "home"}""") }
     }
 
+    /** Swift(64비트 Int)는 32비트를 넘는 정수를 읽고 엔진이 무시한다. 로그 전체가 실패하면 안 된다. */
+    @Test fun integersBeyond32BitsDecodeAndEngineIgnoresThem() {
+        val adjust = decode("""{"type": "adjustPeriodLength", "t": 1, "id": "a", "seconds": 3000000000}""")
+        val goal = decode("""{"type": "recordGoal", "t": 2, "id": "g", "team": "home", "number": 3000000000}""")
+        assertEquals(CommandKind.AdjustPeriodLength(Int.MAX_VALUE), adjust.kind)
+        assertEquals(listOf("a"), MatchEngine.reduce(RuleSet.FIFA_STANDARD, listOf(adjust)).ignoredCommandIds)
+        assertTrue(goal.kind is CommandKind.RecordEvent)
+        assertEquals(CommandKind.AdjustPeriodLength(Int.MIN_VALUE), decode("""{"type": "adjustPeriodLength", "t": 1, "seconds": -3000000000}""").kind)
+        // 정수 문법은 Double을 거치지 않고 정확히 읽는다
+        assertEquals(CommandKind.AdjustPeriodLength(1800), decode("""{"type": "adjustPeriodLength", "t": 1, "seconds": 1800}""").kind)
+        // 64비트도 넘으면 Swift처럼 실패
+        assertFailsWith<SerializationException> { decode("""{"type": "adjustPeriodLength", "t": 1, "seconds": 10000000000000000000}""") }
+    }
+
     @Test fun everyKindRoundTrips() {
         val kinds = listOf(
             CommandKind.SetKickoffTeam(Team.HOME),
