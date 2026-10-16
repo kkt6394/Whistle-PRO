@@ -73,6 +73,28 @@ struct BacklogSessionTests {
         #expect(try library.bundle(id: bundle.id) == nil)
     }
 
+    /// 경기 확인 누락 후속: 워치가 물은 경기 중 폰이 가진 경기(지운 경기 포함)만 답한다
+    @Test func libraryAnswersReceivedAmongAsked() throws {
+        let library = MatchLibrary(directory: tempDirectory())
+        let stored = MatchBundle(record: makeRecord([(.startPeriod, 0)]), workout: nil)
+        let deleted = MatchBundle(record: makeRecord([(.startPeriod, 10)]), workout: nil)
+        let missing = UUID()
+        try library.upsert(stored)
+        try library.upsert(deleted)
+        try library.delete(id: deleted.id)
+        #expect(library.received(among: [stored.id, missing, deleted.id]) == [stored.id, deleted.id])
+        #expect(MatchLibrary(directory: tempDirectory()).received(among: [missing]).isEmpty)
+    }
+
+    @Test func receiptQueryRoundTrips() {
+        let ids = [UUID(), UUID()]
+        #expect(SyncPayload.receiptQueryIDs(from: SyncPayload.receiptQuery(ids)) == ids)
+        #expect(SyncPayload.receivedIDs(from: SyncPayload.receiptReply(ids)) == ids)
+        // 다른 메시지는 질문이 아니고, 이전 폰 앱의 빈 답은 아무것도 확인하지 않는다
+        #expect(SyncPayload.receiptQueryIDs(from: SyncPayload.contextRequest()) == nil)
+        #expect(SyncPayload.receivedIDs(from: [:]).isEmpty)
+    }
+
     /// 백로그: deleted.json이 손상되면 다음 삭제 때 지운 경기 목록이 모두 사라졌다 (지운 경기가 다시 저장됨)
     @Test func corruptedDeletedListDoesNotResurrectDeletedMatches() throws {
         let directory = tempDirectory()

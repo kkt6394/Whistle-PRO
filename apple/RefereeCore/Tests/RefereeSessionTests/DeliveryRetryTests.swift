@@ -46,3 +46,67 @@ struct MatchSendThrottleTests {
         do { let ok = throttle.allows(a, at: 1); #expect(ok) }
     }
 }
+
+/// 경기 확인 누락 후속: 워치가 활성화·reachable 될 때 "이 경기들 받았니?"를 폰에 묻는다
+struct ReceiptCheckTests {
+    @Test func asksPendingMatches() {
+        var check = ReceiptCheck(interval: 60)
+        let a = UUID(), b = UUID()
+        do { let asked = check.begin(pending: [a, b], at: 0); #expect(asked == [a, b]) }
+        #expect(check.inFlight)
+    }
+
+    @Test func doesNotAskWithoutPendingMatches() {
+        var check = ReceiptCheck(interval: 60)
+        do { let asked = check.begin(pending: [], at: 0); #expect(asked == nil) }
+        #expect(!check.inFlight)
+    }
+
+    /// reachable이 깜빡여도 답을 기다리는 동안은 다시 묻지 않는다
+    @Test func doesNotOverlapWhileWaitingForReply() {
+        var check = ReceiptCheck(interval: 60)
+        let a = UUID()
+        do { let asked = check.begin(pending: [a], at: 0); #expect(asked != nil) }
+        do { let asked = check.begin(pending: [a], at: 1); #expect(asked == nil) }
+    }
+
+    /// 답에 든 경기만 확인으로 본다 (묻지 않은 ID는 무시)
+    @Test func confirmsOnlyAskedMatchesInReply() {
+        var check = ReceiptCheck(interval: 60)
+        let a = UUID(), b = UUID(), stranger = UUID()
+        let asked = check.begin(pending: [a, b], at: 0)!
+        let confirmed = check.answered(asked: asked, received: [b, stranger], at: 1)
+        #expect(confirmed == [b])
+        #expect(!check.inFlight)
+    }
+
+    /// 답을 받은 뒤에는 간격 안에 다시 묻지 않는다
+    @Test func waitsIntervalAfterAnswer() {
+        var check = ReceiptCheck(interval: 60)
+        let a = UUID()
+        let asked = check.begin(pending: [a], at: 0)!
+        _ = check.answered(asked: asked, received: [], at: 1)
+        do { let asked = check.begin(pending: [a], at: 30); #expect(asked == nil) }
+        do { let asked = check.begin(pending: [a], at: 61); #expect(asked == [a]) }
+    }
+
+    /// 실패하면 다음 기회에 바로 다시 묻는다
+    @Test func failureAllowsAskingAgain() {
+        var check = ReceiptCheck(interval: 60)
+        let a = UUID()
+        do { let asked = check.begin(pending: [a], at: 0); #expect(asked != nil) }
+        check.failed()
+        do { let asked = check.begin(pending: [a], at: 1); #expect(asked == [a]) }
+    }
+
+    /// 메시지 한도 안에 들게 한 번에 묻는 수를 제한한다
+    @Test func limitsIDsPerQuery() throws {
+        var check = ReceiptCheck(interval: 60)
+        let many = (0..<(ReceiptCheck.maxIDs + 10)).map { _ in UUID() }
+        let begun = check.begin(pending: many, at: 0)
+        let asked = try #require(begun)
+        #expect(asked == Array(many.prefix(ReceiptCheck.maxIDs)))
+        let size = try PropertyListSerialization.data(fromPropertyList: SyncPayload.receiptQuery(asked), format: .binary, options: 0).count
+        #expect(size < 65_536)
+    }
+}

@@ -100,6 +100,31 @@ public enum SyncPayload {
         (info[matchIDKey] as? String).flatMap(UUID.init(uuidString:))
     }
 
+    public static let receiptQueryKey = "receiptQuery"
+    public static let receivedKey = "received"
+
+    /// 워치 → 폰 (sendMessage, 답을 받는다): 보관함에 남은 경기 중 이미 받은 게 있는지 묻는다.
+    /// 확인(ack)을 놓치면 워치 보관함에 경기가 계속 남았다 (경기 확인 누락 후속)
+    public static func receiptQuery(_ matchIDs: [UUID]) -> [String: Any] {
+        [receiptQueryKey: matchIDs.map(\.uuidString)]
+    }
+
+    /// 묻는 메시지가 아니면 nil
+    public static func receiptQueryIDs(from message: [String: Any]) -> [UUID]? {
+        guard let ids = message[receiptQueryKey] as? [String] else { return nil }
+        return ids.compactMap(UUID.init(uuidString:))
+    }
+
+    /// 폰 → 워치: 물은 경기 중 폰이 이미 가진(또는 사용자가 지운) 경기
+    public static func receiptReply(_ matchIDs: [UUID]) -> [String: Any] {
+        [receivedKey: matchIDs.map(\.uuidString)]
+    }
+
+    /// 빈 답(이 질문을 모르는 이전 폰 앱)이면 빈 목록 → 아무것도 확인하지 않는다
+    public static func receivedIDs(from reply: [String: Any]) -> [UUID] {
+        ((reply[receivedKey] as? [String]) ?? []).compactMap(UUID.init(uuidString:))
+    }
+
     /// 폰 → 워치 (updateApplicationContext). 컨텍스트는 통째로 바뀌므로 프리셋과 구독 상태를 항상 함께 보낸다.
     /// 프리셋이 한도를 넘으면 앞에서부터 들어가는 만큼만 넣는다 (구독 상태는 늘 가야 한다).
     public static func context(presets: [MatchPreset], entitlement: Entitlement,
@@ -241,6 +266,11 @@ public struct MatchLibrary: Sendable {
             .filter { $0.pathExtension == "json" && !$0.lastPathComponent.hasSuffix(Self.summarySuffix) && $0.lastPathComponent != "deleted.json" }
             .compactMap { try? decoder.decode(MatchBundle.self, from: Data(contentsOf: $0)) }
             .sorted { $0.record.createdAt > $1.record.createdAt }
+    }
+
+    /// 워치가 물은 경기 중 이미 받은 경기: 저장돼 있거나 사용자가 지운 경기 (지운 경기도 받을 때 확인을 보낸다)
+    public func received(among ids: [UUID]) -> [UUID] {
+        ids.filter { FileManager.default.fileExists(atPath: url(for: $0).path) || isDeleted($0) }
     }
 
     public func bundle(id: UUID) throws -> MatchBundle? {
