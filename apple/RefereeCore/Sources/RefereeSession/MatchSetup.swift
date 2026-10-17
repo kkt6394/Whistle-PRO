@@ -187,6 +187,15 @@ public struct MatchSetup: Codable, Equatable, Sendable {
         team == .home ? homeRoster : awayRoster
     }
 
+    /// 선발로 표시된 선수의 등번호
+    public func starters(of team: Team) -> Set<Int> {
+        Set(roster(of: team).filter { $0.starter == true }.map(\.number))
+    }
+
+    public func hasStarters(for team: Team) -> Bool {
+        roster(of: team).contains { $0.starter == true }
+    }
+
     /// 명단에서 등번호로 찾은 이름 (번호가 없거나 명단에 없으면 nil)
     public func playerName(team: Team, number: Int?) -> String? {
         guard let number else { return nil }
