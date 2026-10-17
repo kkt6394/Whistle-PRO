@@ -4,10 +4,29 @@ import Foundation
 public struct Player: Codable, Equatable, Hashable, Sendable {
     public var number: Int
     public var name: String
+    /// 선발 표시. true일 때만 JSON에 쓴다 (false는 nil로 정규화)
+    public var starter: Bool?
 
-    public init(number: Int, name: String) {
+    public init(number: Int, name: String, starter: Bool? = nil) {
         self.number = number
         self.name = name
+        self.starter = starter == true ? true : nil
+    }
+
+    private enum CodingKeys: String, CodingKey { case number, name, starter }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        number = try c.decode(Int.self, forKey: .number)
+        name = try c.decode(String.self, forKey: .name)
+        starter = try c.decodeIfPresent(Bool.self, forKey: .starter) == true ? true : nil
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(number, forKey: .number)
+        try c.encode(name, forKey: .name)
+        if starter == true { try c.encode(true, forKey: .starter) }
     }
 }
 
@@ -93,7 +112,7 @@ public enum Roster {
     /// 이름 앞뒤 공백을 지우고 번호순으로
     public static func normalized(_ players: [Player]) -> [Player] {
         players
-            .map { Player(number: $0.number, name: $0.name.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            .map { Player(number: $0.number, name: $0.name.trimmingCharacters(in: .whitespacesAndNewlines), starter: $0.starter) }
             .sorted { $0.number < $1.number }
     }
 }
