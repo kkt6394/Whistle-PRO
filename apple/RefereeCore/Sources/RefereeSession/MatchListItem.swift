@@ -18,6 +18,8 @@ public struct MatchListItem: Equatable, Sendable, Identifiable {
     public var awayName: String
     public var homeColor: TeamColor
     public var awayColor: TeamColor
+    public var homeColor2: TeamColor?
+    public var awayColor2: TeamColor?
     public var homeScore: Int
     public var awayScore: Int
     public var abandoned: Bool
@@ -31,6 +33,7 @@ public struct MatchListItem: Equatable, Sendable, Identifiable {
         startedAt = s.startedAt
         homeName = s.homeName; awayName = s.awayName
         homeColor = s.homeColor; awayColor = s.awayColor
+        homeColor2 = s.homeColor2; awayColor2 = s.awayColor2
         homeScore = s.homeScore; awayScore = s.awayScore
         if case .abandoned(let reason) = s.outcome {
             abandoned = true; abandonReason = reason
@@ -55,7 +58,8 @@ public struct MatchListItem: Equatable, Sendable, Identifiable {
     // ruleText 튜플 때문에 직접 비교한다
     public static func == (a: Self, b: Self) -> Bool {
         a.id == b.id && a.startedAt == b.startedAt && a.homeName == b.homeName && a.awayName == b.awayName
-            && a.homeColor == b.homeColor && a.awayColor == b.awayColor && a.homeScore == b.homeScore
+            && a.homeColor == b.homeColor && a.awayColor == b.awayColor
+            && a.homeColor2 == b.homeColor2 && a.awayColor2 == b.awayColor2 && a.homeScore == b.homeScore
             && a.awayScore == b.awayScore && a.abandoned == b.abandoned && a.abandonReason == b.abandonReason
             && a.ruleText?.count == b.ruleText?.count && a.ruleText?.minutes == b.ruleText?.minutes && a.chips == b.chips
     }
