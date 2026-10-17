@@ -109,12 +109,13 @@ struct MainLayoutTests {
         #expect(l.header.maxX <= screen.clockLeft - 14 + 0.001, "\(size) \(l.header) \(screen.clockLeft)")
     }
 
-    /// 버튼 셋은 폭이 높이 이상이라 둥글게 보인다 (2026-10-15 사용자 지적: 울트라에서 아래 모서리를 피하느라
+    /// 버튼 둘은 폭이 높이 이상이라 둥글게 보인다 (2026-10-15 사용자 지적: 울트라에서 아래 모서리를 피하느라
     /// 줄이 좁아져 버튼이 세로로 긴 타원이었다)
     @Test(arguments: MainLayoutTests.screens)
     func buttonsAreAtLeastAsWideAsTall(size: CGSize) {
         let l = MainLayout(size: size)
-        let each = (l.buttons.width - MainLayout.buttonSpacing * 2) / 3
+        let count = CGFloat(MainLayout.buttonCount)
+        let each = (l.buttons.width - MainLayout.buttonSpacing * (count - 1)) / count
         #expect(each >= l.buttons.height - 0.001, "\(size) 버튼 폭 \(each) 높이 \(l.buttons.height)")
     }
 
