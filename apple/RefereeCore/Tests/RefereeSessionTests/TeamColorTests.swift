@@ -28,6 +28,12 @@ struct TeamColorTests {
         #expect(TeamColor.white.isHardToTell(from: TeamColor(hex: "#F2F2F2")!))
         #expect(!TeamColor.red.isHardToTell(from: .blue))
         #expect(!TeamColor.white.isHardToTell(from: .black))
+        // 어두운 색끼리는 더 멀어야 한다: 진보라와 남색(ΔE 33)은 경고, 견본끼리(검정·남색 ΔE 46, 자주·남색)는 경고 없음
+        #expect(TeamColor(hex: "#371A89")!.isHardToTell(from: .navy))
+        #expect(!TeamColor.black.isHardToTell(from: .navy))
+        #expect(!TeamColor.maroon.isHardToTell(from: .navy))
+        // 밝은 색끼리는 기준 그대로: 노랑·주황(ΔE 32)은 경고 없음
+        #expect(!TeamColor.yellow.isHardToTell(from: .orange))
     }
 
     @Test func quickPicksStartWithLegacyColors() {

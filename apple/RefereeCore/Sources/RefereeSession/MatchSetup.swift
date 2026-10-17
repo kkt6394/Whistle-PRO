@@ -66,11 +66,14 @@ public struct TeamColor: Codable, Hashable, Sendable {
         try c.encode(hex)
     }
 
-    /// 워치에서 두 팀 점을 구분하기 어려울 만큼 비슷한지 (CIE Lab ΔE76 < 25)
+    /// 워치에서 두 팀 점을 구분하기 어려울 만큼 비슷한지 (CIE Lab ΔE76 < 25).
+    /// 둘 다 어두운 색(L < 35)이면 작은 점에서 색조 차이가 묻혀 더 멀어야(ΔE < 45) 다른 색으로 보인다
+    /// (2026-10-17 실기기: 진보라 #371A89와 남색 #1C2E6B가 ΔE 33인데 구분이 어려웠다)
     public func isHardToTell(from other: TeamColor) -> Bool {
         let a = lab, b = other.lab
         let d = ((a.l - b.l) * (a.l - b.l) + (a.a - b.a) * (a.a - b.a) + (a.b - b.b) * (a.b - b.b)).squareRoot()
-        return d < 25
+        let bothDark = a.l < 35 && b.l < 35
+        return d < (bothDark ? 45 : 25)
     }
 
     private var lab: (l: Double, a: Double, b: Double) {
