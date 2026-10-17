@@ -70,6 +70,11 @@ data class MatchSetup(
 ) {
     fun roster(team: Team): List<Player> = if (team == Team.HOME) homeRoster else awayRoster
 
+    /** 선발로 표시된 선수의 등번호 */
+    fun starters(team: Team): Set<Long> = roster(team).filter { it.starter == true }.map { it.number }.toSet()
+
+    fun hasStarters(team: Team): Boolean = roster(team).any { it.starter == true }
+
     /** 명단에서 등번호로 찾은 이름 (번호가 없거나 명단에 없으면 null) */
     fun playerName(team: Team, number: Long?): String? {
         if (number == null) return null

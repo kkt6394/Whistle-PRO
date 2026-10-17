@@ -80,4 +80,32 @@ class RosterTests {
         assertEquals(listOf("#23", "#7 Kim → #14", "#10 Park", "#10 홍길동"), state.eventRows(sample).map { it.detail })
         assertEquals(listOf("#23", "#7 → #14", "#10", "#10"), state.eventRows.map { it.detail })
     }
+
+    @Test fun starterRoundTripsAndOmitsWhenNotTrue() {
+        val players = listOf(Player(1, "A", true), Player(2, "B"), Player(3, "C", false))
+        val json = players.map { it.toJson() }
+        assertEquals(JsonPrimitive(true), json[0]["starter"])
+        assertNull(json[1]["starter"])
+        assertNull(json[2]["starter"])
+        val decoded = json.map { Player.fromJson(it) }
+        assertEquals(true, decoded[0].starter)
+        assertNull(decoded[1].starter)
+        assertNull(decoded[2].starter)
+    }
+
+    @Test fun oldPlayerJsonDecodesWithoutStarter() {
+        val player = Player.fromJson(JsonObject(mapOf("number" to JsonPrimitive(9), "name" to JsonPrimitive("x"))))
+        assertEquals(Player(9, "x"), player)
+        assertNull(player.starter)
+    }
+
+    @Test fun hasStartersOnlyWhenSomeoneIsMarked() {
+        var setup = MatchSetup(homeRoster = listOf(Player(1, "A"), Player(2, "B")))
+        assertTrue(!setup.hasStarters(Team.HOME))
+        assertTrue(setup.starters(Team.HOME).isEmpty())
+        setup = setup.copy(homeRoster = listOf(Player(1, "A"), Player(2, "B", true)))
+        assertTrue(setup.hasStarters(Team.HOME))
+        assertTrue(!setup.hasStarters(Team.AWAY))
+        assertEquals(setOf(2L), setup.starters(Team.HOME))
+    }
 }

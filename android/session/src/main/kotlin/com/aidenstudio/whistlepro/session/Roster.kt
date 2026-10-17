@@ -1,21 +1,23 @@
 package com.aidenstudio.whistlepro.session
 
 import com.aidenstudio.whistlepro.core.long
+import com.aidenstudio.whistlepro.core.optionalBoolean
 import com.aidenstudio.whistlepro.core.string
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import java.text.BreakIterator
 
-/** 명단의 선수 한 명 */
-data class Player(val number: Long, val name: String) {
+/** 명단의 선수 한 명. starter는 true일 때만 JSON에 쓴다 (false는 읽을 때 null) */
+data class Player(val number: Long, val name: String, val starter: Boolean? = null) {
     fun toJson(): JsonObject = buildJsonObject {
         put("number", JsonPrimitive(number))
         put("name", JsonPrimitive(name))
+        if (starter == true) put("starter", JsonPrimitive(true))
     }
 
     companion object {
-        fun fromJson(json: JsonObject) = Player(json.long("number"), json.string("name"))
+        fun fromJson(json: JsonObject) = Player(json.long("number"), json.string("name"), json.optionalBoolean("starter")?.takeIf { it })
     }
 }
 
@@ -88,7 +90,7 @@ object Roster {
 
     /** 이름 앞뒤 공백을 지우고 번호순으로 */
     fun normalized(players: List<Player>): List<Player> =
-        players.map { Player(it.number, it.name.trim()) }.sortedBy { it.number }
+        players.map { Player(it.number, it.name.trim(), it.starter) }.sortedBy { it.number }
 
     /** Swift CharacterSet.whitespaces (탭 + 공백 문자 Zs) */
     private fun isSwiftWhitespace(c: Char) = c == '\t' || Character.getType(c) == Character.SPACE_SEPARATOR.toInt()
