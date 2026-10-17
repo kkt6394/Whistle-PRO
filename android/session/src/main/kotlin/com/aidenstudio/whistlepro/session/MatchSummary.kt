@@ -4,6 +4,8 @@ import com.aidenstudio.whistlepro.core.FinishReason
 import com.aidenstudio.whistlepro.core.MatchEngine
 import com.aidenstudio.whistlepro.core.MatchState
 import com.aidenstudio.whistlepro.core.Phase
+import com.aidenstudio.whistlepro.core.ResolvedEventKind
+import com.aidenstudio.whistlepro.core.resolvedEvents
 import com.aidenstudio.whistlepro.core.array
 import com.aidenstudio.whistlepro.core.double
 import com.aidenstudio.whistlepro.core.long
@@ -79,6 +81,21 @@ data class MatchSummary(
     val periodMinutes: Int? = null,
 ) {
     val isCurrent: Boolean get() = (summaryVersion ?: 1) >= CURRENT_VERSION
+
+    /**
+     * 워치 지난 경기 상세의 이벤트 수. 셈은 폰 보관함 요약(Swift `MatchSummary(bundle:)`)과 같다:
+     * 골은 자책골 포함, 옐로·퇴장은 경고 누적 퇴장을 양쪽에 센다. 통계 버전(summaryVersion)은 그대로 둔다.
+     */
+    fun withEventCounts(state: MatchState): MatchSummary {
+        val kinds = state.resolvedEvents.map { it.kind }
+        fun count(vararg wanted: ResolvedEventKind) = kinds.count { it in wanted }
+        return copy(
+            goals = count(ResolvedEventKind.GOAL, ResolvedEventKind.OWN_GOAL),
+            yellows = count(ResolvedEventKind.YELLOW, ResolvedEventKind.SECOND_YELLOW),
+            reds = count(ResolvedEventKind.RED, ResolvedEventKind.SECOND_YELLOW),
+            sinBins = count(ResolvedEventKind.SIN_BIN),
+        )
+    }
 
     fun toJson(): JsonObject = buildJsonObject {
         put("id", JsonPrimitive(id.swiftString))

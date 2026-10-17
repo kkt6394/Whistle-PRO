@@ -1,8 +1,10 @@
 package com.aidenstudio.whistlepro.session
 
+import com.aidenstudio.whistlepro.core.CardKind
 import com.aidenstudio.whistlepro.core.CommandKind
 import com.aidenstudio.whistlepro.core.EventPayload
 import com.aidenstudio.whistlepro.core.MatchEngine
+import com.aidenstudio.whistlepro.core.RuleSet
 import com.aidenstudio.whistlepro.core.Team
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -80,5 +82,27 @@ class MatchSummaryTests {
         assertEquals(s, MatchSummary.fromJson(Json.parseToJsonElement(s.toJson().toString()).jsonObject))
         assertEquals(json.keys, s.toJson().keys)
         assertEquals(json["outcome"], s.toJson()["outcome"])
+    }
+
+    /** 워치 지난 경기 상세: 골(자책골 포함)·옐로(경고 누적 포함)·퇴장(경고 누적 포함)·일시 퇴장 수 */
+    @Test fun eventCountsForPastMatchDetail() {
+        val commands = listOf(
+            CommandKind.StartPeriod to 100.0,
+            CommandKind.RecordEvent(EventPayload.Goal(Team.HOME, 9, false)) to 200.0,
+            CommandKind.RecordEvent(EventPayload.Goal(Team.AWAY, 4, true)) to 300.0,
+            CommandKind.RecordEvent(EventPayload.Card(Team.AWAY, 5, CardKind.YELLOW)) to 400.0,
+            CommandKind.RecordEvent(EventPayload.Card(Team.AWAY, 5, CardKind.YELLOW)) to 500.0,
+            CommandKind.RecordEvent(EventPayload.Card(Team.HOME, 3, CardKind.RED)) to 600.0,
+            CommandKind.RecordEvent(EventPayload.Card(Team.HOME, 8, CardKind.SIN_BIN)) to 700.0,
+        )
+        val record = makeRecord(MatchSetup(rules = RuleSet(sinBin = true)), commands)
+        val state = MatchEngine.reduce(record.setup.rules, record.commands)
+        val summary = MatchSummary.of(record, state).withEventCounts(state)
+        assertEquals(2, summary.goals)
+        assertEquals(2, summary.yellows)
+        assertEquals(2, summary.reds)
+        assertEquals(1, summary.sinBins)
+        // 통계 버전은 그대로: 폰 보관함은 이 요약을 최신 통계로 보지 않는다
+        assertNull(summary.summaryVersion)
     }
 }
