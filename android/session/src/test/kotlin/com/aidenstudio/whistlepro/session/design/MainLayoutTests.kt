@@ -1,5 +1,7 @@
 package com.aidenstudio.whistlepro.session.design
 
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -35,8 +37,38 @@ class MainLayoutTests {
             for (rect in listOf(l.clock, l.home, l.away, l.buttons)) assertTrue(rect.width > 0 && rect.height > 0, "$name $rect")
             // 시계 "38:12"(약 2.9em)가 줄어들지 않고 들어간다
             assertTrue(l.clockFontSize * 2.9 <= l.clock.width + 0.001, "$name ${l.clockFontSize} ${l.clock.width}")
-            assertTrue(l.headerSweepDegrees > 0 && l.headerSweepDegrees < 180, "$name ${l.headerSweepDegrees}")
         }
+    }
+
+    /**
+     * 상단 띠(고리 [r − band, r], 위 가운데 ± sweep/2)는 시계 줄 위 끝보다 위에 있다.
+     * 실제 띠(240dp: 13 × 1.25 글자 × 1.25 = 20.3)와 시계 줄을 밀어 내리는 큰 띠(40)로 본다
+     */
+    @Test fun headerBandStaysAboveClock() {
+        for ((d, band) in listOf(240.0 to 20.3125, 240.0 to 40.0, 192.0 to 16.25, 216.0 to 40.0)) {
+            val l = MainLayout.round(d, band)
+            val c = l.contentCenter
+            val half = l.headerSweepDegrees / 2 * PI / 180
+            for (i in 0..40) for (j in 0..10) {
+                val angle = -half + 2 * half * i / 40
+                val r = l.contentRadius - band + band * j / 10
+                val y = c.y - r * cos(angle)
+                assertTrue(y <= l.clock.minY + 0.001, "지름 $d 띠 $band 각도 ${angle * 180 / PI} 반지름 $r: $y > ${l.clock.minY}")
+            }
+        }
+        // 실제 띠에서는 글자 자리가 남는다 (240: 약 42°)
+        assertTrue(MainLayout.round(240.0, 20.3125).headerSweepDegrees > 30)
+    }
+
+    /** 띠가 크면 시계 줄은 현이 아니라 띠 아래 끝에서 시작한다 (clockTop의 띠 제한) */
+    @Test fun largeBandPushesClockDown() {
+        val l = MainLayout.round(240.0, 40.0)
+        val contentTop = l.contentCenter.y - l.contentRadius + 40
+        assertTrue(kotlin.math.abs(l.clock.minY - contentTop) < 0.001, "${l.clock.minY} $contentTop")
+        assertTrue(l.clock.minY > MainLayout.round(240.0, 0.0).clock.minY)
+        assertTrue(l.clockFontSize * 2.9 <= l.clock.width + 0.001)
+        for (rect in listOf(l.clock, l.subClock, l.home, l.away, l.buttons)) for (p in rect.corners) assertTrue(l.inside(p), "$rect")
+        assertTrue(l.teams.maxY <= l.buttons.minY + 0.001)
     }
 
     /** 갤럭시 44mm급: 작은 줄을 보이면서 B1 하한을 모두 지킨다 */

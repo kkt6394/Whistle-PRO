@@ -2,7 +2,7 @@ package com.aidenstudio.whistlepro.session.design
 
 import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.math.atan2
+import kotlin.math.acos
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
@@ -36,7 +36,7 @@ data class MainLayout(
     val contentRadius: Double,
     /** 상단 곡선 띠의 높이 (내용 원 위쪽 끝부터) */
     val headerBand: Double,
-    /** 상단 띠 글자가 쓸 수 있는 호의 각도 범위(위 가운데 기준 좌우 합). 시계 줄 위쪽 두 모서리 사이 */
+    /** 상단 띠 글자가 쓸 수 있는 호의 각도 범위(위 가운데 기준 좌우 합). 띠 고리 안쪽 끝이 시계 줄 위 끝보다 위인 범위 */
     val headerSweepDegrees: Double,
     val headerFontSize: Double,
     val clock: Rect,
@@ -203,7 +203,9 @@ data class MainLayout(
             val away = Rect(teams.maxX - half, teams.minY, half, teams.height)
             // 점수 상한은 내용 원 지름으로 잡았다. 실제 칸(현)이 더 좁으면 두 자리가 들어가게 줄인다
             scoreFont = min(scoreFont, half / SCORE_EM)
-            val sweep = 2 * atan2(clock.width / 2, center.y - clock.minY) * 180 / PI
+            // 띠 글자는 고리 [r − band, r]에 놓인다. 고리 안쪽 끝이 시계 줄 위 끝보다 위에 있는 각도까지만 쓴다
+            val inner = radius - band
+            val sweep = if (inner <= 0) 0.0 else 2 * acos(((center.y - clock.minY) / inner).coerceIn(-1.0, 1.0)) * 180 / PI
 
             return MainLayout(
                 lineWidth = lineWidth,
