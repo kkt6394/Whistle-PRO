@@ -1,7 +1,8 @@
 package com.aidenstudio.whistlepro.session.design
 
+import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.math.cos
+import kotlin.math.atan2
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
@@ -17,96 +18,229 @@ data class Rect(val x: Double, val y: Double, val width: Double, val height: Dou
 }
 
 /**
- * 워치 메인 화면 배치 (스펙 §4.1·§4.2). 링, 링 안 다섯 줄, 버튼이 서로 겹치지 않는 칸을 받는다.
- * 각 줄의 폭은 그 줄 높이 범위에서 가장 좁은 링 안쪽 현(chord)이라 네 모서리가 모두 링 안에 든다.
- * 단위는 호출한 쪽의 단위(Apple pt, Wear dp)를 그대로 쓴다.
+ * 워치 메인·휴식 화면 배치 (B1 스펙 §3)의 Wear OS 원형판. Swift `MainLayout(size:)`의 하한·배분·`take`·`shrink` 순서를
+ * 그대로 쓰고, 둥근 사각형 모서리 대신 원의 현으로 줄 폭을 정한다.
+ * - 테두리: 화면 원에서 `edge + lineWidth/2` 안쪽 원. 위 가운데에서 시작해 시계방향 ([BorderTrack.circle])
+ * - 상단 띠: 테두리 안쪽 위 호를 따르는 곡선 글자. 띠 높이(headerBand)는 내용 원 위쪽에서 뺀다
+ * - 테두리 안: 시계 줄 · 작은 줄(남은 시간·정지시간) · 팀 칸(홈 | 원정) · 버튼 줄. 각 줄의 폭은 그 줄 높이 범위에서
+ *   가장 좁은 내용 원의 현이라 네 모서리가 모두 원 안에 든다
+ * 하한(버튼 44 · 시계 44 · 점수 30 · 일시 퇴장 13 · 작은 줄 13)을 먼저 지키고, 남는 높이는
+ * 시계 → 점수 → 일시 퇴장 줄 수 → 버튼 순으로 나눈다. 하한이 안 들어가면 작은 줄을 먼저 숨기고, 그래도 모자라면
+ * 모두 같은 비율(shrink)로 줄인다. 단위는 dp.
  */
 data class MainLayout(
-    val ringCenter: Point,
-    /** 링 선 가운데까지의 반지름 */
-    val ringRadius: Double,
     val lineWidth: Double,
-    /** 위에서부터 상단 줄, 큰 시계, 추가시간, 점수, 상태 줄 */
-    val rows: List<Rect>,
+    val border: BorderTrack,
+    /** 내용 원: 테두리 선 안쪽에서 여백만큼 더 들어간 원 */
+    val contentCenter: Point,
+    val contentRadius: Double,
+    /** 상단 곡선 띠의 높이 (내용 원 위쪽 끝부터) */
+    val headerBand: Double,
+    /** 상단 띠 글자가 쓸 수 있는 호의 각도 범위(위 가운데 기준 좌우 합). 시계 줄 위쪽 두 모서리 사이 */
+    val headerSweepDegrees: Double,
+    val headerFontSize: Double,
+    val clock: Rect,
+    /** 큰 시계 바로 아래 작은 줄: 남은 시간(또는 경과·45+2:13)과 정지시간. 숨기면 높이 0 */
+    val subClock: Rect,
+    val teams: Rect,
+    val home: Rect,
+    val away: Rect,
     val buttons: Rect,
     val clockFontSize: Double,
+    val scoreFontSize: Double,
+    val sinBinFontSize: Double,
+    val subClockFontSize: Double,
+    val scoreRowHeight: Double,
+    val sinBinRowHeight: Double,
+    val sinBinLines: Int,
+    /** 하한이 안 들어가 모두 줄인 비율 (1이면 하한 그대로 이상) */
+    val shrink: Double,
+    /** 하한이 안 들어가 작은 줄을 숨겼다 */
+    val subClockHidden: Boolean,
 ) {
-    companion object {
-        /** 링 안쪽 지름에 대한 각 줄 높이 비율 */
-        internal val ROW_SHARES = listOf(0.12, 0.28, 0.11, 0.13, 0.12)
+    val buttonHeight: Double get() = buttons.height
 
-        /** 링이 비어 있는 아래쪽의 절반 각도 (290° 링 → 70° 열림) */
-        internal const val OPEN_HALF_DEGREES = 35.0
+    /** 메인 화면의 그리는 부분 (Always-On에서 무엇을 남길지) */
+    enum class Row { BORDER, HEADER, CLOCK, ADDED_TIME, SUB_CLOCK, SCORE, SIN_BIN, SHORT_HANDED, BUTTONS }
+
+    companion object {
+        const val MIN_BUTTON_HEIGHT = 44.0
+        const val MIN_CLOCK_FONT = 44.0
+        const val MIN_SCORE_FONT = 30.0
+        const val MIN_SIN_BIN_FONT = 13.0
+        /** 두 팀 칸 사이 (가운데에 1dp 선) */
+        const val DIVIDER_GAP = 6.0
+        /** 버튼 셋 사이 간격 */
+        const val BUTTON_SPACING = 6.0
+        /** 상단 띠 기본 글자 크기 (WatchScale로 키운다) */
+        const val HEADER_FONT = 13.0
+
+        /** 화면 끝에서 테두리 선 바깥까지 */
+        internal const val EDGE = 1.5
+        /** 테두리 선 안쪽에서 내용까지 */
+        internal const val PADDING = 2.5
+        internal const val GAP = 2.0
+        /** 시계 글자 / 줄 높이: 줄 높이는 숫자 높이(약 0.72em)에 여유를 둔 0.82em */
+        internal const val CLOCK_FILL = 1 / 0.82
+        /** 점수 글자 / 줄 높이 */
+        internal const val SCORE_FILL = 1.0
+        /** 일시 퇴장·작은 줄 높이 / 글자 */
+        internal const val SIN_BIN_LEADING = 1.25
+        /** "38:12" 폭 ≈ 2.8em, 점수 두 자리 + 점 ≈ 2em */
+        internal const val CLOCK_EM = 2.9
+        internal const val SCORE_EM = 2.0
+        internal const val MAX_CLOCK_FONT = 56.0
+        internal const val MAX_SCORE_FONT = 40.0
+        internal const val MAX_SIN_BIN_LINES = 3
+        internal const val MAX_BUTTON_HEIGHT = 52.0
+
+        private val reducedRows = setOf(Row.BORDER, Row.CLOCK, Row.ADDED_TIME, Row.SCORE)
 
         /**
-         * Always-On(저전력)에서도 보이는 줄인지. 시계·추가시간·점수는 남기고 상단 줄·상태 줄은 숨긴다.
-         * 추가시간 중에는 큰 시계가 규정 시간에서 멈춰 있으므로 +M:SS 줄이 있어야 한다.
+         * Always-On(저전력)에서도 보이는 부분인지. 테두리·시계·추가시간·점수만 남긴다 (B1 §3 Always-On).
+         * 저조도 화면은 갱신이 느려 일시 퇴장 초 카운트가 틀리게 보일 수 있다.
          */
-        fun showsRow(index: Int, reduced: Boolean): Boolean = !reduced || index in 1..3
+        fun showsRow(row: Row, reduced: Boolean): Boolean = !reduced || row in reducedRows
 
-        /** 사각 화면 (Swift MainLayout(size:)와 같은 계산). 버튼은 링 아래. */
-        fun rect(width: Double, height: Double): MainLayout {
-            val w = max(0.0, width)
-            val h = max(0.0, height)
-            val lineWidth = (w * 0.037).coerceIn(5.0, 7.5)
-            val buttonHeight = (h * 0.135).coerceIn(24.0, 34.0)
-            val top = h * 0.02
-            val gap = h * 0.03
-            val bottom = h * 0.035
-            val diameter = max(0.0, min(w * 0.94, h - top - gap - buttonHeight - bottom))
-            val center = Point(w / 2, top + diameter / 2)
-            val ringRadius = max(0.0, diameter / 2 - lineWidth / 2)
-            val inner = max(0.0, ringRadius - lineWidth / 2 - w * 0.02)
-            val total = ROW_SHARES.sum() * inner * 2
-            val rows = rowsInside(center, inner, center.y - total / 2, ROW_SHARES.map { it * inner * 2 })
-            val inset = w * 0.14
+        /** 원형 화면 (Wear OS). diameter는 화면 지름, headerBand는 상단 곡선 띠 높이(글자 크기 × 1.25). */
+        fun round(diameter: Double, headerBand: Double): MainLayout {
+            val d = max(0.0, diameter)
+            val center = Point(d / 2, d / 2)
+            val lineWidth = (d * 0.03).coerceIn(4.0, 6.5)
+            val border = BorderTrack.circle(d, EDGE + lineWidth / 2)
+            val radius = max(0.0, border.rect.width / 2 - lineWidth / 2 - PADDING)
+            val band = headerBand.coerceIn(0.0, radius)
+            val contentTop = center.y - radius + band
+
+            fun halfChord(depth: Double) = sqrt(max(0.0, radius * radius - depth * depth))
+
+            /** 내용 원 안에서 minY부터 height만큼의 줄. 폭은 그 범위에서 가장 좁은 현 */
+            fun row(minY: Double, height: Double): Rect {
+                val h = max(0.0, height)
+                val half = halfChord(max(abs(minY - center.y), abs(minY + h - center.y)))
+                return Rect(center.x - half, minY, half * 2, h)
+            }
+
+            /** 시계 줄 위 끝: 글자 크기 font의 "38:12"가 들어가는 현까지 내린다 (Swift clockDrop의 원형판) */
+            fun clockTop(font: Double): Double {
+                val half = font * CLOCK_EM / 2
+                val top = if (half >= radius) center.y else center.y - halfChord(half)
+                return max(contentTop, top)
+            }
+
+            fun buttonRowWidth(h: Double) = min(radius * 2, h * 3 + BUTTON_SPACING * 2)
+
+            /** 높이 h인 둥근 버튼 셋이 들어가는 가장 아래 끝 (Swift buttonLift의 원형판) */
+            fun buttonsBottom(h: Double) = center.y + halfChord(buttonRowWidth(h) / 2)
+
+            fun available(scale: Double) =
+                buttonsBottom(MIN_BUTTON_HEIGHT * scale) - clockTop(MIN_CLOCK_FONT * scale) - GAP * 2
+
+            // 하한부터 채우고 남는 높이를 나눈다
+            val clockRowMin = MIN_CLOCK_FONT / CLOCK_FILL
+            val scoreRowMin = MIN_SCORE_FONT / SCORE_FILL
+            val sinBinRowMin = MIN_SIN_BIN_FONT * SIN_BIN_LEADING
+            val subClockRowMin = MIN_SIN_BIN_FONT * SIN_BIN_LEADING
+            val withoutSubClock = MIN_BUTTON_HEIGHT + clockRowMin + scoreRowMin + sinBinRowMin
+            // 하한이 안 들어가면 ① 작은 줄을 숨기고 ② 그래도 모자라면 모두 같은 비율로 줄인다.
+            // 줄이면 버튼 줄·시계 줄이 좁아져 원의 더 넓은 곳까지 내려갈 수 있으므로 비율은 이분법으로 찾는다
+            val subClockHidden = available(1.0) < withoutSubClock + subClockRowMin
+            val minimum = if (subClockHidden) withoutSubClock else withoutSubClock + subClockRowMin
+            val shrink = if (available(1.0) >= minimum) 1.0 else largest(1.0) { available(it) >= it * minimum }
+            val top = clockTop(MIN_CLOCK_FONT * shrink)
+            val baseBottom = buttonsBottom(MIN_BUTTON_HEIGHT * shrink)
+            var spare = max(0.0, available(shrink) - minimum * shrink)
+            fun take(want: Double): Double {
+                val given = min(max(0.0, want), spare)
+                spare -= given
+                return given
+            }
+
+            /** take(want)만큼 받은 높이 안에서 cost(x) ≤ 받은 높이인 가장 큰 x (0..limit). 쓰고 남은 높이는 돌려준다 */
+            fun grow(want: Double, limit: Double, cost: (Double) -> Double): Double {
+                val given = take(want)
+                val x = largest(max(0.0, limit)) { cost(it) <= given + 1e-9 }
+                spare = max(0.0, spare + given - cost(x))
+                return x
+            }
+
+            val cellWidth = max(0.0, (radius * 2 - DIVIDER_GAP) / 2)
+            val clockCap = max(MIN_CLOCK_FONT, min(MAX_CLOCK_FONT, radius * 2 / CLOCK_EM))
+            // 원에서는 시계가 커지면 줄도 그 폭의 현까지 내려가야 한다. 내려가는 높이도 시계가 받은 몫에서 쓴다
+            var clockFont = (
+                MIN_CLOCK_FONT + grow((clockCap - MIN_CLOCK_FONT) / CLOCK_FILL, clockCap - MIN_CLOCK_FONT) { x ->
+                    clockTop((MIN_CLOCK_FONT + x) * shrink) - top + x * shrink / CLOCK_FILL
+                }
+                ) * shrink
+            val scoreCap = max(MIN_SCORE_FONT, min(MAX_SCORE_FONT, cellWidth / SCORE_EM))
+            var scoreFont = (MIN_SCORE_FONT + take((scoreCap - MIN_SCORE_FONT) / SCORE_FILL) * SCORE_FILL) * shrink
+            var lines = 1
+            while (lines < MAX_SIN_BIN_LINES && spare >= sinBinRowMin) {
+                spare -= sinBinRowMin
+                lines += 1
+            }
+            val sinBinFont = MIN_SIN_BIN_FONT * shrink
+            val subClockFont = MIN_SIN_BIN_FONT * shrink
+            // 버튼이 커지면 버튼 줄이 넓어져 위로 올라가야 한다. 올라가는 높이도 버튼이 받은 몫에서 쓴다
+            val buttonHeight = (
+                MIN_BUTTON_HEIGHT + grow(MAX_BUTTON_HEIGHT - MIN_BUTTON_HEIGHT, MAX_BUTTON_HEIGHT - MIN_BUTTON_HEIGHT) { x ->
+                    x * shrink + baseBottom - buttonsBottom((MIN_BUTTON_HEIGHT + x) * shrink)
+                }
+                ) * shrink
+
+            val clockRowHeight = max(clockFont, MIN_CLOCK_FONT * shrink) / CLOCK_FILL
+            val clock = row(clockTop(clockFont), clockRowHeight)
+            // 줄 폭에 다섯 글자가 줄지 않고 들어가게 한다
+            clockFont = min(clockFont, clock.width / CLOCK_EM)
+            val rowWidth = buttonRowWidth(buttonHeight)
+            val buttons = Rect(center.x - rowWidth / 2, buttonsBottom(buttonHeight) - buttonHeight, rowWidth, buttonHeight)
+            val subClock = row(clock.maxY, if (subClockHidden) 0.0 else subClockFont * SIN_BIN_LEADING)
+            // 팀 칸은 작은 줄과 버튼 줄 사이를 모두 쓴다 (남은 높이는 칸이 받는다)
+            val teamsTop = subClock.maxY + GAP
+            val teams = row(teamsTop, buttons.minY - GAP - teamsTop)
+            val half = max(0.0, (teams.width - DIVIDER_GAP) / 2)
+            val home = Rect(teams.minX, teams.minY, half, teams.height)
+            val away = Rect(teams.maxX - half, teams.minY, half, teams.height)
+            // 점수 상한은 내용 원 지름으로 잡았다. 실제 칸(현)이 더 좁으면 두 자리가 들어가게 줄인다
+            scoreFont = min(scoreFont, half / SCORE_EM)
+            val sweep = 2 * atan2(clock.width / 2, center.y - clock.minY) * 180 / PI
+
             return MainLayout(
-                center, ringRadius, lineWidth, rows,
-                Rect(inset, top + diameter + gap, max(0.0, w - inset * 2), buttonHeight),
-                rows[1].height * 0.95,
+                lineWidth = lineWidth,
+                border = border,
+                contentCenter = center,
+                contentRadius = radius,
+                headerBand = band,
+                headerSweepDegrees = sweep,
+                headerFontSize = WatchScale(d).scaled(HEADER_FONT),
+                clock = clock,
+                subClock = subClock,
+                teams = teams,
+                home = home,
+                away = away,
+                buttons = buttons,
+                clockFontSize = clockFont,
+                scoreFontSize = scoreFont,
+                sinBinFontSize = sinBinFont,
+                subClockFontSize = subClockFont,
+                scoreRowHeight = scoreFont / SCORE_FILL,
+                sinBinRowHeight = sinBinFont * SIN_BIN_LEADING,
+                sinBinLines = lines,
+                shrink = shrink,
+                subClockHidden = subClockHidden,
             )
         }
 
-        /**
-         * 원형 화면 (Wear OS). 링은 화면 가장자리를 따라 그리고, 버튼은 링이 비어 있는 아래쪽 틈에 둔다.
-         * 버튼은 링 두 끝 사이의 폭 안, 화면 원 안에 들어가고, 다섯 줄은 링 안쪽에서 버튼 위에 놓인다.
-         */
-        fun round(diameter: Double): MainLayout {
-            val d = max(0.0, diameter)
-            val screenRadius = d / 2
-            val center = Point(d / 2, d / 2)
-            val lineWidth = (d * 0.037).coerceIn(5.0, 7.5)
-            val margin = d * 0.02
-            val ringRadius = max(0.0, screenRadius - margin - lineWidth / 2)
-            val inner = max(0.0, ringRadius - lineWidth / 2 - d * 0.02)
-
-            // 버튼: 링 끝(아래 55°·125°)의 안쪽 모서리보다 좁게, 화면 원 안에서 가장 아래
-            val endAngle = Math.toRadians(90.0 - OPEN_HALF_DEGREES)
-            val pad = d * 0.02
-            val halfWidth = max(0.0, (ringRadius - lineWidth / 2) * cos(endAngle) - pad)
-            val buttonHeight = (d * 0.13).coerceIn(22.0, 32.0)
-            val safe = max(0.0, screenRadius - margin)
-            val buttonBottom = center.y + sqrt(max(0.0, safe * safe - halfWidth * halfWidth))
-            val buttons = Rect(center.x - halfWidth, buttonBottom - buttonHeight, halfWidth * 2, buttonHeight)
-
-            // 줄: 링 안쪽, 버튼 위. 공간이 모자라면 비율을 유지한 채 줄인다.
-            val gap = d * 0.02
-            val natural = ROW_SHARES.sum() * inner * 2
-            val ceiling = center.y - inner * 0.92
-            val floor = min(center.y + natural / 2, buttons.minY - gap)
-            val total = max(0.0, min(natural, floor - ceiling))
-            val scale = if (natural > 0) total / natural else 0.0
-            val rows = rowsInside(center, inner, floor - total, ROW_SHARES.map { it * inner * 2 * scale })
-            return MainLayout(center, ringRadius, lineWidth, rows, buttons, rows[1].height * 0.95)
-        }
-
-        private fun rowsInside(center: Point, inner: Double, startY: Double, heights: List<Double>): List<Rect> {
-            var y = startY
-            return heights.map { rowHeight ->
-                val far = max(abs(y - center.y), abs(y + rowHeight - center.y))
-                val half = sqrt(max(0.0, inner * inner - far * far))
-                Rect(center.x - half, y, half * 2, rowHeight).also { y += rowHeight }
+        /** 0..limit에서 ok(x)인 가장 큰 x. ok는 x가 커질수록 참에서 거짓으로만 바뀐다. 0도 거짓이면 0 */
+        private fun largest(limit: Double, ok: (Double) -> Boolean): Double {
+            if (ok(limit)) return limit
+            var lo = 0.0
+            var hi = limit
+            repeat(60) {
+                val mid = (lo + hi) / 2
+                if (ok(mid)) lo = mid else hi = mid
             }
+            return lo
         }
     }
 }
