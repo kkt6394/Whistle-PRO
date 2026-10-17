@@ -40,6 +40,8 @@ public struct MatchReport: Equatable, Sendable {
     public var awayName: String
     public var homeColor: TeamColor
     public var awayColor: TeamColor
+    public var homeColor2: TeamColor?
+    public var awayColor2: TeamColor?
     /// 첫 킥오프 시각 (킥오프 전이면 기록 생성 시각)
     public var startedAt: Double
     public var outcome: ReportOutcome
@@ -80,6 +82,8 @@ public struct MatchReport: Equatable, Sendable {
         awayName = setup.awayName
         homeColor = setup.homeColor
         awayColor = setup.awayColor
+        homeColor2 = setup.homeColor2
+        awayColor2 = setup.awayColor2
         startedAt = state.periods.first?.startedAt ?? bundle.record.createdAt
         outcome = switch state.phase {
         case .finished(.completed): .completed
@@ -144,6 +148,10 @@ public struct MatchReport: Equatable, Sendable {
         }
         return "WhistlePRO \(date) \(clean(homeName)) vs \(clean(awayName))"
     }
+
+    public func color2(of team: Team) -> TeamColor? {
+        team == .home ? homeColor2 : awayColor2
+    }
 }
 
 /// 목록·시즌 통계용 가벼운 요약. 경기마다 <id>.summary.json으로 저장한다.
@@ -161,6 +169,8 @@ public struct MatchSummary: Codable, Equatable, Sendable, Identifiable {
     public var awayName: String
     public var homeColor: TeamColor
     public var awayColor: TeamColor
+    public var homeColor2: TeamColor?
+    public var awayColor2: TeamColor?
     public var homeScore: Int
     public var awayScore: Int
     /// 승부차기 [홈, 원정] (승부차기가 없었으면 nil)
@@ -203,6 +213,8 @@ public struct MatchSummary: Codable, Equatable, Sendable, Identifiable {
         awayName = setup.awayName
         homeColor = setup.homeColor
         awayColor = setup.awayColor
+        homeColor2 = setup.homeColor2
+        awayColor2 = setup.awayColor2
         homeScore = state.score.home
         awayScore = state.score.away
         let shootoutStatus = state.shootout
