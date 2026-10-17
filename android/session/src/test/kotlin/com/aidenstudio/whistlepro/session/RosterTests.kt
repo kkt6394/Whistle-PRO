@@ -58,7 +58,7 @@ class RosterTests {
     @Test fun validateFindsIssues() {
         val players = listOf(Player(100, "A"), Player(3, " "), Player(3, "B"), Player(3, "C"), Player(8, "x".repeat(21)))
         assertEquals(
-            listOf(RosterIssue.NumberOutOfRange(100), RosterIssue.EmptyName(3), RosterIssue.DuplicateNumber(3), RosterIssue.NameTooLong(8)),
+            listOf(RosterIssue.NumberOutOfRange(100), RosterIssue.DuplicateNumber(3), RosterIssue.NameTooLong(8)),
             Roster.validate(players),
         )
         assertEquals(listOf<RosterIssue>(RosterIssue.TooManyPlayers), Roster.validate((0L until 41L).map { Player(it, "P") }))

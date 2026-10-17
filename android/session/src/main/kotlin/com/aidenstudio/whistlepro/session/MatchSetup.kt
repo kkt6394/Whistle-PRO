@@ -78,7 +78,7 @@ data class MatchSetup(
     /** 명단에서 등번호로 찾은 이름 (번호가 없거나 명단에 없으면 null) */
     fun playerName(team: Team, number: Long?): String? {
         if (number == null) return null
-        return roster(team).firstOrNull { it.number == number }?.name
+        return roster(team).firstOrNull { it.number == number }?.name?.takeIf { it.isNotBlank() }
     }
 
     fun toJson(): JsonObject = buildJsonObject {

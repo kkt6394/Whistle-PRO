@@ -84,7 +84,8 @@ struct RosterTests {
     @Test func validateFindsIssues() {
         let players = [Player(number: 100, name: "A"), Player(number: 3, name: " "), Player(number: 3, name: "B"),
                        Player(number: 3, name: "C"), Player(number: 8, name: String(repeating: "x", count: 21))]
-        #expect(Roster.validate(players) == [.numberOutOfRange(100), .emptyName(3), .duplicateNumber(3), .nameTooLong(8)])
+        // 빈 이름(3번 " ")은 허용한다 — 번호만 아는 선수
+        #expect(Roster.validate(players) == [.numberOutOfRange(100), .duplicateNumber(3), .nameTooLong(8)])
         #expect(Roster.validate((0..<41).map { Player(number: $0, name: "P") }) == [.tooManyPlayers])
         #expect(Roster.validate(Self.sample.homeRoster).isEmpty)
     }

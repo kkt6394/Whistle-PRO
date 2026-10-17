@@ -26,7 +26,6 @@ sealed interface RosterIssue {
     data class NumberOutOfRange(val number: Long) : RosterIssue
     data class DuplicateNumber(val number: Long) : RosterIssue
     /** 이름이 비었거나 공백뿐 (번호로 구분) */
-    data class EmptyName(val number: Long) : RosterIssue
     data class NameTooLong(val number: Long) : RosterIssue
     data object TooManyPlayers : RosterIssue
 }
@@ -78,12 +77,9 @@ object Roster {
             if (!seen.add(player.number) && RosterIssue.DuplicateNumber(player.number) !in issues) {
                 issues += RosterIssue.DuplicateNumber(player.number)
             }
+            // 이름은 비어도 된다 (Swift와 같음)
             val name = player.name.trim()
-            if (name.isEmpty()) {
-                issues += RosterIssue.EmptyName(player.number)
-            } else if (graphemeCount(name) > MAXIMUM_NAME_LENGTH) {
-                issues += RosterIssue.NameTooLong(player.number)
-            }
+            if (graphemeCount(name) > MAXIMUM_NAME_LENGTH) issues += RosterIssue.NameTooLong(player.number)
         }
         return issues
     }

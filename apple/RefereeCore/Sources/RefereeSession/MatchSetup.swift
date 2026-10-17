@@ -198,8 +198,9 @@ public struct MatchSetup: Codable, Equatable, Sendable {
 
     /// 명단에서 등번호로 찾은 이름 (번호가 없거나 명단에 없으면 nil)
     public func playerName(team: Team, number: Int?) -> String? {
-        guard let number else { return nil }
-        return roster(of: team).first { $0.number == number }?.name
+        guard let number, let name = roster(of: team).first(where: { $0.number == number })?.name,
+              !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return name
     }
 }
 

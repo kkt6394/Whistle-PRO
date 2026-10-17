@@ -35,7 +35,6 @@ public enum RosterIssue: Equatable, Sendable {
     case numberOutOfRange(Int)
     case duplicateNumber(Int)
     /// 이름이 비었거나 공백뿐 (번호로 구분)
-    case emptyName(Int)
     case nameTooLong(Int)
     case tooManyPlayers
 }
@@ -99,12 +98,9 @@ public enum Roster {
             if !seen.insert(player.number).inserted, !issues.contains(.duplicateNumber(player.number)) {
                 issues.append(.duplicateNumber(player.number))
             }
+            // 이름은 비어도 된다 (2026-10-18 사용자: 번호만 아는 선수가 흔하다) — 번호만 보인다
             let name = player.name.trimmingCharacters(in: .whitespacesAndNewlines)
-            if name.isEmpty {
-                issues.append(.emptyName(player.number))
-            } else if name.count > maximumNameLength {
-                issues.append(.nameTooLong(player.number))
-            }
+            if name.count > maximumNameLength { issues.append(.nameTooLong(player.number)) }
         }
         return issues
     }
