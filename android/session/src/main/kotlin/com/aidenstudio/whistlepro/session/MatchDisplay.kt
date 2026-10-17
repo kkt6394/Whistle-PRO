@@ -41,6 +41,16 @@ data class ShootoutDisplay(
     val kicksPerTeam: Long,
 )
 
+/** 큰 시계 아래 작은 줄의 시계 (2026-10-15 사용자 결정, Swift SubClock) */
+sealed interface SubClock {
+    /** 경과 모드: 정규시간까지 남은 시간 "32:26" */
+    data class Remaining(val time: String) : SubClock
+    /** 남은 시간 모드: 흐른 경기 시간(90분 기준) "12:34" */
+    data class Elapsed(val time: String) : SubClock
+    /** 추가시간: 축구 표기 "45+2:13" (큰 자리에는 +2:13) */
+    data class Overtime(val time: String) : SubClock
+}
+
 /** 링 표시용 진행값 (초) */
 data class ClockProgress(val elapsed: Long, val length: Long)
 
@@ -55,6 +65,8 @@ data class MatchDisplay(
     val mainClock: String,
     /** "+2:13" (규정 시간 초과 시에만) */
     val addedTime: String?,
+    /** 큰 시계 아래 작은 줄 (기간 진행 중에만) */
+    val subClock: SubClock?,
     /** 이 기간 누적 중단 시간 "1:24" (중단이 있었거나 진행 중일 때만) */
     val stoppage: String?,
     val stoppageRunning: Boolean,
@@ -118,6 +130,16 @@ data class MatchDisplay(
                     format(if (clockDisplay == ClockDisplay.ELAPSED) 0 else state.regularPeriodLength.toLong())
                 },
                 addedTime = reading?.addedTime?.takeIf { it > 0 }?.let { "+" + formatShort(it) },
+                subClock = if (reading != null && phase is Phase.Period) {
+                    val regulationEnd = reading.matchSecond - reading.addedTime
+                    when {
+                        reading.addedTime > 0 -> SubClock.Overtime("${regulationEnd / 60}+" + formatShort(reading.addedTime))
+                        clockDisplay == ClockDisplay.ELAPSED -> SubClock.Remaining(formatShort(reading.remaining))
+                        else -> SubClock.Elapsed(formatShort(reading.matchSecond))
+                    }
+                } else {
+                    null
+                },
                 stoppage = reading?.takeIf { it.stoppageTotal > 0 || it.stoppageRunning }?.let { formatShort(it.stoppageTotal) },
                 stoppageRunning = reading?.stoppageRunning ?: false,
                 intervalClock = if (phase == Phase.PreExtraTime && preExtraEnd != null) {

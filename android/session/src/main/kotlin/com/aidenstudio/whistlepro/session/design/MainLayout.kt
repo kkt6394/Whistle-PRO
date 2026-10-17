@@ -74,6 +74,8 @@ data class MainLayout(
         const val BUTTON_SPACING = 6.0
         /** 상단 띠 기본 글자 크기 (WatchScale로 키운다) */
         const val HEADER_FONT = 13.0
+        /** 상단 띠 높이 / 띠 글자 크기 */
+        const val HEADER_BAND_LEADING = 1.25
 
         /** 화면 끝에서 테두리 선 바깥까지 */
         internal const val EDGE = 1.5
@@ -101,6 +103,9 @@ data class MainLayout(
          * 저조도 화면은 갱신이 느려 일시 퇴장 초 카운트가 틀리게 보일 수 있다.
          */
         fun showsRow(row: Row, reduced: Boolean): Boolean = !reduced || row in reducedRows
+
+        /** 지름 diameter인 원형 화면의 상단 띠 높이: 띠 글자(`HEADER_FONT` × WatchScale) × [HEADER_BAND_LEADING]. [round]에 넘긴다 */
+        fun headerBand(diameter: Double): Double = WatchScale(max(0.0, diameter)).scaled(HEADER_FONT) * HEADER_BAND_LEADING
 
         /** 원형 화면 (Wear OS). diameter는 화면 지름, headerBand는 상단 곡선 띠 높이(글자 크기 × 1.25). */
         fun round(diameter: Double, headerBand: Double): MainLayout {

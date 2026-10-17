@@ -152,4 +152,11 @@ class MainLayoutTests {
         )
         assertEquals(all, all.filter { MainLayout.showsRow(it, reduced = false) })
     }
+
+    /** 상단 띠 높이 = 띠 글자(13 × WatchScale) × 1.25. 테스트가 쓰던 값(192: 16.25, 240: 20.3125)과 같다 */
+    @Test fun headerBandFollowsHeaderFont() {
+        assertEquals(16.25, MainLayout.headerBand(192.0), 1e-9)
+        assertEquals(20.3125, MainLayout.headerBand(240.0), 1e-9)
+        for (d in diameters) assertEquals(MainLayout.round(d, 0.0).headerFontSize * 1.25, MainLayout.headerBand(d), 1e-9)
+    }
 }
