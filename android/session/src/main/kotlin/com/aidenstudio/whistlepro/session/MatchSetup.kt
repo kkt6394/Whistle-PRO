@@ -14,6 +14,8 @@ import com.aidenstudio.whistlepro.core.optionalBoolean
 import com.aidenstudio.whistlepro.core.optionalString
 import com.aidenstudio.whistlepro.core.present
 import com.aidenstudio.whistlepro.core.string
+import com.aidenstudio.whistlepro.session.design.Palette
+import com.aidenstudio.whistlepro.session.design.RGB
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -31,6 +33,24 @@ enum class ClockDisplay(val code: String) {
 
 /** 팀 색 "#RRGGBB" (Swift TeamColor와 같은 형식). 예전 이름("red" 등)도 읽는다. */
 data class TeamColor(val hex: String) {
+    /** 화면 색 (sRGB) */
+    val rgb: RGB get() = RGB.hex(hex.removePrefix("#").toInt(16))
+
+    /** 검은 바탕 위 작은 표시(팀 칸의 ＋, 점)에 쓰는 팀 색: 대비가 3:1에 못 미치면(검정·남색 팀) 흰색 쪽으로 섞는다. Swift `markOnDark`와 같다. */
+    val markOnDark: RGB
+        get() {
+            val own = rgb
+            val black = Palette.background.dark
+            val white = RGB.hex(0xFFFFFF)
+            var t = 0.0
+            var mark = own
+            while (RGB.contrast(mark, black) < 3 && t < 1) {
+                t = minOf(1.0, t + 0.05)
+                mark = RGB.mix(own, white, t)
+            }
+            return mark
+        }
+
     companion object {
         val RED = TeamColor("#FF3B30"); val BLUE = TeamColor("#007AFF"); val WHITE = TeamColor("#FFFFFF")
         val BLACK = TeamColor("#000000"); val YELLOW = TeamColor("#FFCC00"); val GREEN = TeamColor("#34C759")
