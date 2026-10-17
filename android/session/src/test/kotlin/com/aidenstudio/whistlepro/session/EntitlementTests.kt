@@ -15,6 +15,16 @@ private const val DAY = 24.0 * 3600
 
 // entitlementContextRoundTrips(SyncPayload)는 동기화와 함께 M6-3에서 옮긴다.
 class EntitlementTests {
+    /** 홈 화면 리뷰: 워치가 이 시각에 맞춰 잠금을 다시 계산한다 */
+    @Test fun activeUntilIsExpiryPlusGrace() {
+        val e = Entitlement(100 * DAY, 0.0)
+        assertEquals(107 * DAY, e.activeUntil)
+        assertTrue(e.isActive(e.activeUntil!!))
+        assertFalse(e.isActive(e.activeUntil!! + 1))
+        assertNull(Entitlement.NONE.activeUntil)
+        assertNull(Entitlement(100 * DAY, 0.0, revoked = true).activeUntil)
+    }
+
     @Test fun noSubscriptionIsInactive() {
         assertFalse(Entitlement.NONE.isActive(0.0))
     }

@@ -1,0 +1,37 @@
+{
+  "addedSeconds" : 190,
+  "averageHeartRate" : 142,
+  "awayColor" : "#007AFF",
+  "awayName" : "한강 유나이티드",
+  "awayScore" : 1,
+  "createdAt" : 1791945000.25,
+  "distance" : 1.5,
+  "goals" : 2,
+  "homeColor" : "#FF3B30",
+  "homeName" : "FC 서울",
+  "homeScore" : 1,
+  "id" : "6F9619FF-8B86-D011-B42D-00C04FC964FF",
+  "outcome" : {
+    "abandoned" : {
+      "_0" : "폭우"
+    }
+  },
+  "periodCount" : 2,
+  "periodMinutes" : 45,
+  "reds" : 0,
+  "shootout" : [
+    4,
+    3
+  ],
+  "sinBins" : 1,
+  "sprints" : 3,
+  "startedAt" : 1791945001.5,
+  "summaryVersion" : 4,
+  "yellows" : 1,
+  "zones" : {
+    "jogging" : 200,
+    "running" : 300,
+    "sprinting" : 50,
+    "walking" : 100
+  }
+}
