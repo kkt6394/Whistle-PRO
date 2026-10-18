@@ -15,6 +15,8 @@ public struct MainLayout: Equatable, Sendable {
     public static let dividerGap: CGFloat = 6
     /// 버튼 셋 사이 간격
     public static let buttonSpacing: CGFloat = 6
+    /// 메인 아래 버튼 수: [중단/재개][종료] 둘, 같은 폭 (2026-10-17 사용자 결정: [＋]는 팀 칸이 대신해 뺌)
+    public static let buttonCount = 2
 
     /// 화면 끝에서 테두리 선 바깥까지 (좌우·아래)
     static let edge: CGFloat = 1.5
@@ -143,7 +145,8 @@ public struct MainLayout: Equatable, Sendable {
         clock = Self.row(in: content, top: contentTopRadius, bottom: contentBottomRadius, minY: top, height: clockRowHeight)
         // 시계 줄이 위쪽 둥근 모서리에 걸리면 폭이 줄어든다. 그 폭에 다섯 글자가 줄지 않고 들어가게 한다
         clockFontSize = min(clockFontSize, clock.width / Self.clockEm)
-        // 버튼 줄은 맨 아래 가운데, 폭은 둥근 버튼 셋만큼. 아래 모서리에 걸리면 걸리지 않는 높이까지 올린다
+        // 버튼 줄은 맨 아래 가운데, 폭은 둥근 버튼 셋만큼(버튼이 둘로 줄어도 줄 폭은 그대로 두어 둘이 넓게 나눈다).
+        // 아래 모서리에 걸리면 걸리지 않는 높이까지 올린다
         let rowWidth = min(content.width, buttonHeight * 3 + Self.buttonSpacing * 2)
         buttons = CGRect(x: content.midX - rowWidth / 2, y: content.maxY - buttonLift(buttonHeight) - buttonHeight,
                          width: rowWidth, height: buttonHeight)

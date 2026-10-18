@@ -8,6 +8,31 @@ struct RosterTests {
         homeRoster: [Player(number: 10, name: "홍길동"), Player(number: 7, name: "Kim")],
         awayRoster: [Player(number: 10, name: "Park")])
 
+    @Test func starterRoundTripsAndOmitsWhenNotTrue() throws {
+        let players = [Player(number: 1, name: "A", starter: true), Player(number: 2, name: "B"), Player(number: 3, name: "C", starter: false)]
+        let data = try JSONEncoder().encode(players)
+        let json = try JSONSerialization.jsonObject(with: data) as! [[String: Any]]
+        #expect(json[0]["starter"] as? Bool == true)
+        #expect(json[1]["starter"] == nil && json[2]["starter"] == nil)
+        let decoded = try JSONDecoder().decode([Player].self, from: data)
+        #expect(decoded[0].starter == true && decoded[1].starter == nil && decoded[2].starter == nil)
+    }
+
+    @Test func oldPlayerJsonDecodesWithoutStarter() throws {
+        let player = try JSONDecoder().decode(Player.self, from: Data(#"{"number":9,"name":"x"}"#.utf8))
+        #expect(player.number == 9 && player.name == "x" && player.starter == nil)
+    }
+
+    @Test func hasStartersOnlyWhenSomeoneIsMarked() {
+        var setup = MatchSetup(homeRoster: [Player(number: 1, name: "A"), Player(number: 2, name: "B")])
+        #expect(!setup.hasStarters(for: .home))
+        #expect(setup.starters(of: .home).isEmpty)
+        setup.homeRoster[1].starter = true
+        #expect(setup.hasStarters(for: .home))
+        #expect(!setup.hasStarters(for: .away))
+        #expect(setup.starters(of: .home) == [2])
+    }
+
     @Test func decodesSetupWithoutRoster() throws {
         var json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(MatchSetup())) as! [String: Any]
         json.removeValue(forKey: "homeRoster")
@@ -59,7 +84,8 @@ struct RosterTests {
     @Test func validateFindsIssues() {
         let players = [Player(number: 100, name: "A"), Player(number: 3, name: " "), Player(number: 3, name: "B"),
                        Player(number: 3, name: "C"), Player(number: 8, name: String(repeating: "x", count: 21))]
-        #expect(Roster.validate(players) == [.numberOutOfRange(100), .emptyName(3), .duplicateNumber(3), .nameTooLong(8)])
+        // 빈 이름(3번 " ")은 허용한다 — 번호만 아는 선수
+        #expect(Roster.validate(players) == [.numberOutOfRange(100), .duplicateNumber(3), .nameTooLong(8)])
         #expect(Roster.validate((0..<41).map { Player(number: $0, name: "P") }) == [.tooManyPlayers])
         #expect(Roster.validate(Self.sample.homeRoster).isEmpty)
     }

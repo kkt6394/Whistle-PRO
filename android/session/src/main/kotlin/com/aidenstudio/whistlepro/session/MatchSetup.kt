@@ -84,13 +84,21 @@ data class MatchSetup(
     val awayRoster: List<Player> = emptyList(),
     /** 대회명 (선택, 보고서 머리에 쓴다). 없으면 null — JSON에서도 키를 생략한다 */
     val competition: String? = null,
+    /** 팀 보조 색 (두 색 유니폼, 선택). 없으면 null — JSON에서도 키를 생략한다 */
+    val homeColor2: TeamColor? = null,
+    val awayColor2: TeamColor? = null,
 ) {
     fun roster(team: Team): List<Player> = if (team == Team.HOME) homeRoster else awayRoster
+
+    /** 선발로 표시된 선수의 등번호 */
+    fun starters(team: Team): Set<Long> = roster(team).filter { it.starter == true }.map { it.number }.toSet()
+
+    fun hasStarters(team: Team): Boolean = roster(team).any { it.starter == true }
 
     /** 명단에서 등번호로 찾은 이름 (번호가 없거나 명단에 없으면 null) */
     fun playerName(team: Team, number: Long?): String? {
         if (number == null) return null
-        return roster(team).firstOrNull { it.number == number }?.name
+        return roster(team).firstOrNull { it.number == number }?.name?.takeIf { it.isNotBlank() }
     }
 
     fun toJson(): JsonObject = buildJsonObject {
@@ -105,6 +113,8 @@ data class MatchSetup(
         put("homeRoster", JsonArray(homeRoster.map { it.toJson() }))
         put("awayRoster", JsonArray(awayRoster.map { it.toJson() }))
         competition?.let { put("competition", JsonPrimitive(it)) }
+        homeColor2?.let { put("homeColor2", JsonPrimitive(it.hex)) }
+        awayColor2?.let { put("awayColor2", JsonPrimitive(it.hex)) }
     }
 
     companion object {
@@ -121,6 +131,8 @@ data class MatchSetup(
             homeRoster = json.roster("homeRoster"),
             awayRoster = json.roster("awayRoster"),
             competition = json.optionalString("competition"),
+            homeColor2 = json.optionalString("homeColor2")?.let(TeamColor::fromCode),
+            awayColor2 = json.optionalString("awayColor2")?.let(TeamColor::fromCode),
         )
 
         private fun JsonObject.roster(key: String): List<Player> =

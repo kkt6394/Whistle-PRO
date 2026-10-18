@@ -66,11 +66,14 @@ public struct TeamColor: Codable, Hashable, Sendable {
         try c.encode(hex)
     }
 
-    /// 워치에서 두 팀 점을 구분하기 어려울 만큼 비슷한지 (CIE Lab ΔE76 < 25)
+    /// 워치에서 두 팀 점을 구분하기 어려울 만큼 비슷한지 (CIE Lab ΔE76 < 25).
+    /// 둘 다 어두운 색(L < 35)이면 작은 점에서 색조 차이가 묻혀 더 멀어야(ΔE < 45) 다른 색으로 보인다
+    /// (2026-10-17 실기기: 진보라 #371A89와 남색 #1C2E6B가 ΔE 33인데 구분이 어려웠다)
     public func isHardToTell(from other: TeamColor) -> Bool {
         let a = lab, b = other.lab
         let d = ((a.l - b.l) * (a.l - b.l) + (a.a - b.a) * (a.a - b.a) + (a.b - b.b) * (a.b - b.b)).squareRoot()
-        return d < 25
+        let bothDark = a.l < 35 && b.l < 35
+        return d < (bothDark ? 45 : 25)
     }
 
     private var lab: (l: Double, a: Double, b: Double) {
@@ -103,6 +106,9 @@ public struct MatchSetup: Codable, Equatable, Sendable {
     public var awayRoster: [Player]
     /// 대회명 (선택, 보고서 머리에 쓴다). 없으면 nil — JSON에서도 키를 생략한다
     public var competition: String?
+    /// 팀 보조 색 (두 색 유니폼). 없으면 nil — JSON에서도 키를 생략한다
+    public var homeColor2: TeamColor?
+    public var awayColor2: TeamColor?
 
     public init(
         rules: RuleSet = .fifaStandard,
@@ -115,7 +121,9 @@ public struct MatchSetup: Codable, Equatable, Sendable {
         recordsRoute: Bool = true,
         homeRoster: [Player] = [],
         awayRoster: [Player] = [],
-        competition: String? = nil
+        competition: String? = nil,
+        homeColor2: TeamColor? = nil,
+        awayColor2: TeamColor? = nil
     ) {
         self.rules = rules
         self.homeName = homeName
@@ -128,11 +136,13 @@ public struct MatchSetup: Codable, Equatable, Sendable {
         self.homeRoster = homeRoster
         self.awayRoster = awayRoster
         self.competition = competition
+        self.homeColor2 = homeColor2
+        self.awayColor2 = awayColor2
     }
 
     private enum CodingKeys: String, CodingKey {
         case rules, homeName, awayName, homeColor, awayColor, clockDisplay, warningBeforeEnd, recordsRoute
-        case homeRoster, awayRoster, competition
+        case homeRoster, awayRoster, competition, homeColor2, awayColor2
     }
 
     /// 나중에 추가된 필드는 없으면 기본값을 쓴다 (이전 버전 기록 호환).
@@ -149,17 +159,48 @@ public struct MatchSetup: Codable, Equatable, Sendable {
             recordsRoute: try c.decodeIfPresent(Bool.self, forKey: .recordsRoute) ?? true,
             homeRoster: try c.decodeIfPresent([Player].self, forKey: .homeRoster) ?? [],
             awayRoster: try c.decodeIfPresent([Player].self, forKey: .awayRoster) ?? [],
-            competition: try c.decodeIfPresent(String.self, forKey: .competition))
+            competition: try c.decodeIfPresent(String.self, forKey: .competition),
+            homeColor2: try c.decodeIfPresent(TeamColor.self, forKey: .homeColor2),
+            awayColor2: try c.decodeIfPresent(TeamColor.self, forKey: .awayColor2))
+    }
+
+    public func color2(of team: Team) -> TeamColor? {
+        team == .home ? homeColor2 : awayColor2
+    }
+
+    /// 보조 색이 주색과 같으면(hex 기준) 없는 것으로 만든다
+    public func normalizedColors() -> MatchSetup {
+        var s = self
+        if s.homeColor2?.hex == s.homeColor.hex { s.homeColor2 = nil }
+        if s.awayColor2?.hex == s.awayColor.hex { s.awayColor2 = nil }
+        return s
+    }
+
+    /// 홈 {주, 보조} × 원정 {주, 보조} 모든 쌍 중 하나라도 구분하기 어려우면 true
+    public var teamColorsHardToTell: Bool {
+        let home = [homeColor, homeColor2].compactMap { $0 }
+        let away = [awayColor, awayColor2].compactMap { $0 }
+        return home.contains { h in away.contains { h.isHardToTell(from: $0) } }
     }
 
     public func roster(of team: Team) -> [Player] {
         team == .home ? homeRoster : awayRoster
     }
 
+    /// 선발로 표시된 선수의 등번호
+    public func starters(of team: Team) -> Set<Int> {
+        Set(roster(of: team).filter { $0.starter == true }.map(\.number))
+    }
+
+    public func hasStarters(for team: Team) -> Bool {
+        roster(of: team).contains { $0.starter == true }
+    }
+
     /// 명단에서 등번호로 찾은 이름 (번호가 없거나 명단에 없으면 nil)
     public func playerName(team: Team, number: Int?) -> String? {
-        guard let number else { return nil }
-        return roster(of: team).first { $0.number == number }?.name
+        guard let number, let name = roster(of: team).first(where: { $0.number == number })?.name,
+              !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return name
     }
 }
 
