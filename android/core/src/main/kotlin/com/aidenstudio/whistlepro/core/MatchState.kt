@@ -77,6 +77,8 @@ data class MatchState(
     val extraPeriodLength: Long = rules.extraTimePeriodLength,
     /** 적용되지 못하고 무시된 명령 ID (로그 순서) */
     val ignoredCommandIds: List<String> = emptyList(),
+    /** 경기를 끝낸 명령의 시각 (마지막 기간 종료·중단·승부를 가른 킥). 끝난 뒤 기록을 고쳐도 그대로 */
+    val finishedAt: Double? = null,
     /** 승부차기 중에 중단했다 (킥이 없어도 라벨은 PK) */
     val abandonedDuringShootout: Boolean = false,
 )

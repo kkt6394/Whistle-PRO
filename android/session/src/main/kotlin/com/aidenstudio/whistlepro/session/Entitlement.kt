@@ -16,9 +16,16 @@ data class Entitlement(
     /** 환불·취소로 권한이 회수됐다 (다른 출처의 확인보다 우선한다) */
     val revoked: Boolean = false,
 ) {
+    /**
+     * 유료 기능이 열려 있는 마지막 시각 (만료 + 유예). 구독이 없거나 회수됐으면 null.
+     * 워치는 이 시각에 맞춰 잠금을 다시 그린다.
+     */
+    val activeUntil: Double?
+        get() = if (revoked || expiresAt == null) null else expiresAt + GRACE_PERIOD
+
     fun isActive(now: Double): Boolean {
-        if (revoked || expiresAt == null) return false
-        return now <= expiresAt + GRACE_PERIOD
+        val until = activeUntil ?: return false
+        return now <= until
     }
 
     /** 두 출처 중 더 늦은 만료를 쓴다. */

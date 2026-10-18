@@ -1,0 +1,67 @@
+package com.aidenstudio.whistlepro.session.design
+
+import com.aidenstudio.whistlepro.core.Team
+import com.aidenstudio.whistlepro.session.SinBinBadge
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class TeamStatusTests {
+    private fun bin(team: Team, number: Long?, seconds: Long) =
+        SinBinBadge(team, number, "${seconds / 60}:${"%02d".format(seconds % 60)}", seconds)
+
+    @Test fun splitsByTeamShortestFirst() {
+        val a = bin(Team.AWAY, 8, 300)
+        val b = bin(Team.HOME, 7, 90)
+        val c = bin(Team.AWAY, 4, 45)
+        val status = TeamStatus.split(shortHanded = listOf(Team.AWAY), sinBins = listOf(a, b, c))
+        assertEquals(TeamStatus(shortHanded = false, sinBins = listOf(b)), status.home)
+        assertEquals(TeamStatus(shortHanded = true, sinBins = listOf(c, a)), status.away)
+    }
+
+    @Test fun equalTimesKeepListedOrder() {
+        val a = bin(Team.HOME, 2, 120)
+        val b = bin(Team.HOME, 9, 120)
+        assertEquals(listOf(a, b), TeamStatus.split(emptyList(), listOf(a, b)).home.sinBins)
+    }
+
+    @Test fun noLinesWhenNothing() {
+        assertEquals(emptyList(), TeamStatus(false, emptyList()).lines(3))
+    }
+
+    @Test fun allFitWithoutCount() {
+        val s = TeamStatus(false, listOf(bin(Team.HOME, 7, 60), bin(Team.HOME, 9, 200)))
+        assertEquals(listOf(TeamLine.SinBin(s.sinBins[0], null), TeamLine.SinBin(s.sinBins[1], null)), s.lines(2))
+    }
+
+    /** 넘치면 마지막 줄에 그 팀 전체 인원 수 (B1 스펙 §3.3 "#4 0:45 ×3") */
+    @Test fun overflowCollapsesLastLine() {
+        val s = TeamStatus(false, listOf(bin(Team.AWAY, 4, 45), bin(Team.AWAY, 8, 300), bin(Team.AWAY, 9, 500)))
+        assertEquals(listOf(TeamLine.SinBin(s.sinBins[0], 3)), s.lines(1))
+        assertEquals(listOf(TeamLine.SinBin(s.sinBins[0], null), TeamLine.SinBin(s.sinBins[1], 3)), s.lines(2))
+    }
+
+    @Test fun atLeastOneLine() {
+        val s = TeamStatus(false, listOf(bin(Team.HOME, 7, 60), bin(Team.HOME, 9, 200)))
+        assertEquals(s.lines(1), s.lines(0))
+        assertEquals(s.lines(1), s.lines(-2))
+    }
+
+    @Test fun shortHandedLabelFirst() {
+        val s = TeamStatus(true, listOf(bin(Team.AWAY, 4, 45), bin(Team.AWAY, 8, 300)))
+        assertEquals(
+            listOf(TeamLine.ShortHanded, TeamLine.SinBin(s.sinBins[0], null), TeamLine.SinBin(s.sinBins[1], null)),
+            s.lines(3),
+        )
+        assertEquals(listOf(TeamLine.ShortHanded, TeamLine.SinBin(s.sinBins[0], 2)), s.lines(2))
+    }
+
+    @Test fun shortHandedWithoutSinBinsShowsLabel() {
+        assertEquals(listOf(TeamLine.ShortHanded), TeamStatus(true, emptyList()).lines(1))
+    }
+
+    /** 한 줄뿐이면 일시 퇴장이 먼저 (2026-10-15 결정: 인원 부족은 빨간 배경·음성 안내로) */
+    @Test fun singleLinePrefersSinBinOverLabel() {
+        val s = TeamStatus(true, listOf(bin(Team.AWAY, 4, 45), bin(Team.AWAY, 8, 300)))
+        assertEquals(listOf(TeamLine.SinBin(s.sinBins[0], 2)), s.lines(1))
+    }
+}

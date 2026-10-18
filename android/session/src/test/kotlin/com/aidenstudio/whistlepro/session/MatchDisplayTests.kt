@@ -55,6 +55,28 @@ class MatchDisplayTests {
         assertNull(MatchDisplay(makeState(listOf(start to 0.0)), 130.0, E).stoppage)
     }
 
+    /** 큰 시계 아래 작은 줄: 경과 모드면 남은 시간, 남은 시간 모드면 경과 시간 (Swift subClockShowsOtherRegulationClock) */
+    @Test fun subClockShowsOtherRegulationClock() {
+        val s = makeState(listOf(start to 0.0))
+        assertEquals(SubClock.Remaining("32:26"), MatchDisplay(s, 754.0, E).subClock)
+        assertEquals(SubClock.Elapsed("12:34"), MatchDisplay(s, 754.0, R).subClock)
+    }
+
+    /** 추가시간에는 축구 표기 45+2:13 (Swift subClockInAddedTimeUsesFootballNotation) */
+    @Test fun subClockInAddedTimeUsesFootballNotation() {
+        val first = makeState(listOf(start to 0.0))
+        assertEquals(SubClock.Overtime("45+2:13"), MatchDisplay(first, 2833.0, E).subClock)
+        assertEquals(SubClock.Overtime("45+2:13"), MatchDisplay(first, 2833.0, R).subClock)
+        val second = makeState(listOf(start to 0.0, end to 2760.0, start to 3660.0))
+        assertEquals(SubClock.Overtime("90+0:30"), MatchDisplay(second, 3660.0 + 2730, E).subClock)
+    }
+
+    @Test fun subClockOnlyDuringPeriod() {
+        assertNull(MatchDisplay(makeState(emptyList()), 0.0, E).subClock)
+        val interval = makeState(listOf(start to 0.0, end to 2700.0))
+        assertNull(MatchDisplay(interval, 2760.0, E).subClock)
+    }
+
     @Test fun intervalShowsCountdownAndNextPeriod() {
         val s = makeState(listOf(CommandKind.SetKickoffTeam(Team.HOME) to 0.0, start to 0.0, end to 2700.0))
         val d = MatchDisplay(s, 2760.0, E)

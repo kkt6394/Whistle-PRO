@@ -26,7 +26,7 @@ sealed interface PeriodName {
 }
 
 /**
- * 기간 이름표. 기본값은 앱(워치 Components.swift·폰 RuleDisplay.swift)의 한국어 이름과 같다.
+ * 기간 이름표. 기본값은 앱(apple/AppShared/PeriodDisplay.swift)의 한국어 이름과 같다.
  * Wear 앱은 문자열 리소스로 만들어 넘긴다.
  */
 data class PeriodNameStrings(

@@ -32,12 +32,19 @@ interface MatchLogStore {
 
 /**
  * 파일 저장소. directory/active.json·workout-active.json 에 진행 중 기록,
- * directory/finished/<id>.json·<id>-workout.json 에 끝난 기록을 둔다. (Swift FileMatchLogStore와 같은 배치)
+ * directory/finished/<id>.json·<id>-workout.json 에 폰으로 보낼 끝난 기록,
+ * directory/history/<id>.json 에 워치에서 다시 볼 최근 경기(운동 기록 없이)를 둔다. (Swift FileMatchLogStore와 같은 배치)
  */
 class FileMatchLogStore(val directory: File) : MatchLogStore {
     private val activeFile get() = File(directory, "active.json")
     private val activeWorkoutFile get() = File(directory, "workout-active.json")
     private val archiveDirectory get() = File(directory, "finished")
+    private val historyDirectory get() = File(directory, "history")
+
+    companion object {
+        /** 워치 "지난 경기"에 남기는 경기 수 */
+        const val HISTORY_LIMIT = 10
+    }
 
     private fun archivedFile(id: UUID) = File(archiveDirectory, "${id.swiftString}.json")
     private fun archivedWorkoutFile(id: UUID) = File(archiveDirectory, "${id.swiftString}-workout.json")
@@ -70,9 +77,48 @@ class FileMatchLogStore(val directory: File) : MatchLogStore {
         writeAtomically(archivedFile(record.id), record.toJson())
         val log = runCatching { loadActiveWorkout() }.getOrNull()
         if (log != null && log.matchID == record.id) writeAtomically(archivedWorkoutFile(record.id), log.toJson())
+        // 지난 경기 사본은 보조 기능이라 실패해도 경기 보관을 막지 않는다
+        runCatching { addToHistory(record) }
         for (active in listOf(activeFile, activeWorkoutFile)) {
             if (active.exists()) Files.delete(active.toPath())
         }
+    }
+
+    /** 워치에서 다시 볼 최근 경기 (최근 순). 폰이 받았다고 확인해도 남는다. */
+    fun history(): List<MatchRecord> = historyEntries().map { it.second }
+
+    /**
+     * 워치 [지난 경기] 목록에서 지운다. 폰으로 보낼 보관함(finished/)은 건드리지 않는다.
+     * 폰에서 지운 경기도 워치에는 남으므로 워치에서 따로 지울 길을 둔다.
+     */
+    fun deleteHistory(matchID: UUID) {
+        val file = File(historyDirectory, "${matchID.swiftString}.json")
+        if (file.exists()) Files.delete(file.toPath())
+    }
+
+    /**
+     * 무료 경기는 이벤트가 없고 지난 경기 조회는 유료 기능이라 남기지 않는다.
+     * 방금 끝낸 경기는 시작 시각이 같은 기록이 있어도 정리하지 않는다.
+     */
+    private fun addToHistory(record: MatchRecord) {
+        if (!record.unlocked) return
+        historyDirectory.mkdirs()
+        writeAtomically(File(historyDirectory, "${record.id.swiftString}.json"), record.toJson())
+        val others = historyEntries().filter { it.second.id != record.id }
+        for ((file, _) in others.drop(HISTORY_LIMIT - 1)) runCatching { file.delete() }
+    }
+
+    /** 지난 경기 파일과 기록 (최근 순, 같은 시각이면 id 순). 읽을 수 없는 파일은 지운다 (보조 기능이라 격리하지 않는다). */
+    private fun historyEntries(): List<Pair<File, MatchRecord>> {
+        val files = historyDirectory.listFiles() ?: return emptyList()
+        val entries = mutableListOf<Pair<File, MatchRecord>>()
+        for (file in files.filter { it.extension == "json" }) {
+            val record = runCatching { MatchRecord.fromJson(read(file)) }.getOrNull()
+            if (record != null) entries += file to record else runCatching { file.delete() }
+        }
+        return entries.sortedWith(
+            compareByDescending<Pair<File, MatchRecord>> { it.second.createdAt }.thenBy { it.second.id.swiftString },
+        )
     }
 
     override fun archived(): List<MatchRecord> {

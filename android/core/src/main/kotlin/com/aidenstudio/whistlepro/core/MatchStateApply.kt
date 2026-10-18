@@ -2,6 +2,11 @@ package com.aidenstudio.whistlepro.core
 
 /** 명령 하나를 적용한 새 상태. 허용되지 않으면 EngineException을 던지고 이 상태는 그대로다. */
 fun MatchState.apply(command: Command): MatchState {
+    val next = applyUnchecked(command)
+    return if (phase !is Phase.Finished && next.phase is Phase.Finished) next.copy(finishedAt = command.timestamp) else next
+}
+
+private fun MatchState.applyUnchecked(command: Command): MatchState {
     val t = command.timestamp
     return when (val k = command.kind) {
         is CommandKind.SetKickoffTeam -> setKickoff(k.team)

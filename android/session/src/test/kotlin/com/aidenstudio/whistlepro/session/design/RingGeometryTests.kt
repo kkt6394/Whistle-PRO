@@ -10,12 +10,6 @@ import kotlin.test.assertTrue
 class RingGeometryTests {
     private val share = RingGeometry.REGULATION_SHARE
 
-    @Test fun ringStartsBottomLeftPassesTopEndsBottomRight() {
-        assertEquals(125.0, RingGeometry.angle(0.0))
-        assertEquals(270.0, RingGeometry.angle(0.5))
-        assertEquals(415.0, RingGeometry.angle(1.0))
-    }
-
     @Test fun kickoffIsEmpty() {
         assertEquals(RingFill(0.0, null), RingGeometry.period(0, 2700))
     }

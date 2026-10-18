@@ -139,4 +139,64 @@ class MatchLogStoreTests {
             kotlin.test.assertFailsWith<kotlinx.serialization.SerializationException>(bad) { read(bad) }
         }
     }
+
+    // 워치 "지난 경기": 끝난 경기는 폰 전송과 별개로 최근 10경기까지 남는다
+    // historySurvivesPhoneAcknowledgement는 Sync(M6-3)가 없어 옮기지 않았다
+
+    @Test fun finishedMatchesAppearInHistoryNewestFirst() {
+        val store = FileMatchLogStore(tempDirectory())
+        val older = record(10.0)
+        val newer = record(20.0)
+        store.finishActive(older)
+        store.finishActive(newer)
+        assertEquals(listOf(newer, older), store.history())
+    }
+
+    @Test fun historyKeepsOnlyTheMostRecentMatches() {
+        val store = FileMatchLogStore(tempDirectory())
+        val records = (0 until FileMatchLogStore.HISTORY_LIMIT + 2).map { record(it.toDouble()) }
+        records.forEach { store.finishActive(it) }
+        val history = store.history()
+        assertEquals(FileMatchLogStore.HISTORY_LIMIT, history.size)
+        assertEquals(records.last(), history.first())
+        assertTrue(records[0] !in history && records[1] !in history)
+    }
+
+    /** 지난 경기 리뷰: 워치 목록에서 지울 수 있다. 폰으로 보낼 보관함은 그대로 둔다 */
+    @Test fun deleteHistoryRemovesOnlyThatMatch() {
+        val store = FileMatchLogStore(tempDirectory())
+        val keep = record(10.0)
+        val gone = record(20.0)
+        store.finishActive(keep)
+        store.finishActive(gone)
+        store.deleteHistory(gone.id)
+        assertEquals(listOf(keep), store.history())
+        assertEquals(listOf(keep, gone), store.archived())
+        // 없는 경기를 지워도 오류가 아니다
+        store.deleteHistory(UUID.randomUUID())
+    }
+
+    @Test fun emptyHistoryWithoutFinishedMatches() {
+        assertEquals(emptyList(), FileMatchLogStore(tempDirectory()).history())
+    }
+
+    /** 무료 경기는 이벤트가 없고, 지난 경기 조회는 유료 기능이라 남기지 않는다 */
+    @Test fun freeMatchesAreNotKeptInHistory() {
+        val store = FileMatchLogStore(tempDirectory())
+        val free = record().copy(unlocked = false)
+        store.finishActive(free)
+        assertEquals(listOf(free), store.archived())
+        assertEquals(emptyList(), store.history())
+    }
+
+    /** 시작 시각이 같아도 방금 끝낸 경기는 정리되지 않는다 */
+    @Test fun justFinishedMatchSurvivesPruningOnTies() {
+        val store = FileMatchLogStore(tempDirectory())
+        val records = (0 until FileMatchLogStore.HISTORY_LIMIT + 3).map { record(5.0) }
+        for (r in records) {
+            store.finishActive(r)
+            assertTrue(r in store.history())
+        }
+        assertEquals(FileMatchLogStore.HISTORY_LIMIT, store.history().size)
+    }
 }

@@ -36,7 +36,7 @@ class PeriodNameTests {
         assertNull(PeriodName.of("1 H"))
     }
 
-    /** 앱 periodDisplayName(워치 Components.swift·폰 RuleDisplay.swift)의 한국어 결과 */
+    /** 앱 periodDisplayName(apple/AppShared/PeriodDisplay.swift)의 한국어 결과 */
     @Test fun koreanDisplayNames() {
         assertEquals("전반", periodDisplayName("1H"))
         assertEquals("후반", periodDisplayName("2H"))
