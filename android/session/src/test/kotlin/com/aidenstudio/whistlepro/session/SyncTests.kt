@@ -1,5 +1,6 @@
 package com.aidenstudio.whistlepro.session
 
+import com.aidenstudio.whistlepro.core.CardKind
 import com.aidenstudio.whistlepro.core.CommandKind
 import com.aidenstudio.whistlepro.core.EventPayload
 import com.aidenstudio.whistlepro.core.RuleSet
@@ -355,5 +356,31 @@ class SyncTests {
         val bundle = assertNotNull(library.bundle(id))
         assertTrue(bundle.record.setup.homeRoster.isEmpty() && bundle.record.setup.awayRoster.isEmpty())
         assertEquals(1, library.all().size)   // notes.json은 경기가 아니다
+    }
+
+    @Test fun summaryCarriesSeasonValues() {
+        val record = makeRecord(listOf(
+            CommandKind.StartPeriod to 0.0,
+            CommandKind.RecordEvent(EventPayload.Goal(Team.HOME, 9, false)) to 60.0,
+            CommandKind.RecordEvent(EventPayload.Goal(Team.AWAY, 3, true)) to 70.0,
+            CommandKind.RecordEvent(EventPayload.Card(Team.AWAY, 4, CardKind.YELLOW)) to 100.0,
+            CommandKind.RecordEvent(EventPayload.Card(Team.AWAY, 4, CardKind.YELLOW)) to 200.0,
+            CommandKind.RecordEvent(EventPayload.Card(Team.HOME, 5, CardKind.RED)) to 300.0,
+            CommandKind.EndPeriod to 2800.0,
+        ))
+        val log = WorkoutLog(
+            record.id,
+            distance = listOf(WorkoutSample(0.0, 0.0), WorkoutSample(2800.0, 6000.0)),
+            heartRate = listOf(WorkoutSample(10.0, 150.0)),
+        )
+        val summary = MatchSummary.of(MatchBundle(record, log))
+        assertEquals(2, summary.goals)
+        // 꺼낸 옐로 두 장 (두 번째는 경고 누적 퇴장으로 레드에도 센다)
+        assertEquals(2, summary.yellows)
+        assertEquals(2, summary.reds)
+        assertEquals(0, summary.sinBins)
+        assertEquals(100, summary.addedSeconds)
+        assertEquals(6000.0, summary.distance)
+        assertEquals(150, summary.averageHeartRate)
     }
 }

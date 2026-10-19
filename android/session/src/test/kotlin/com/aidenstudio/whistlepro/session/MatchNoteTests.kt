@@ -5,6 +5,7 @@ import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class MatchNoteTests {
     @Test fun competitionRoundTripsAndDefaultsNil() {
@@ -37,5 +38,20 @@ class MatchNoteTests {
         library.saveNote(MatchNote(venue = "A구장"), bundle.id)
         library.delete(bundle.id)
         assertNull(library.note(bundle.id))
+    }
+
+    @Test fun reportHeaderPrefersNoteOverPreset() {
+        val setup = MatchSetup(competition = "프리셋 리그")
+        val bundle = MatchBundle(makeRecord(setup, listOf(CommandKind.StartPeriod to 0.0)), null)
+        assertEquals("프리셋 리그", MatchReport(bundle).competition)
+        assertEquals("노트 리그", MatchReport(bundle, MatchNote(competition = "노트 리그", venue = "A구장"), " 김기태 ").competition)
+        val r = MatchReport(bundle, MatchNote(competition = null, venue = "A구장"), "  ")
+        assertTrue(r.competition == "프리셋 리그" && r.venue == "A구장" && r.referee == null)
+    }
+
+    @Test fun reportHeaderTrimsWhitespaceOnlyValues() {
+        val bundle = MatchBundle(makeRecord(MatchSetup(competition = "  "), listOf(CommandKind.StartPeriod to 0.0)), null)
+        val r = MatchReport(bundle, MatchNote(competition = " ", venue = "\n"), " 김기태 ")
+        assertTrue(r.competition == null && r.venue == null && r.referee == "김기태")
     }
 }
