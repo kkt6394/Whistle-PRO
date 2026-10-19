@@ -11,6 +11,7 @@ import java.io.File
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -284,10 +285,15 @@ class SyncTests {
     @Test fun restoreAfterDeleteBringsMatchBack() {
         val library = MatchLibrary(tempDirectory())
         val bundle = MatchBundle(makeRecord(match), null)
+        val note = MatchNote(competition = "리그", venue = "A구장")
         library.upsert(bundle)
+        library.saveNote(note, bundle.id)
         library.delete(bundle.id)
         assertTrue(File(library.directory, bundle.id.swiftString + ".deleted").exists())
-        library.restore(bundle)
+        assertNull(library.note(bundle.id))
+        library.restore(bundle, note)
+        assertEquals(note, library.note(bundle.id))
+        assertTrue(library.upsert(bundle))   // 되돌린 뒤 워치 재전송이 무시되지 않는다
         assertEquals(listOf(bundle.id), library.summaries().map { it.id })
         assertEquals(listOf(bundle.id), library.received(listOf(bundle.id)))
         assertFalse(File(library.directory, bundle.id.swiftString + ".deleted").exists())
@@ -317,5 +323,37 @@ class SyncTests {
         assertFalse(library.upsert(bundle))
         assertTrue(library.all().isEmpty())
         assertEquals(listOf(bundle.id), library.received(listOf(bundle.id)))   // 지운 경기도 받은 것으로 답한다
+    }
+
+    /** 지우기가 실패하면(파일 대신 폴더 등) 예외를 던진다 — 지움 표시만 남고 기록이 보이는 상태를 조용히 만들지 않는다 */
+    @Test fun deleteFailureIsNotSwallowed() {
+        val library = MatchLibrary(tempDirectory())
+        val id = UUID.randomUUID()
+        val blocker = File(library.directory, id.swiftString + ".json")
+        File(blocker, "child").also { it.parentFile.mkdirs() }.writeText("x")
+        assertFailsWith<Exception> { library.delete(id) }
+    }
+
+    /** Swift가 쓴 보관함 파일 세트(shared/fixtures/swift-library): 노트, 명단 키 없는 옛 기록, summaryVersion 3 요약 */
+    @Test fun readsSwiftLibraryFiles() {
+        val source = File(System.getProperty("fixtureDir"), "swift-library")
+        val dir = tempDirectory()
+        source.copyRecursively(dir)
+        val id = UUID.fromString("7A1B2C3D-0000-4000-8000-0000000000AA")
+        val library = MatchLibrary(dir)
+        assertEquals(MatchNote("2026 서울 리그", "A구장"), library.note(id))
+        assertFalse(MatchSummary.fromJson(parse(File(dir, "${id.swiftString}.summary.json"))).isCurrent)
+
+        val quick = library.summaries(rebuild = false).single()
+        assertEquals(3, quick.summaryVersion)
+        assertNull(quick.periodCount)
+        val rebuilt = library.summaries().single()
+        assertEquals(MatchSummary.CURRENT_VERSION, rebuilt.summaryVersion)
+        assertEquals(1, rebuilt.goals)
+        assertEquals(2, rebuilt.periodCount)
+        assertTrue(MatchSummary.fromJson(parse(File(dir, "${id.swiftString}.summary.json"))).isCurrent)   // 한 번만 다시 만든다
+        val bundle = assertNotNull(library.bundle(id))
+        assertTrue(bundle.record.setup.homeRoster.isEmpty() && bundle.record.setup.awayRoster.isEmpty())
+        assertEquals(1, library.all().size)   // notes.json은 경기가 아니다
     }
 }

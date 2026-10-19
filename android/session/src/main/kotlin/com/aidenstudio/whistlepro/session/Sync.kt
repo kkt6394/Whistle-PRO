@@ -143,6 +143,7 @@ object SyncPayload {
     fun context(
         presets: List<MatchPreset>,
         entitlement: Entitlement,
+        /** Unix 초 (Swift `Date().timeIntervalSince1970`과 같다) */
         sentAt: Double = System.currentTimeMillis() / 1000.0,
     ): Map<String, Any?> = mapOf(
         PRESETS_KEY to presetsToBytes(presetsFittingContext(presets)),
@@ -309,7 +310,7 @@ class MatchLibrary(val directory: File) {
         // 지움 표시를 먼저 쓴다: 표시를 못 쓰면(디스크 부족 등) 기록도 지우지 않는다 — 기록만 지워지면 워치가 다시 보낼 때 되살아났다
         directory.mkdirs()
         writeFileAtomically(deletedMarker(id), ByteArray(0))
-        for (file in listOf(file(id), summaryFile(id))) if (file.exists()) file.delete()
+        for (file in listOf(file(id), summaryFile(id))) Files.deleteIfExists(file.toPath())
         // 노트는 기록과 함께 지운다 (노트 파일이 없거나 깨졌으면 할 일 없음)
         val notes = readNotes()
         if (notes != null && id in notes) writeNotes(notes - id)
@@ -317,9 +318,9 @@ class MatchLibrary(val directory: File) {
 
     /**
      * 지운 경기를 되돌린다 (안드로이드 "실행 취소"용). 지움 표시(<id>.deleted)를 지우고 다시 저장한다.
-     * 예전 형식 목록(deleted.json)에 있으면 거기서도 뺀다. 노트는 delete가 지웠으므로 호출한 쪽이 다시 저장한다.
+     * 예전 형식 목록(deleted.json)에 있으면 거기서도 뺀다. 노트는 delete가 지우므로 note를 주면 함께 되살린다.
      */
-    fun restore(bundle: MatchBundle) {
+    fun restore(bundle: MatchBundle, note: MatchNote? = null) {
         val marker = deletedMarker(bundle.id)
         if (marker.exists()) Files.delete(marker.toPath())
         val legacy = legacyDeleted()
@@ -328,5 +329,6 @@ class MatchLibrary(val directory: File) {
             writeFileAtomically(legacyDeletedFile, rest.toString().toByteArray(Charsets.UTF_8))
         }
         upsert(bundle)
+        if (note != null) saveNote(note, bundle.id)
     }
 }
