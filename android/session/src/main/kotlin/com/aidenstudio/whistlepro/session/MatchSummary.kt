@@ -12,6 +12,7 @@ import com.aidenstudio.whistlepro.core.long
 import com.aidenstudio.whistlepro.core.obj
 import com.aidenstudio.whistlepro.core.optionalDouble
 import com.aidenstudio.whistlepro.core.optionalLong
+import com.aidenstudio.whistlepro.core.optionalString
 import com.aidenstudio.whistlepro.core.present
 import com.aidenstudio.whistlepro.core.score
 import com.aidenstudio.whistlepro.core.shootout
@@ -55,6 +56,9 @@ data class MatchSummary(
     val awayName: String,
     val homeColor: TeamColor,
     val awayColor: TeamColor,
+    /** 팀 보조 색 (두 색 유니폼, 없으면 null) */
+    val homeColor2: TeamColor? = null,
+    val awayColor2: TeamColor? = null,
     val homeScore: Int,
     val awayScore: Int,
     /** 승부차기 [홈, 원정] (승부차기가 없었으면 null) */
@@ -105,6 +109,8 @@ data class MatchSummary(
         put("awayName", JsonPrimitive(awayName))
         put("homeColor", JsonPrimitive(homeColor.hex))
         put("awayColor", JsonPrimitive(awayColor.hex))
+        homeColor2?.let { put("homeColor2", JsonPrimitive(it.hex)) }
+        awayColor2?.let { put("awayColor2", JsonPrimitive(it.hex)) }
         put("homeScore", JsonPrimitive(homeScore))
         put("awayScore", JsonPrimitive(awayScore))
         shootout?.let { s -> put("shootout", JsonArray(s.map { JsonPrimitive(it) })) }
@@ -152,6 +158,8 @@ data class MatchSummary(
                 awayName = setup.awayName,
                 homeColor = setup.homeColor,
                 awayColor = setup.awayColor,
+                homeColor2 = setup.homeColor2,
+                awayColor2 = setup.awayColor2,
                 homeScore = state.score.home,
                 awayScore = state.score.away,
                 shootout = if (shootoutStatus.kicks.home + shootoutStatus.kicks.away > 0)
@@ -195,6 +203,8 @@ data class MatchSummary(
             awayName = json.string("awayName"),
             homeColor = TeamColor.fromCode(json.string("homeColor")),
             awayColor = TeamColor.fromCode(json.string("awayColor")),
+            homeColor2 = json.optionalString("homeColor2")?.let(TeamColor::fromCode),
+            awayColor2 = json.optionalString("awayColor2")?.let(TeamColor::fromCode),
             homeScore = json.int("homeScore"),
             awayScore = json.int("awayScore"),
             shootout = json.present("shootout")?.let { json.array("shootout").mapIndexed { i, _ -> json.intAt("shootout", i) } },
