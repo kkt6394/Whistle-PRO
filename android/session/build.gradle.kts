@@ -25,6 +25,8 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    // Swift가 만든 공용 픽스처 위치 (저장소 루트/shared/fixtures)
+    systemProperty("fixtureDir", rootProject.projectDir.resolve("../shared/fixtures").canonicalPath)
     testLogging {
         events("failed")
         exceptionFormat = TestExceptionFormat.FULL

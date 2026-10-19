@@ -11,6 +11,17 @@ struct SyncTests {
         let bundle = MatchBundle(record: record, workout: workout)
         #expect(bundle.id == record.id)
         #expect(try JSONDecoder().decode(MatchBundle.self, from: JSONEncoder().encode(bundle)) == bundle)
+        // 안드로이드 readsSwiftEncodedBundle 픽스처: SWIFT_BUNDLE_FIXTURE=<경로>로 돌리면 고정 값 묶음을 써 둔다
+        if let path = ProcessInfo.processInfo.environment["SWIFT_BUNDLE_FIXTURE"] {
+            var fixedRecord = makeRecord(MatchSetup(homeName: "FC 서울", awayName: "수원 FC"),
+                                         [(.startPeriod, 100), (.recordEvent(.goal(team: .home, number: 9, ownGoal: false)), 600), (.endPeriod, 2800)],
+                                         createdAt: 50)
+            fixedRecord.id = UUID(uuidString: "6F9619FF-8B86-D011-B42D-00C04FC964FF")!
+            var fixedWorkout = WorkoutLog(matchID: fixedRecord.id)
+            fixedWorkout.heartRate = [WorkoutSample(t: 110, value: 140)]
+            fixedWorkout.distance = [WorkoutSample(t: 100, value: 0), WorkoutSample(t: 2800, value: 5400)]
+            try JSONEncoder().encode(MatchBundle(record: fixedRecord, workout: fixedWorkout)).write(to: URL(fileURLWithPath: path))
+        }
     }
 
     @Test func ackRoundTrips() {

@@ -168,6 +168,16 @@ data class MatchSummary(
             )
         }
 
+        /**
+         * 보관함에 저장하는 요약. TODO Task 2: 운동 데이터(거리·심박·스프린트·구간)와 추가 시간을 채운다.
+         * 지금은 경기 기록만으로 만들고 이벤트 수를 더해 최신 버전으로 표시한다.
+         */
+        fun of(bundle: MatchBundle): MatchSummary {
+            val record = bundle.record
+            val state = MatchEngine.reduce(record.setup.rules, record.commands)
+            return of(record, state).withEventCounts(state).copy(summaryVersion = CURRENT_VERSION)
+        }
+
         fun fromJson(json: JsonObject) = MatchSummary(
             id = json.uuid("id"),
             createdAt = json.double("createdAt"),
