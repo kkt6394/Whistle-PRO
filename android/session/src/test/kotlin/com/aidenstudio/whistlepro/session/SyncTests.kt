@@ -206,6 +206,23 @@ class SyncTests {
         assertTrue(File(dir, "${record.id.swiftString}.summary.json").exists())
     }
 
+    /** 다시 만드는 사이 지워진 경기(지움 표시는 있고 기록 파일은 아직 남음)는 요약을 다시 쓰지 않고 목록에서도 뺀다 */
+    @Test fun rebuildSkipsMatchDeletedMeanwhile() {
+        val dir = tempDirectory().also { it.mkdirs() }
+        val gone = makeRecord(match)
+        val kept = makeRecord(match)
+        File(dir, "${gone.id.swiftString}.json").writeText(MatchBundle(gone, null).toJson().toString())
+        File(dir, "${gone.id.swiftString}.deleted").writeBytes(ByteArray(0))
+        val library = MatchLibrary(dir)
+        library.upsert(MatchBundle(kept, null))
+        assertEquals(listOf(kept.id), library.summaries(rebuild = true).map { it.id })
+        assertFalse(File(dir, "${gone.id.swiftString}.summary.json").exists(), "지운 경기의 요약을 다시 썼다")
+        // 요약 파일이 남은 채 지움 표시가 있어도(지우다 실패) 목록에는 없다
+        File(dir, "${gone.id.swiftString}.summary.json").writeText(MatchSummary.of(MatchBundle(gone, null)).toJson().toString())
+        assertEquals(listOf(kept.id), library.summaries(rebuild = false).map { it.id })
+        assertEquals(listOf(kept.id), library.summaries(rebuild = true).map { it.id })
+    }
+
     @Test fun rebuildsOldSummaryOnce() {
         val library = MatchLibrary(tempDirectory())
         val record = makeRecord(listOf(CommandKind.StartPeriod to 0.0, CommandKind.RecordEvent(EventPayload.Goal(Team.HOME, 9, false)) to 60.0))

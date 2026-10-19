@@ -252,6 +252,8 @@ class MatchLibrary(val directory: File) {
      * - rebuild가 true면 요약이 없거나 이전 형식(통계 값 없음)인 경기는 전체 기록을 읽어 요약을 다시 만들어 둔다.
      *   경기마다 전체 기록을 디코딩하므로 메인 스레드에서 부르지 않는다.
      * - false면 저장된 요약만 읽는다 (이전 형식도 그대로, 요약이 없는 경기는 빠진다). 화면을 바로 그릴 때 쓴다.
+     * - 지움 표시가 있는 경기는 어느 쪽이든 빠진다: 다시 만드는 도중 경기가 지워지면(화면의 지우기) 요약을 다시 쓰지 않는다
+     *   — 다시 쓰면 지운 경기의 요약 파일이 되살아나 목록에 남았다
      */
     fun summaries(rebuild: Boolean = true): List<MatchSummary> {
         val files = directory.listFiles() ?: return emptyList()
@@ -259,6 +261,8 @@ class MatchLibrary(val directory: File) {
         for (file in files.filter { it.name.endsWith(SUMMARY_SUFFIX) }) {
             readSummary(file)?.let { summaries[file.name.removeSuffix(SUMMARY_SUFFIX)] = it }
         }
+        // 예전 형식 지운 목록은 한 번만 읽는다
+        val legacy = legacyDeleted()
         if (rebuild) {
             for (file in files.filter(::isBundleFile)) {
                 val stem = file.name.removeSuffix(".json")
@@ -272,19 +276,22 @@ class MatchLibrary(val directory: File) {
                         continue
                     }
                     val summary = MatchSummary.of(bundle)
+                    // 기록을 읽는 사이 지워졌으면 요약을 쓰지 않는다 (지움 표시는 기록보다 먼저 쓰인다)
+                    if (isDeleted(bundle.id, legacy)) continue
                     runCatching { write(summaryFile(bundle.id), summary.toJson()) }
                     summaries[stem] = summary
                 } else {
                     val old = summaries[stem] ?: continue
                     // 전체 기록을 읽을 수 없으면 이전 요약을 쓰고, 다음부터 다시 시도하지 않게 최신으로 표시한다 (통계 값은 없음)
                     val marked = old.copy(summaryVersion = MatchSummary.CURRENT_VERSION)
+                    if (isDeleted(old.id, legacy)) continue
                     runCatching { write(summaryFile(old.id), marked.toJson()) }
                     summaries[stem] = marked
                 }
             }
         }
-        // 시각이 같으면 id 순서로 (목록이 매번 흔들리지 않게)
-        return summaries.values.sortedWith(compareByDescending<MatchSummary> { it.createdAt }.thenByDescending { it.id.swiftString })
+        // 시각이 같으면 id 순서로 (목록이 매번 흔들리지 않게). 지운 경기는 뺀다 (지우다 요약 파일 하나를 못 지웠을 때도)
+        return summaries.values.filterNot { isDeleted(it.id, legacy) }.sortedWith(compareByDescending<MatchSummary> { it.createdAt }.thenByDescending { it.id.swiftString })
     }
 
     /** 최신 경기가 먼저. 읽을 수 없는 파일은 건너뛴다. */
