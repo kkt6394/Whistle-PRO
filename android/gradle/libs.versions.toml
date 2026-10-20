@@ -16,6 +16,7 @@ coroutines = "1.11.0"
 # 워치 앱 실행 코루틴은 1.9.0(지도 SDK가 없어 올라가지 않는다). 테스트 라이브러리를 1.11로 두면 계측 테스트가 NoSuchMethodError
 coroutinesWear = "1.9.0"
 playServicesLocation = "21.4.0"
+playServicesWearable = "19.0.0"
 coreKtx = "1.19.1"
 navigationCompose = "2.10.2"
 mapsCompose = "9.0.1"
@@ -45,6 +46,9 @@ androidx-test-runner = { module = "androidx.test:runner", version.ref = "android
 play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocation" }
 coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 coroutines-test-wear = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutinesWear" }
+# Wear Data Layer (폰↔워치). Task의 await()는 coroutines-play-services — 워치는 코루틴 1.9.0에 맞춘다
+play-services-wearable = { module = "com.google.android.gms:play-services-wearable", version.ref = "playServicesWearable" }
+coroutines-play-services-wear = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutinesWear" }
 # 폰 앱(:mobile). Material 3·아이콘은 Compose BOM이 버전을 정한다
 compose-material3 = { module = "androidx.compose.material3:material3" }
 compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
