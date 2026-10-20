@@ -49,6 +49,8 @@ coroutines-test-wear = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test
 # Wear Data Layer (폰↔워치). Task의 await()는 coroutines-play-services — 워치는 코루틴 1.9.0에 맞춘다
 play-services-wearable = { module = "com.google.android.gms:play-services-wearable", version.ref = "playServicesWearable" }
 coroutines-play-services-wear = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutinesWear" }
+# 폰 앱은 코루틴 1.11 (계측 테스트 라이브러리와 같게)
+coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutines" }
 # 폰 앱(:mobile). Material 3·아이콘은 Compose BOM이 버전을 정한다
 compose-material3 = { module = "androidx.compose.material3:material3" }
 compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
