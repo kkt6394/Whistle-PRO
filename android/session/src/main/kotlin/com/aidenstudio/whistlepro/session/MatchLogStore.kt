@@ -152,18 +152,7 @@ class FileMatchLogStore(val directory: File) : MatchLogStore {
         }
     }
 
-    /**
-     * 엄격한 UTF-8로 읽는다. readText()는 깨진 바이트를 대체 문자(U+FFFD)로 바꿔 읽어 버려 격리되지 않는다
-     * (Swift JSONDecoder는 깨진 UTF-8을 거부한다).
-     */
-    private fun read(file: File): JsonObject {
-        val text = Charsets.UTF_8.newDecoder()
-            .onMalformedInput(CodingErrorAction.REPORT)
-            .onUnmappableCharacter(CodingErrorAction.REPORT)
-            .decode(ByteBuffer.wrap(file.readBytes()))
-            .toString()
-        return Json.parseToJsonElement(text).jsonObject
-    }
+    private fun read(file: File): JsonObject = readJsonFile(file)
 
     private fun writeAtomically(file: File, json: JsonObject) {
         requireFinite(json, file.name)
@@ -206,4 +195,21 @@ internal fun requireFinite(element: JsonElement, where: String) {
             throw IllegalArgumentException("$where: 유한하지 않은 숫자 ${element.content}")
         }
     }
+}
+
+/**
+ * 엄격한 UTF-8로 읽는다. readText()는 깨진 바이트를 대체 문자(U+FFFD)로 바꿔 읽어 버려 격리되지 않는다
+ * (Swift JSONDecoder는 깨진 UTF-8을 거부한다).
+ */
+internal fun readJsonFile(file: File): JsonObject = parseJsonObject(file.readBytes())
+
+internal fun parseJsonObject(bytes: ByteArray): JsonObject = parseJson(bytes).jsonObject
+
+internal fun parseJson(bytes: ByteArray): JsonElement {
+    val text = Charsets.UTF_8.newDecoder()
+        .onMalformedInput(CodingErrorAction.REPORT)
+        .onUnmappableCharacter(CodingErrorAction.REPORT)
+        .decode(ByteBuffer.wrap(bytes))
+        .toString()
+    return Json.parseToJsonElement(text)
 }

@@ -67,6 +67,21 @@ object Roster {
         return ParseResult(players, skipped)
     }
 
+    data class PasteCounts(val added: Int, val renamed: Int)
+
+    /** 붙여넣기 결과 안내용: 새 번호 수와 이름이 바뀐 번호 수 (같은 이름은 세지 않는다) */
+    fun pasteCounts(existing: List<Player>, pasted: List<Player>): PasteCounts {
+        val names = mutableMapOf<Long, String>()
+        for (player in existing) names.putIfAbsent(player.number, player.name)
+        var added = 0
+        var renamed = 0
+        for (player in pasted) {
+            val name = names[player.number]
+            if (name == null) added += 1 else if (name != player.name) renamed += 1
+        }
+        return PasteCounts(added, renamed)
+    }
+
     /** 저장 전에 확인할 문제 (없으면 빈 목록) */
     fun validate(players: List<Player>): List<RosterIssue> {
         val issues = mutableListOf<RosterIssue>()

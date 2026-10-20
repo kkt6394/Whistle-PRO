@@ -52,10 +52,43 @@ data class TeamColor(val hex: String) {
             return mark
         }
 
+    /** 구분하기 어려운지 판정에 쓰는 CIE Lab (sRGB D65) */
+    private val lab: Triple<Double, Double, Double>
+        get() {
+            val c = rgb
+            fun linear(v: Double) = if (v <= 0.04045) v / 12.92 else Math.pow((v + 0.055) / 1.055, 2.4)
+            val r = linear(c.red); val g = linear(c.green); val b = linear(c.blue)
+            // sRGB D65 → XYZ, 기준 백색으로 나눔
+            val x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047
+            val y = 0.2126 * r + 0.7152 * g + 0.0722 * b
+            val z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883
+            fun f(t: Double) = if (t > 0.008856) Math.cbrt(t) else 7.787 * t + 16.0 / 116
+            val fx = f(x); val fy = f(y); val fz = f(z)
+            return Triple(116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz))
+        }
+
+    /**
+     * 워치에서 두 팀 점을 구분하기 어려울 만큼 비슷한지 (CIE Lab ΔE76 < 25).
+     * 둘 다 어두운 색(L < 35)이면 작은 점에서 색조 차이가 묻혀 더 멀어야(ΔE < 45) 다른 색으로 보인다.
+     */
+    fun isHardToTell(other: TeamColor): Boolean {
+        val a = lab; val b = other.lab
+        val d = Math.sqrt((a.first - b.first) * (a.first - b.first) + (a.second - b.second) * (a.second - b.second) +
+            (a.third - b.third) * (a.third - b.third))
+        val bothDark = a.first < 35 && b.first < 35
+        return d < (if (bothDark) 45 else 25)
+    }
+
     companion object {
         val RED = TeamColor("#FF3B30"); val BLUE = TeamColor("#007AFF"); val WHITE = TeamColor("#FFFFFF")
         val BLACK = TeamColor("#000000"); val YELLOW = TeamColor("#FFCC00"); val GREEN = TeamColor("#34C759")
         val ORANGE = TeamColor("#FF9500"); val PURPLE = TeamColor("#AF52DE")
+        val SKY = TeamColor("#5AC8FA"); val NAVY = TeamColor("#1C2E6B"); val MAROON = TeamColor("#7B1E3A")
+        val PINK = TeamColor("#FF6FAE"); val GRAY = TeamColor("#8E8E93")
+
+        /** 편집 화면의 빠른 견본 (앞 8개는 예전 이름 색) */
+        val QUICK_PICKS = listOf(RED, BLUE, WHITE, BLACK, YELLOW, GREEN, ORANGE, PURPLE, SKY, NAVY, MAROON, PINK, GRAY)
+
         private val legacy = mapOf("red" to RED, "blue" to BLUE, "white" to WHITE, "black" to BLACK,
             "yellow" to YELLOW, "green" to GREEN, "orange" to ORANGE, "purple" to PURPLE)
         private val hexPattern = Regex("^#?[0-9A-Fa-f]{6}$")
@@ -91,6 +124,22 @@ data class MatchSetup(
     val homeColor2: TeamColor? = null,
     val awayColor2: TeamColor? = null,
 ) {
+    fun color2(team: Team): TeamColor? = if (team == Team.HOME) homeColor2 else awayColor2
+
+    /** 보조 색이 주색과 같으면(hex 기준) 없는 것으로 만든다 */
+    fun normalizedColors(): MatchSetup = copy(
+        homeColor2 = homeColor2?.takeIf { it.hex != homeColor.hex },
+        awayColor2 = awayColor2?.takeIf { it.hex != awayColor.hex },
+    )
+
+    /** 홈 {주, 보조} × 원정 {주, 보조} 모든 쌍 중 하나라도 구분하기 어려우면 true */
+    val teamColorsHardToTell: Boolean
+        get() {
+            val home = listOfNotNull(homeColor, homeColor2)
+            val away = listOfNotNull(awayColor, awayColor2)
+            return home.any { h -> away.any { h.isHardToTell(it) } }
+        }
+
     fun roster(team: Team): List<Player> = if (team == Team.HOME) homeRoster else awayRoster
 
     /** 선발로 표시된 선수의 등번호 */

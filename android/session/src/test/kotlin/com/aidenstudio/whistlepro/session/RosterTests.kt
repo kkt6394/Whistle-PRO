@@ -108,4 +108,13 @@ class RosterTests {
         assertTrue(!setup.hasStarters(Team.AWAY))
         assertEquals(setOf(2L), setup.starters(Team.HOME))
     }
+
+    /** M7b 리뷰: 붙여넣기 결과가 같은 번호의 이름을 바꾼 것까지 "추가"로 셌다 */
+    @Test fun pasteCountsAddedAndRenamedSeparately() {
+        val existing = listOf(Player(7, "Kim"), Player(10, "홍길동"))
+        val pasted = listOf(Player(7, "Kim"), Player(10, "Son"), Player(11, "Lee"))
+        val counts = Roster.pasteCounts(existing, pasted)
+        assertEquals(1, counts.added)
+        assertEquals(1, counts.renamed)
+    }
 }
