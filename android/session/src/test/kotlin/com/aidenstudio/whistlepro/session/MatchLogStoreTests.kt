@@ -10,6 +10,7 @@ import java.io.File
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -123,6 +124,14 @@ class MatchLogStoreTests {
 
     @Test fun noArchivedIDsInEmptyDirectory() {
         assertEquals(emptyList(), FileMatchLogStore(tempDirectory()).archivedIDs())
+    }
+
+    /** 보관함이 있는데 읽지 못하면 빈 목록이 아니라 실패 (빈 목록이면 워치가 남은 전송을 모두 지운다) */
+    @Test fun unreadableArchiveThrows() {
+        val dir = tempDirectory()
+        dir.mkdirs()
+        File(dir, "finished").writeText("폴더가 아닌 파일")
+        assertFailsWith<java.io.IOException> { FileMatchLogStore(dir).archivedIDs() }
     }
 
     /** 쓰다가 실패해도(디스크 가득 참 등) 임시 파일이 남지 않고 원래 파일은 그대로다 */

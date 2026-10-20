@@ -40,27 +40,55 @@ class WatchSyncLogicTests {
         assertEquals(2, link.puts.map { it.second }.toSet().size)
     }
 
-    /** 경기 DataItem이 아직 있으면(전송 중) 다시 보내지 않는다 */
+    /** 이번 실행에서 방금 올린 경기는 DataItem이 남아 있는 동안(10분 안) 지우지도 다시 올리지도 않는다 */
     @Test fun skipsMatchesAlreadyInFlight() = runTest {
         val a = finish(1.0)
         val b = finish(2.0)
-        link.items[a.id] = ByteArray(0)
+        at(0.0)
         sync.sendPending()
-        assertEquals(listOf(b.id), link.sentIDs())
+        at(5.0)
+        sync.sendPending()
+        assertEquals(setOf(a.id, b.id), link.sentIDs().toSet())
+        assertEquals(2, link.puts.size)
+        assertTrue(link.removed.isEmpty())
+        assertEquals(setOf(a.id, b.id), link.items.keys)
     }
 
-    /** 폰 앱이 꺼져 확인이 오지 않아도 같은 경기를 10분 안에는 다시 보내지 않는다 */
+    /**
+     * 확인이 오지 않으면 DataItem이 남아 있어도 10분 뒤 지우고 새 전송 이름으로 다시 올린다
+     * (Data Layer DataItem은 ack 전까지 남는다 — 남았다고 계속 기다리면 폰이 저장에 실패한 경기가 영영 다시 가지 않는다)
+     */
     @Test fun sameMatchNotResentWithinTenMinutes() = runTest {
         val a = finish()
         at(0.0)
         sync.sendPending()
-        link.items.clear()
+        val first = link.puts.single().second
         at(30.0)
         sync.sendPending()
         assertEquals(listOf(a.id), link.sentIDs())
+        assertTrue(link.removed.isEmpty())
         at(601.0)
         sync.sendPending()
         assertEquals(listOf(a.id, a.id), link.sentIDs())
+        assertEquals(listOf(a.id), link.removed)
+        assertTrue(link.puts[1].second != first)
+        assertEquals(setOf(a.id), link.items.keys)
+    }
+
+    /** 앱을 다시 실행하면(새 로직) 지난 실행의 DataItem이 남은 경기를 바로 새로 보낸다 */
+    @Test fun leftoverDataItemResentAfterRestart() = runTest {
+        val a = finish()
+        at(0.0)
+        sync.sendPending()
+        val restarted = WatchSyncLogic(store, link, { clock.t })
+        at(5.0)
+        restarted.sendPending()
+        assertEquals(listOf(a.id, a.id), link.sentIDs())
+        assertEquals(listOf(a.id), link.removed)
+        // 새 실행에서도 방금 올린 건 10분 안에 다시 올리지 않는다
+        at(10.0)
+        restarted.sendPending()
+        assertEquals(2, link.puts.size)
     }
 
     /** 전송이 실패하면 10분을 기다리지 않고 다시 보내고, 앱 어댑터에 재시도(60초 뒤)를 알린다 */
@@ -75,13 +103,13 @@ class WatchSyncLogicTests {
         at(1.0)
         sync.sendPending()
         assertEquals(listOf(a.id), link.sentIDs())
-        // 어댑터가 알려 온 실패도 같다
-        link.items.clear()
+        // 어댑터가 알려 온 실패도 같다: 남은 DataItem을 지우고 바로 새로 올린다
         sync.onTransferFailed(a.id)
         assertEquals(2, retries)
         at(2.0)
         sync.sendPending()
         assertEquals(listOf(a.id, a.id), link.sentIDs())
+        assertEquals(listOf(a.id), link.removed)
         assertEquals(60.0, WatchSyncLogic.RETRY_DELAY)
     }
 
@@ -106,6 +134,58 @@ class WatchSyncLogicTests {
         sync.sendPending()
         assertEquals(listOf(b.id), link.sentIDs())
         assertEquals(2, store.archived().size)
+        at(700.0)
+        sync.sendPending()
+        assertFalse(a.id in link.sentIDs())
+    }
+
+    /** 지원 안 함을 받으면 DataItem을 지우고, 다음 실행(폰 앱이 업데이트됐을 수 있다)에는 다시 보낸다 */
+    @Test fun unsupportedResentAfterRestart() = runTest {
+        val a = finish()
+        at(0.0)
+        sync.sendPending()
+        sync.onPhoneReply(overWire(SyncPayload.unsupported(a.id)))
+        assertEquals(listOf(a.id), link.removed)
+        assertTrue(link.items.isEmpty())
+        val restarted = WatchSyncLogic(store, link, { clock.t })
+        at(1.0)
+        restarted.sendPending()
+        assertEquals(listOf(a.id, a.id), link.sentIDs())
+    }
+
+    /** 보관함 목록을 읽지 못하면(IO 오류) 남은 DataItem 정리를 건너뛴다 (빈 목록으로 보고 모두 지우지 않게) */
+    @Test fun unreadableArchiveSkipsCleanup() = runTest {
+        val dir = tempDirectory()
+        dir.mkdirs()
+        java.io.File(dir, "finished").writeText("폴더가 아닌 파일")
+        val other = UUID.randomUUID()
+        link.items[other] = ByteArray(0)
+        WatchSyncLogic(FileMatchLogStore(dir), link, { clock.t }).sendPending()
+        assertTrue(link.removed.isEmpty())
+        assertEquals(setOf(other), link.items.keys)
+    }
+
+    /** activated: 받아 둔 컨텍스트 반영 → 컨텍스트 요청 → 받았는지 묻고 보내기 (Swift activationDidComplete 순서) */
+    @Test fun activatedRunsSwiftOrder() = runTest {
+        val a = finish()
+        link.reachable = true
+        val entitlement = Entitlement(2_000_000_000.0, 1.0)
+        link.answer = { path, _ ->
+            when (path) {
+                SyncPaths.CONTEXT_REQUEST -> SyncPayload.context(emptyList(), entitlement, 1.0)
+                SyncPaths.RECEIPT_QUERY -> SyncPayload.receiptReply(emptyList())
+                else -> null
+            }
+        }
+        val received = assertNotNull(sync.activated(null))
+        assertEquals(entitlement, received.entitlement)
+        assertEquals(listOf(SyncPaths.CONTEXT_REQUEST, SyncPaths.RECEIPT_QUERY), link.asked.map { it.first })
+        assertEquals(listOf(a.id), link.sentIDs())
+        // 받아 둔 컨텍스트가 있으면 묻지 않고 그 내용을 돌려준다
+        val again = WatchSyncLogic(store, link, { clock.t })
+        val stored = assertNotNull(again.activated(overWire(SyncPayload.context(emptyList(), entitlement, 2.0))))
+        assertEquals(entitlement, stored.entitlement)
+        assertEquals(1, link.asked.count { it.first == SyncPaths.CONTEXT_REQUEST })
     }
 
     /**
@@ -138,6 +218,24 @@ class WatchSyncLogicTests {
         sync.sendPending()
         assertEquals(listOf(gone), link.removed)
         assertEquals(listOf(a.id), link.items.keys.toList())
+    }
+
+    /** 폰이 "안 받음"이라 답한 경기도 같은 규칙: 10분 안에는 그대로, 지나면 남은 DataItem을 지우고 다시 올린다 */
+    @Test fun notReceivedReplyFollowsTenMinuteRule() = runTest {
+        val a = finish()
+        at(0.0)
+        sync.sendPending()
+        link.reachable = true
+        link.answer = { _, _ -> SyncPayload.receiptReply(emptyList()) }
+        at(30.0)
+        sync.askReceiptsThenSend()
+        assertEquals(1, link.asked.size)
+        assertEquals(1, link.puts.size)
+        at(601.0)
+        sync.askReceiptsThenSend()
+        assertEquals(2, link.asked.size)
+        assertEquals(listOf(a.id, a.id), link.sentIDs())
+        assertEquals(listOf(a.id), link.removed)
     }
 
     /** 받았는지 묻기가 실패해도 남은 경기는 보내고, 다음 기회에 바로 다시 묻는다 */

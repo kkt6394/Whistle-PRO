@@ -88,8 +88,16 @@ class PhoneSyncLogicTests {
         assertEquals(id, SyncPayload.matchID(link.replies[0]))
         assertTrue(SyncPayload.isUnsupported(link.replies[0]))
         // 경기 id도 모르면 답할 곳이 없다
-        assertEquals(ReceiveResult.Unsupported, sync.receive(null, null))
+        assertEquals(ReceiveResult.Unsupported, sync.receive(null, "쓰레기".toByteArray()))
         assertEquals(1, link.replies.size)
+    }
+
+    /** Asset을 가져오지 못했으면(바이트 없음·timeout) 형식 문제가 아니라 실패: 답하지 않아 워치가 다시 보낸다 */
+    @Test fun missingAssetIsFailedNotUnsupported() = runTest {
+        val id = UUID.randomUUID()
+        assertEquals(ReceiveResult.Failed, sync.receive(id, null))
+        assertEquals(ReceiveResult.Failed, sync.receive(null, null))
+        assertTrue(link.replies.isEmpty())
     }
 
     /** 저장한 뒤 확인을 보낸다 */

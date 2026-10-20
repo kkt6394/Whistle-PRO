@@ -132,9 +132,11 @@ class FileMatchLogStore(val directory: File) : MatchLogStore {
     /**
      * 보관된 경기 ID (오래 수정된 순, 같으면 id 순). 기록을 디코딩하지 않고 finished/ 파일 이름에서 뽑는다:
      * 폰에 받았는지 물을 때 보관함 전체를 읽지 않게 (Swift archivedIDs와 같음). 운동 기록·이름이 다른 파일은 뺀다.
+     * 폴더가 없으면 빈 목록, 있는데 읽지 못하면 IOException (Swift도 던진다): 빈 목록으로 보면 남은 전송 정리가 모두 지운다.
      */
     fun archivedIDs(): List<UUID> {
-        val files = archiveDirectory.listFiles() ?: return emptyList()
+        if (!archiveDirectory.exists()) return emptyList()
+        val files = archiveDirectory.listFiles() ?: throw java.io.IOException("보관함 목록을 읽지 못했다: $archiveDirectory")
         return files
             .filter { it.extension == "json" }
             .mapNotNull { file -> parseUuid(file.nameWithoutExtension)?.let { it to file.lastModified() } }

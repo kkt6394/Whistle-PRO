@@ -14,10 +14,10 @@ interface WatchLink {
     /** 경기 DataItem(SyncPaths.match, Asset `bundle`, 메타 `matchID`)을 올린다. 실패하면 예외 */
     suspend fun putMatch(matchID: UUID, transfer: String, bundle: ByteArray)
 
-    /** 아직 남아 있는 경기 DataItem의 경기 id = 전송 중 (outstandingFileTransfers) */
+    /** 아직 남아 있는 (이 워치가 올린) 경기 DataItem의 경기 id. 확인을 받아 지울 때까지 남는다 */
     suspend fun pendingTransfers(): Set<UUID>
 
-    /** 그 경기의 DataItem을 모두 지운다 (확인을 받았다) */
+    /** 그 경기의 DataItem을 모두 지운다 (확인을 받았거나, 새 전송으로 바꾸거나, 지원 안 함) */
     suspend fun removeMatch(matchID: UUID)
 
     /** 메시지로 묻고 답을 기다린다 (요청 ID로 짝짓고 10초 timeout). null = 실패·timeout */
@@ -41,7 +41,7 @@ data class Received(val presets: List<MatchPreset>?, val entitlement: Entitlemen
  *
  * - 메인 스레드(한 스레드)에서만 부른다 (Swift @MainActor와 같다). 디스크 작업은 짧은 파일 읽기·지우기뿐이다.
  * - 타이머를 직접 두지 않는다: 전송이 실패하면 [onRetryNeeded]를 부르고, 앱 어댑터가 [RETRY_DELAY]초 뒤 [sendPending]을 부른다.
- * - 활성화 순서(Swift activationDidComplete): [onActivated] → (필요하면) [requestContext] → [askReceiptsThenSend].
+ * - 활성화 순서(Swift activationDidComplete): [onActivated] → (필요하면) [requestContext] → [askReceiptsThenSend]. [activated]가 이 셋을 묶는다.
  *   폰에 닿게 되면(reachable) [requestContext]와 [askReceipts]를 부른다.
  */
 class WatchSyncLogic(
@@ -97,13 +97,19 @@ class WatchSyncLogic(
     }
 
     /**
-     * 보관함의 경기를 모두 보낸다. 이미 전송 중(DataItem이 남음)이거나, 폰이 읽지 못한다고 했거나, 10분 안에 보낸 경기는 건너뛴다.
+     * 보관함의 경기를 모두 보낸다. 폰이 읽지 못한다고 했거나, 이번 실행에서 10분 안에 보낸 경기는 건너뛴다.
+     *
+     * Data Layer의 경기 DataItem은 확인(ack)을 받을 때까지 남는다 — Swift outstandingFileTransfers처럼 "전송이 끝나면 빠지지" 않는다.
+     * 그래서 DataItem이 남아 있다고 계속 기다리면, 폰이 저장에 실패했거나(디스크) 지원 안 함 뒤 업데이트·재설치·데이터 삭제를 한
+     * 경기가 영영 다시 가지 않는다. 확인을 못 받은 경기는 이번 실행에서 아직 보내지 않았거나 마지막으로 보낸 지 10분이 지났으면
+     * 남은 DataItem을 지우고 새 전송 이름(새 경로라 폰이 onDataChanged를 다시 받는다)으로 다시 올린다. 방금 올린 경기는 10분 안에 지우지 않는다.
      * 보관함에 없는 경기의 DataItem(확인을 받았는데 지우지 못한 것)은 지운다 — Swift removeStaleOutboxFiles 자리.
      */
     suspend fun sendPending() {
         refreshPendingCount()
         val inFlight = attempt { link.pendingTransfers() } ?: return
-        // 지울지는 파일 이름으로 본다: 기록을 읽지 못한 경기의 DataItem까지 지우지 않게
+        // 지울지는 파일 이름으로 본다: 기록을 읽지 못한 경기의 DataItem까지 지우지 않게.
+        // 보관함 목록을 읽지 못하면(IO 오류) 정리를 건너뛴다 — 빈 목록으로 보면 모든 DataItem을 지운다
         val archivedIDs = runCatching { store.archivedIDs().toSet() }.getOrNull()
         if (archivedIDs != null) for (stale in inFlight - archivedIDs) attempt { link.removeMatch(stale) }
         val records = runCatching { store.archived() }.getOrDefault(emptyList())
@@ -111,7 +117,9 @@ class WatchSyncLogic(
         val now = clock()
         for (record in records) {
             val id = record.id
-            if (id in inFlight || id in held || !matchThrottle.allows(id, now)) continue
+            if (id in held || !matchThrottle.allows(id, now)) continue
+            // 확인 없이 남은 이전 전송(지난 실행이거나 10분 전)은 지우고 새로 보낸다
+            if (id in inFlight) attempt { link.removeMatch(id) }
             val bytes = try {
                 encodeBundle(MatchBundle(record, runCatching { store.archivedWorkout(id) }.getOrNull()))
             } catch (e: Exception) {
@@ -224,14 +232,31 @@ class WatchSyncLogic(
         return received.takeUnless { it.isEmpty }
     }
 
+    /**
+     * 앱 활성화 한 번에 Swift activationDidComplete 순서대로: 받아 둔 컨텍스트 반영 → (필요하면) 컨텍스트 요청 → 받았는지 묻고 남은 경기 보내기.
+     * 받은 프리셋·구독 상태를 돌려준다 (요청 답이 있으면 그것, 없으면 받아 둔 컨텍스트, 둘 다 없으면 null).
+     */
+    suspend fun activated(context: Map<String, Any?>?): Received? {
+        val stored = onActivated(context)
+        val requested = requestContext()
+        askReceiptsThenSend()
+        return requested ?: stored
+    }
+
     /** 폰이 새 컨텍스트를 올렸다 */
     suspend fun onContext(context: Map<String, Any?>): Received = received(context)
 
-    /** 폰의 확인(경기 저장) 또는 지원 안 함. 메시지·대기 DataItem 어느 쪽으로 와도 같다 */
+    /**
+     * 폰의 확인(경기 저장) 또는 지원 안 함. 메시지·대기 DataItem 어느 쪽으로 와도 같다.
+     * (Task 5 메모) 대기 DataItem(/whistlepro/ack/<id>)은 폰 노드가 만든 것이라, 처리 뒤 지울 때는
+     * 노드를 포함한 URI(wear://<폰 노드 id>/whistlepro/ack/<id>)로 지운다.
+     */
     suspend fun onPhoneReply(message: Map<String, Any?>) {
         val matchID = SyncPayload.matchID(message) ?: return
         if (SyncPayload.isUnsupported(message)) {
+            // 이번 실행 동안은 보내지 않고, DataItem은 지워 다음 실행(폰 앱이 업데이트됐을 수 있다)에 새로 보낸다
             held = held + matchID
+            attempt { link.removeMatch(matchID) }
         } else {
             acknowledged(listOf(matchID))
         }

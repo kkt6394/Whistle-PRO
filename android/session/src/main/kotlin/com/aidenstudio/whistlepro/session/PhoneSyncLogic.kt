@@ -16,7 +16,11 @@ interface PhoneLink {
     /** 컨텍스트 DataItem(SyncPaths.CONTEXT)을 올린다 (updateApplicationContext). 실패하면 예외 */
     suspend fun putContext(context: Map<String, Any?>)
 
-    /** 확인·지원 안 함을 워치로: 워치 노드에 닿으면 메시지(SyncPaths.ACK), 실패하면 DataItem(SyncPaths.ACK_PREFIX + id)으로 남긴다 */
+    /**
+     * 확인·지원 안 함을 워치로: 워치 노드에 닿으면 메시지(SyncPaths.ACK), 실패하면 DataItem(SyncPaths.ACK_PREFIX + id)으로 남긴다.
+     * (Task 5 메모) 대기 DataItem은 내용이 같으면 변경으로 잡히지 않아(onDataChanged 없음) 같은 경기의 두 번째 확인이 가지 않는다
+     * → `sentAt`(보낸 시각)을 함께 넣는다. 워치는 처리 뒤 폰 노드를 포함한 URI로 그 DataItem을 지운다.
+     */
     suspend fun reply(message: Map<String, Any?>)
 }
 
@@ -31,7 +35,7 @@ sealed interface ReceiveResult {
     /** 읽을 수 없는 형식 (앱 버전 차이): 경기 id를 알면 지원 안 함을 답했다 */
     data object Unsupported : ReceiveResult
 
-    /** 저장하지 못했다 (디스크 등). 확인을 보내지 않아 워치가 다시 보낸다 */
+    /** 바이트를 가져오지 못했거나(Asset 실패·timeout) 저장하지 못했다 (디스크 등). 확인을 보내지 않아 워치가 다시 보낸다 */
     data object Failed : ReceiveResult
 }
 
@@ -96,7 +100,9 @@ class PhoneSyncLogic(
      * 읽을 수 없는 형식이면 워치가 계속 다시 보내지 않게 지원 안 함을 답한다.
      */
     suspend fun receive(matchID: UUID?, bytes: ByteArray?): ReceiveResult {
-        val bundle = bytes?.let { runCatching { MatchBundle.fromJson(parseJsonObject(it)) }.getOrNull() }
+        // 바이트가 없다 = Asset을 가져오지 못했다(실패·timeout): 형식 문제가 아니므로 답하지 않는다 (워치가 10분 뒤·다음 실행에 다시 보낸다)
+        if (bytes == null) return ReceiveResult.Failed
+        val bundle = runCatching { MatchBundle.fromJson(parseJsonObject(bytes)) }.getOrNull()
         if (bundle == null) {
             if (matchID != null) reply(SyncPayload.unsupported(matchID))
             return ReceiveResult.Unsupported
