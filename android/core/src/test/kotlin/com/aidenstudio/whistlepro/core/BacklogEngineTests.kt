@@ -48,9 +48,9 @@ class BacklogEngineTests {
 
     @Test fun hugeTimestampsDoNotTrap() {
         val s = play(listOf(cmd(start, 0.0), cmd(toggle, 1e300)))
-        s.snapshot(Double.POSITIVE_INFINITY, 300)
-        s.snapshot(1e300, 300)
-        s.snapshot(Double.NaN, 300)
+        s.snapshot(Double.POSITIVE_INFINITY, 300, 300)
+        s.snapshot(1e300, 300, 300)
+        s.snapshot(Double.NaN, 300, 300)
         assertEquals(0L, wholeSeconds(Double.POSITIVE_INFINITY))
         assertEquals(1_000_000_000_000L, wholeSeconds(1e300))
         assertEquals(-6L, wholeSeconds(-5.5))
@@ -76,7 +76,7 @@ class BacklogEngineTests {
         assertEquals(listOf(
             MatchAlert(AlertKind.WARNING_BEFORE_END, 1e9),
             MatchAlert(AlertKind.PERIOD_END, 4e9),
-        ), s.alerts(0.0, 3_000_000_000L))
+        ), s.alerts(0.0, 3_000_000_000L, 300))
     }
 
     /** 교체 한도 + 연장 추가 교체가 Int를 넘어도 경고가 붙지 않는다 (Swift와 같음) */

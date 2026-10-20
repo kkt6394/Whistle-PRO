@@ -86,7 +86,7 @@ extension MatchSnapshot.Event {
 }
 
 extension MatchState {
-    public func snapshot(at now: Double, warningBeforeEnd: Int) -> MatchSnapshot {
+    public func snapshot(at now: Double, warningBeforeEnd: Int, breakWarningBeforeEnd: Int) -> MatchSnapshot {
         let reading = self.clock(at: now)
         let shootoutStatus = self.shootout
         var finishReason: String?
@@ -123,7 +123,7 @@ extension MatchState {
                 MatchSnapshot.SinBin(eventId: $0.eventId, team: $0.team, number: $0.number, remaining: $0.remaining)
             },
             warnings: matchWarnings(at: now).map(\.code),
-            nextAlert: nextAlert(after: now, warningBeforeEnd: warningBeforeEnd).map {
+            nextAlert: nextAlert(after: now, warningBeforeEnd: warningBeforeEnd, breakWarningBeforeEnd: breakWarningBeforeEnd).map {
                 MatchSnapshot.Alert(kind: $0.kind.rawValue, at: $0.at)
             },
             ignored: ignoredCommandIDs)

@@ -13,6 +13,7 @@ struct MatchLogStoreTests {
         let setup = MatchSetup()
         #expect(setup.rules == .fifaStandard)
         #expect(setup.warningBeforeEnd == 300)
+        #expect(setup.breakWarningBeforeEnd == 300)
         #expect(setup.clockDisplay == .elapsed)
     }
 

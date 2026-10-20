@@ -23,6 +23,7 @@ class MatchLogStoreTests {
         val setup = MatchSetup()
         assertEquals(RuleSet.FIFA_STANDARD, setup.rules)
         assertEquals(300, setup.warningBeforeEnd)
+        assertEquals(300, setup.breakWarningBeforeEnd)
         assertEquals(ClockDisplay.ELAPSED, setup.clockDisplay)
     }
 

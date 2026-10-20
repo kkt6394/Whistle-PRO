@@ -10,7 +10,7 @@ class ReviewFixTests {
         val s = play(RuleSet(sinBin = true), listOf(cmd(start, 0.0), card(Team.HOME, 5, CardKind.SIN_BIN, 100.0), card(Team.HOME, 5, CardKind.RED, 160.0)))
         assertEquals(TeamPair(10L, 11L), s.playersOnField(200.0))
         assertTrue(s.activeSinBins(200.0).isEmpty())
-        assertTrue(s.alerts(200.0, 0).all { it.kind != AlertKind.SIN_BIN_END })
+        assertTrue(s.alerts(200.0, 0, 300).all { it.kind != AlertKind.SIN_BIN_END })
     }
 
     @Test fun redShownAfterSecondYellowIsNotASecondSendOff() {

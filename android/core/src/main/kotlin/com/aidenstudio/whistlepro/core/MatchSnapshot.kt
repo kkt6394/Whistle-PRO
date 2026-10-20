@@ -144,7 +144,7 @@ private fun snapshotEvent(resolved: ResolvedEvent): MatchSnapshot.Event {
     )
 }
 
-fun MatchState.snapshot(now: Double, warningBeforeEnd: Long): MatchSnapshot {
+fun MatchState.snapshot(now: Double, warningBeforeEnd: Long, breakWarningBeforeEnd: Long): MatchSnapshot {
     val reading = clock(now)
     val shootoutStatus = shootout
     val reason = (phase as? Phase.Finished)?.reason
@@ -173,7 +173,7 @@ fun MatchState.snapshot(now: Double, warningBeforeEnd: Long): MatchSnapshot {
         events = resolvedEvents.map(::snapshotEvent),
         sinBins = activeSinBins(now).map { MatchSnapshot.SinBin(it.eventId, it.team, it.number, it.remaining) },
         warnings = matchWarnings(now).map { it.code },
-        nextAlert = nextAlert(now, warningBeforeEnd)?.let { MatchSnapshot.Alert(it.kind.code, it.at) },
+        nextAlert = nextAlert(now, warningBeforeEnd, breakWarningBeforeEnd)?.let { MatchSnapshot.Alert(it.kind.code, it.at) },
         ignored = ignoredCommandIds,
     )
 }

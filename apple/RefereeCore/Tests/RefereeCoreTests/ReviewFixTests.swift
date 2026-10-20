@@ -7,7 +7,7 @@ struct ReviewFixTests {
         let s = play(RuleSet(sinBin: true), [cmd(.startPeriod, at: 0), card(.home, 5, .sinBin, at: 100), card(.home, 5, .red, at: 160)])
         #expect(s.playersOnField(at: 200) == TeamPair(home: 10, away: 11))
         #expect(s.activeSinBins(at: 200).isEmpty)
-        #expect(s.alerts(after: 200, warningBeforeEnd: 0).allSatisfy { $0.kind != .sinBinEnd })
+        #expect(s.alerts(after: 200, warningBeforeEnd: 0, breakWarningBeforeEnd: 300).allSatisfy { $0.kind != .sinBinEnd })
     }
 
     @Test func redShownAfterSecondYellowIsNotASecondSendOff() {

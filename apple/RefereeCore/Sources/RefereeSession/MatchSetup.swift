@@ -99,6 +99,8 @@ public struct MatchSetup: Codable, Equatable, Sendable {
     public var clockDisplay: ClockDisplay
     /// 종료 N초 전 예고 진동 (0이면 끔)
     public var warningBeforeEnd: Int
+    /// 휴식 종료 N초 전 예고 진동 (0이면 끔)
+    public var breakWarningBeforeEnd: Int
     /// GPS 경로 기록 (끄면 배터리를 아끼는 대신 히트맵·스프린트가 없다)
     public var recordsRoute: Bool
     /// 선수 명단 (없으면 등번호만 입력한다)
@@ -118,6 +120,7 @@ public struct MatchSetup: Codable, Equatable, Sendable {
         awayColor: TeamColor = .blue,
         clockDisplay: ClockDisplay = .elapsed,
         warningBeforeEnd: Int = 300,
+        breakWarningBeforeEnd: Int = 300,
         recordsRoute: Bool = true,
         homeRoster: [Player] = [],
         awayRoster: [Player] = [],
@@ -132,6 +135,7 @@ public struct MatchSetup: Codable, Equatable, Sendable {
         self.awayColor = awayColor
         self.clockDisplay = clockDisplay
         self.warningBeforeEnd = warningBeforeEnd
+        self.breakWarningBeforeEnd = breakWarningBeforeEnd
         self.recordsRoute = recordsRoute
         self.homeRoster = homeRoster
         self.awayRoster = awayRoster
@@ -141,7 +145,7 @@ public struct MatchSetup: Codable, Equatable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case rules, homeName, awayName, homeColor, awayColor, clockDisplay, warningBeforeEnd, recordsRoute
+        case rules, homeName, awayName, homeColor, awayColor, clockDisplay, warningBeforeEnd, breakWarningBeforeEnd, recordsRoute
         case homeRoster, awayRoster, competition, homeColor2, awayColor2
     }
 
@@ -156,6 +160,7 @@ public struct MatchSetup: Codable, Equatable, Sendable {
             awayColor: try c.decode(TeamColor.self, forKey: .awayColor),
             clockDisplay: try c.decode(ClockDisplay.self, forKey: .clockDisplay),
             warningBeforeEnd: try c.decode(Int.self, forKey: .warningBeforeEnd),
+            breakWarningBeforeEnd: try c.decodeIfPresent(Int.self, forKey: .breakWarningBeforeEnd) ?? 300,
             recordsRoute: try c.decodeIfPresent(Bool.self, forKey: .recordsRoute) ?? true,
             homeRoster: try c.decodeIfPresent([Player].self, forKey: .homeRoster) ?? [],
             awayRoster: try c.decodeIfPresent([Player].self, forKey: .awayRoster) ?? [],

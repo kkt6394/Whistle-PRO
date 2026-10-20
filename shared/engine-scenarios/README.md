@@ -23,6 +23,7 @@ cd android && ./gradlew :core:test               # Kotlin
 
 - `config`: RuleSet 부분 객체. 없는 키는 FIFA 표준 기본값. `minimumPlayers`·`substitutionLimit`에 `null`을 주면 끔.
 - `warningBeforeEnd`: 종료 N초 전 예고. 생략하면 300.
+- `breakWarningBeforeEnd`: 휴식 종료 N초 전 예고. 생략하면 300.
 - `commands`: 명령 로그. `id`가 없으면 러너가 `"#<0부터 시작하는 인덱스>"`를 붙인다.
 - 엔진 디코더는 `id`가 없는 명령에 UUID를 만든다(빈 문자열 금지). 러너는 원본 JSON에 `id`가 없는 명령에만 `#i`를 붙인다.
 - `expect`: 각 항목마다 `t <= at`인 명령만 재생한 뒤, `at` 시점 스냅샷을 JSON으로 만들어 **적힌 키만** 비교한다. 값이 `null`이면 키가 없거나 null이어야 한다. 배열과 객체는 전체가 같아야 한다.

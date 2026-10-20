@@ -47,9 +47,9 @@ struct BacklogEngineTests {
 
     @Test func hugeTimestampsDoNotTrap() {
         let s = play([cmd(.startPeriod, at: 0), cmd(.toggleStoppage, at: 1e300)])
-        _ = s.snapshot(at: .infinity, warningBeforeEnd: 300)
-        _ = s.snapshot(at: 1e300, warningBeforeEnd: 300)
-        _ = s.snapshot(at: .nan, warningBeforeEnd: 300)
+        _ = s.snapshot(at: .infinity, warningBeforeEnd: 300, breakWarningBeforeEnd: 300)
+        _ = s.snapshot(at: 1e300, warningBeforeEnd: 300, breakWarningBeforeEnd: 300)
+        _ = s.snapshot(at: .nan, warningBeforeEnd: 300, breakWarningBeforeEnd: 300)
         #expect(wholeSeconds(.infinity) == 0)
         #expect(wholeSeconds(1e300) == 1_000_000_000_000)
         #expect(wholeSeconds(-5.5) == -6)

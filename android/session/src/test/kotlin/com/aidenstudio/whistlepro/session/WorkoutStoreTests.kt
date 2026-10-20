@@ -24,6 +24,16 @@ class WorkoutStoreTests {
         assertEquals(MatchSetup(), setup)
     }
 
+    @Test fun oldSetupWithoutBreakWarningDecodes() {
+        val json = JsonObject(MatchSetup().toJson() - "breakWarningBeforeEnd")
+        assertEquals(300, MatchSetup.fromJson(json).breakWarningBeforeEnd)
+    }
+
+    @Test fun breakWarningRoundTrips() {
+        val setup = MatchSetup(breakWarningBeforeEnd = 120)
+        assertEquals(setup, MatchSetup.fromJson(Json.parseToJsonElement(setup.toJson().toString()).jsonObject))
+    }
+
     @Test fun recordsRouteRoundTrips() {
         val setup = MatchSetup(recordsRoute = false)
         assertEquals(setup, MatchSetup.fromJson(Json.parseToJsonElement(setup.toJson().toString()).jsonObject))

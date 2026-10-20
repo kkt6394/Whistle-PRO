@@ -93,6 +93,16 @@ struct MatchSessionTests {
         #expect(alert?.kind == .warningBeforeEnd)
         #expect(alert?.at == 2100)
     }
+
+    @Test func nextAlertUsesSetupBreakWarning() {
+        let (s, _, clock) = makeSession(MatchSetup(breakWarningBeforeEnd: 120))
+        s.send(.startPeriod)
+        clock.t = 2700
+        s.send(.endPeriod)
+        let alert = s.nextAlert(after: 2700)
+        #expect(alert?.kind == .breakEndingSoon)
+        #expect(alert?.at == 3480)
+    }
 }
 
 /// 최종 리뷰: 킥오프를 실행 취소하면 경기 시작 버튼이 없는 화면에 갇힌다

@@ -104,6 +104,16 @@ class MatchSessionTests {
         assertEquals(AlertKind.WARNING_BEFORE_END, alert?.kind)
         assertEquals(2100.0, alert?.at)
     }
+
+    @Test fun nextAlertUsesSetupBreakWarning() {
+        val (s, _, clock) = makeSession(MatchSetup(breakWarningBeforeEnd = 120))
+        s.send(CommandKind.StartPeriod)
+        clock.t = 2700.0
+        s.send(CommandKind.EndPeriod)
+        val alert = s.nextAlert(2700.0)
+        assertEquals(AlertKind.BREAK_ENDING_SOON, alert?.kind)
+        assertEquals(3480.0, alert?.at)
+    }
 }
 
 /** 최종 리뷰: 킥오프를 실행 취소하면 경기 시작 버튼이 없는 화면에 갇힌다 */

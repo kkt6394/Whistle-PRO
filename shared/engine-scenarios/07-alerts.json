@@ -1,5 +1,5 @@
 {
-  "name": "알림: 종료 5분 전, 종료, 하프타임 1분 전, 하프타임 종료",
+  "name": "알림: 종료 5분 전, 종료, 하프타임 5분 전, 하프타임 종료",
   "config": {},
   "warningBeforeEnd": 300,
   "commands": [
@@ -10,7 +10,7 @@
     { "at": 0, "nextAlert": { "kind": "warningBeforeEnd", "at": 2400 } },
     { "at": 2400, "nextAlert": { "kind": "periodEnd", "at": 2700 } },
     { "at": 2700, "nextAlert": null },
-    { "at": 2750, "nextAlert": { "kind": "breakEndingSoon", "at": 3590 } },
-    { "at": 3590, "nextAlert": { "kind": "breakEnd", "at": 3650 } }
+    { "at": 2750, "nextAlert": { "kind": "breakEndingSoon", "at": 3350 } },
+    { "at": 3350, "nextAlert": { "kind": "breakEnd", "at": 3650 } }
   ]
 }

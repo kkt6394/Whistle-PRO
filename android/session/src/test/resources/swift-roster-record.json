@@ -41,6 +41,7 @@
         "number" : 4
       }
     ],
+    "breakWarningBeforeEnd" : 300,
     "clockDisplay" : "elapsed",
     "homeColor" : "white",
     "homeName" : "FC 서울",

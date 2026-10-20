@@ -24,6 +24,7 @@ private object Scenarios {
 
 /** 생략하거나 null이면 300. Swift 러너처럼 정수로 읽어 300.0도 받는다. */
 internal fun scenarioWarningBeforeEnd(raw: JsonObject): Long = raw.optionalLong("warningBeforeEnd") ?: 300
+internal fun scenarioBreakWarningBeforeEnd(raw: JsonObject): Long = raw.optionalLong("breakWarningBeforeEnd") ?: 300
 
 class ScenarioTests {
     @Test fun scenarioDirectoryIsFound() {
@@ -36,6 +37,7 @@ class ScenarioTests {
             val name = raw["name"]?.jsonPrimitive?.content
             val rules = RuleSet.fromJson(raw["config"]?.jsonObject ?: JsonObject(emptyMap()))
             val warningBeforeEnd = scenarioWarningBeforeEnd(raw)
+            val breakWarningBeforeEnd = scenarioBreakWarningBeforeEnd(raw)
             // id를 적지 않은 명령에만 "#<인덱스>"를 붙인다 (디코더는 빈 id 대신 UUID를 만든다)
             val commands = raw.getValue("commands").jsonArray.mapIndexed { i, element ->
                 val json = element.jsonObject
@@ -45,7 +47,7 @@ class ScenarioTests {
             for (expected in raw.getValue("expect").jsonArray.map { it.jsonObject }) {
                 val at = expected.getValue("at").jsonPrimitive.double
                 val state = MatchEngine.reduce(rules, commands.filter { it.timestamp <= at })
-                val actual = state.snapshot(at, warningBeforeEnd).toJson()
+                val actual = state.snapshot(at, warningBeforeEnd, breakWarningBeforeEnd).toJson()
                 for ((key, value) in expected) {
                     if (key == "at") continue
                     assertTrue(jsonMatches(actual[key], value), "$name @$at $key: 실제 ${actual[key] ?: JsonNull}, 기대 $value")
@@ -56,7 +58,7 @@ class ScenarioTests {
 
     @Test fun snapshotEncodesTeamPairsAsArraysAndOmitsNil() {
         val s = play(listOf(cmd(start, 0.0), goal(Team.HOME, 10.0)))
-        val json = s.snapshot(20.0, 300).toJson()
+        val json = s.snapshot(20.0, 300, 300).toJson()
         assertEquals(JsonArray(listOf(JsonPrimitive(1), JsonPrimitive(0))), json["score"])
         assertEquals(JsonPrimitive("period"), json["phase"])
         assertFalse("finishReason" in json)
@@ -65,7 +67,7 @@ class ScenarioTests {
     /** Kotlin 추가: Swift Encodable처럼 이벤트·일시 퇴장의 null 등번호 키를 생략한다 (중첩 객체는 키 집합까지 비교하므로) */
     @Test fun snapshotOmitsNilNumbersInNestedObjects() {
         val s = play(RuleSet(sinBin = true), listOf(cmd(start, 0.0), card(Team.HOME, null, CardKind.SIN_BIN, 10.0, id = "s")))
-        val json = s.snapshot(20.0, 300).toJson()
+        val json = s.snapshot(20.0, 300, 300).toJson()
         val event = json.getValue("events").jsonArray[0].jsonObject
         assertEquals(setOf("id", "type", "team", "matchSecond", "warnings"), event.keys)
         val sinBin = json.getValue("sinBins").jsonArray[0].jsonObject

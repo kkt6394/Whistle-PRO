@@ -6,6 +6,7 @@ private struct ScenarioInput: Decodable {
     let name: String
     let config: RuleSet
     let warningBeforeEnd: Int?
+    let breakWarningBeforeEnd: Int?
     let commands: [Command]
 }
 
@@ -46,7 +47,8 @@ struct ScenarioTests {
         for expected in expectations {
             let at = try #require(expected["at"] as? NSNumber).doubleValue
             let state = MatchEngine.reduce(rules: input.config, commands: commands.filter { $0.timestamp <= at })
-            let snapshot = state.snapshot(at: at, warningBeforeEnd: input.warningBeforeEnd ?? 300)
+            let snapshot = state.snapshot(at: at, warningBeforeEnd: input.warningBeforeEnd ?? 300,
+                                          breakWarningBeforeEnd: input.breakWarningBeforeEnd ?? 300)
             let actual = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(snapshot)) as? [String: Any])
             for (key, value) in expected where key != "at" {
                 let actualValue = actual[key] ?? NSNull()
@@ -58,7 +60,7 @@ struct ScenarioTests {
 
     @Test func snapshotEncodesTeamPairsAsArraysAndOmitsNil() throws {
         let s = play([cmd(.startPeriod, at: 0), goal(.home, at: 10)])
-        let data = try JSONEncoder().encode(s.snapshot(at: 20, warningBeforeEnd: 300))
+        let data = try JSONEncoder().encode(s.snapshot(at: 20, warningBeforeEnd: 300, breakWarningBeforeEnd: 300))
         let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
         #expect(json["score"] as? [Int] == [1, 0])
         #expect(json["phase"] as? String == "period")

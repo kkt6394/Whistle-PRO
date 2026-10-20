@@ -91,11 +91,13 @@ public final class MatchSession {
     }
 
     public func snapshot(at time: Double? = nil) -> MatchSnapshot {
-        state.snapshot(at: time ?? now(), warningBeforeEnd: setup.warningBeforeEnd)
+        state.snapshot(at: time ?? now(), warningBeforeEnd: setup.warningBeforeEnd,
+                       breakWarningBeforeEnd: setup.breakWarningBeforeEnd)
     }
 
     public func nextAlert(after time: Double? = nil) -> MatchAlert? {
-        state.nextAlert(after: time ?? now(), warningBeforeEnd: setup.warningBeforeEnd)
+        state.nextAlert(after: time ?? now(), warningBeforeEnd: setup.warningBeforeEnd,
+                        breakWarningBeforeEnd: setup.breakWarningBeforeEnd)
     }
 
     private func persist() {

@@ -12,6 +12,18 @@ struct WorkoutStoreTests {
         #expect(setup == MatchSetup())
     }
 
+    @Test func oldSetupWithoutBreakWarningDecodes() throws {
+        var json = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(MatchSetup())) as? [String: Any])
+        json.removeValue(forKey: "breakWarningBeforeEnd")
+        let setup = try JSONDecoder().decode(MatchSetup.self, from: JSONSerialization.data(withJSONObject: json))
+        #expect(setup.breakWarningBeforeEnd == 300)
+    }
+
+    @Test func breakWarningRoundTrips() throws {
+        let setup = MatchSetup(breakWarningBeforeEnd: 120)
+        #expect(try JSONDecoder().decode(MatchSetup.self, from: JSONEncoder().encode(setup)) == setup)
+    }
+
     @Test func recordsRouteRoundTrips() throws {
         var setup = MatchSetup()
         setup.recordsRoute = false

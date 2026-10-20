@@ -11,6 +11,7 @@ import com.aidenstudio.whistlepro.core.long
 import com.aidenstudio.whistlepro.core.obj
 import com.aidenstudio.whistlepro.core.objects
 import com.aidenstudio.whistlepro.core.optionalBoolean
+import com.aidenstudio.whistlepro.core.optionalLong
 import com.aidenstudio.whistlepro.core.optionalString
 import com.aidenstudio.whistlepro.core.present
 import com.aidenstudio.whistlepro.core.string
@@ -77,6 +78,8 @@ data class MatchSetup(
     val clockDisplay: ClockDisplay = ClockDisplay.ELAPSED,
     /** 종료 N초 전 예고 진동 (0이면 끔) */
     val warningBeforeEnd: Long = 300,
+    /** 휴식 종료 N초 전 예고 진동 (0이면 끔) */
+    val breakWarningBeforeEnd: Long = 300,
     /** GPS 경로 기록 (끄면 배터리를 아끼는 대신 히트맵·스프린트가 없다) */
     val recordsRoute: Boolean = true,
     /** 선수 명단 (없으면 등번호만 입력한다) */
@@ -109,6 +112,7 @@ data class MatchSetup(
         put("awayColor", JsonPrimitive(awayColor.hex))
         put("clockDisplay", JsonPrimitive(clockDisplay.code))
         put("warningBeforeEnd", JsonPrimitive(warningBeforeEnd))
+        put("breakWarningBeforeEnd", JsonPrimitive(breakWarningBeforeEnd))
         put("recordsRoute", JsonPrimitive(recordsRoute))
         put("homeRoster", JsonArray(homeRoster.map { it.toJson() }))
         put("awayRoster", JsonArray(awayRoster.map { it.toJson() }))
@@ -127,6 +131,7 @@ data class MatchSetup(
             awayColor = TeamColor.fromCode(json.string("awayColor")),
             clockDisplay = ClockDisplay.fromCode(json.string("clockDisplay")),
             warningBeforeEnd = json.long("warningBeforeEnd"),
+            breakWarningBeforeEnd = json.optionalLong("breakWarningBeforeEnd") ?: 300,
             recordsRoute = json.optionalBoolean("recordsRoute") ?: true,
             homeRoster = json.roster("homeRoster"),
             awayRoster = json.roster("awayRoster"),

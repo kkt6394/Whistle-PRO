@@ -57,6 +57,7 @@
   "setup" : {
     "awayColor" : "black",
     "awayName" : "Away",
+    "breakWarningBeforeEnd" : 300,
     "clockDisplay" : "remaining",
     "homeColor" : "white",
     "homeName" : "FC 서울",

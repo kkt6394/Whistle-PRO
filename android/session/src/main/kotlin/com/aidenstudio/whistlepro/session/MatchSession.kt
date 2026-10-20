@@ -89,9 +89,9 @@ class MatchSession(
         }
     }
 
-    fun snapshot(time: Double? = null): MatchSnapshot = state.snapshot(time ?: now(), setup.warningBeforeEnd)
+    fun snapshot(time: Double? = null): MatchSnapshot = state.snapshot(time ?: now(), setup.warningBeforeEnd, setup.breakWarningBeforeEnd)
 
-    fun nextAlert(time: Double? = null): MatchAlert? = state.nextAlert(time ?: now(), setup.warningBeforeEnd)
+    fun nextAlert(time: Double? = null): MatchAlert? = state.nextAlert(time ?: now(), setup.warningBeforeEnd, setup.breakWarningBeforeEnd)
 
     private fun persist() {
         saveError = try {
