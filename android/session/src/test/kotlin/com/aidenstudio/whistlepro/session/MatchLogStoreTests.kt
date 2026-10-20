@@ -104,6 +104,27 @@ class MatchLogStoreTests {
         store.deleteArchived(UUID.randomUUID())
     }
 
+    /** 받았는지 물을 경기 ID는 기록을 디코딩하지 않고 finished/ 파일 이름에서 뽑는다 (운동 기록·이름이 다른 파일은 빼고) */
+    @Test fun archivedIDsComeFromFileNames() {
+        val dir = tempDirectory()
+        val store = FileMatchLogStore(dir)
+        val a = record(10.0)
+        val b = record(20.0)
+        store.finishActive(a)
+        store.saveActiveWorkout(WorkoutLog(b.id))
+        store.saveActive(b)
+        store.finishActive(b)
+        File(dir, "finished/notes.json").writeText("x")
+        assertEquals(setOf(a.id, b.id), store.archivedIDs().toSet())
+        assertEquals(2, store.archivedIDs().size)
+        store.deleteArchived(a.id)
+        assertEquals(listOf(b.id), store.archivedIDs())
+    }
+
+    @Test fun noArchivedIDsInEmptyDirectory() {
+        assertEquals(emptyList(), FileMatchLogStore(tempDirectory()).archivedIDs())
+    }
+
     /** 쓰다가 실패해도(디스크 가득 참 등) 임시 파일이 남지 않고 원래 파일은 그대로다 */
     @Test fun failedWriteLeavesNoTempFileAndKeepsOriginal() {
         val dir = tempDirectory().also { it.mkdirs() }

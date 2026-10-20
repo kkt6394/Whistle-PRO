@@ -18,6 +18,9 @@ dependencies {
     api(project(":core"))
     api(libs.serialization.json)
     testImplementation(kotlin("test"))
+    // 동기화 로직(suspend 함수)을 테스트에서 부른다. 본 코드는 코루틴 라이브러리를 쓰지 않는다
+    // (워치 앱이 coroutines 1.9.0에 묶여 있어 :session이 더 높은 버전을 끌어오면 안 된다)
+    testImplementation(libs.coroutines.test)
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.launcher)
