@@ -17,6 +17,7 @@ class FakeWatchLink : WatchLink {
     val items = linkedMapOf<UUID, ByteArray>()
     val removed = mutableListOf<UUID>()
     var failPuts = false
+    var failRemoves = false
     /** 물은 메시지 (경로, 받은 쪽이 읽은 내용) */
     val asked = mutableListOf<Pair<String, Map<String, Any?>>>()
     /** 폰의 답. null이면 실패·timeout */
@@ -35,6 +36,7 @@ class FakeWatchLink : WatchLink {
     override suspend fun pendingTransfers(): Set<UUID> = items.keys.toSet()
 
     override suspend fun removeMatch(matchID: UUID) {
+        if (failRemoves) throw IOException("지우기 실패")
         items.remove(matchID)
         removed += matchID
     }

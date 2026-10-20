@@ -17,7 +17,11 @@ interface WatchLink {
     /** 아직 남아 있는 (이 워치가 올린) 경기 DataItem의 경기 id. 확인을 받아 지울 때까지 남는다 */
     suspend fun pendingTransfers(): Set<UUID>
 
-    /** 그 경기의 DataItem을 모두 지운다 (확인을 받았거나, 새 전송으로 바꾸거나, 지원 안 함) */
+    /**
+     * 그 경기의 DataItem을 모두 지운다 (확인을 받았거나, 새 전송으로 바꾸거나, 지원 안 함).
+     * 계약: 경로 접두 `/whistlepro/match/<id>/` 아래 DataItem을 모두 지운다 (전송 이름이 무엇이든).
+     * 하나라도 지우지 못하면 예외를 던진다 — 그때 로직은 새 전송을 올리지 않는다.
+     */
     suspend fun removeMatch(matchID: UUID)
 
     /** 메시지로 묻고 답을 기다린다 (요청 ID로 짝짓고 10초 timeout). null = 실패·timeout */
@@ -118,8 +122,12 @@ class WatchSyncLogic(
         for (record in records) {
             val id = record.id
             if (id in held || !matchThrottle.allows(id, now)) continue
-            // 확인 없이 남은 이전 전송(지난 실행이거나 10분 전)은 지우고 새로 보낸다
-            if (id in inFlight) attempt { link.removeMatch(id) }
+            // 확인 없이 남은 이전 전송(지난 실행이거나 10분 전)은 지우고 새로 보낸다.
+            // 지우지 못하면 올리지 않는다 (한 경기에 DataItem이 둘 남지 않게): 바로 다시 할 수 있게 하고 재시도를 알린다
+            if (id in inFlight && attempt { link.removeMatch(id) } == null) {
+                onTransferFailed(id)
+                continue
+            }
             val bytes = try {
                 encodeBundle(MatchBundle(record, runCatching { store.archivedWorkout(id) }.getOrNull()))
             } catch (e: Exception) {
@@ -169,6 +177,7 @@ class WatchSyncLogic(
      */
     suspend fun askReceipts() {
         if (!link.reachable || !receiptCheck.canAsk(clock())) return
+        // 보관함 목록을 읽지 못하면(IOException) "물을 경기 없음": 묻지 않고 기다리던 보내기를 바로 한다
         val pending = runCatching { store.archivedIDs() }.getOrDefault(emptyList())
         val asked = receiptCheck.begin(pending, clock())
         if (asked == null) {

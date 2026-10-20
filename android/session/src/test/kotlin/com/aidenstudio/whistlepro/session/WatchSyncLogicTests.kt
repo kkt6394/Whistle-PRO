@@ -75,6 +75,37 @@ class WatchSyncLogicTests {
         assertEquals(setOf(a.id), link.items.keys)
     }
 
+    /** 남은 DataItem을 지우지 못하면 새 전송을 올리지 않고(한 경기에 DataItem 둘 방지) 재시도를 알린다. 지워지면 바로 다시 보낸다 */
+    @Test fun failedRemoveSkipsPut() = runTest {
+        val a = finish()
+        at(0.0)
+        sync.sendPending()
+        link.failRemoves = true
+        at(601.0)
+        sync.sendPending()
+        assertEquals(1, link.puts.size)
+        assertEquals(1, retries)
+        link.failRemoves = false
+        at(602.0)
+        sync.sendPending()
+        assertEquals(listOf(a.id, a.id), link.sentIDs())
+        assertEquals(setOf(a.id), link.items.keys)
+    }
+
+    /** 받았는지 묻기 경로도 보관함 목록 IO 오류를 견딘다: 묻지 않고(물을 경기 없음) 예외 없이 끝난다 */
+    @Test fun unreadableArchiveSkipsReceiptQuery() = runTest {
+        val dir = tempDirectory()
+        dir.mkdirs()
+        java.io.File(dir, "finished").writeText("폴더가 아닌 파일")
+        link.reachable = true
+        link.answer = { _, _ -> SyncPayload.receiptReply(emptyList()) }
+        val broken = WatchSyncLogic(FileMatchLogStore(dir), link, { clock.t })
+        broken.askReceiptsThenSend()
+        broken.askReceipts()
+        assertTrue(link.asked.isEmpty())
+        assertTrue(link.puts.isEmpty())
+    }
+
     /** 앱을 다시 실행하면(새 로직) 지난 실행의 DataItem이 남은 경기를 바로 새로 보낸다 */
     @Test fun leftoverDataItemResentAfterRestart() = runTest {
         val a = finish()
