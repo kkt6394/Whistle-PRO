@@ -35,22 +35,22 @@ object RoundFit {
 
     /**
      * 화면 위에서 [top]만큼 내려온 곳에 윗점을 둔 동그라미 버튼의 지름: 받은 높이 [height] 안에서,
-     * 좌우 여백까지 화면 원 안에 들어가는 가장 큰 값 (최소 [MIN_CIRCLE]).
+     * 좌우 여백까지 화면 원 안에 들어가는 가장 큰 값 (최소 [minimum]).
      */
-    fun circleDiameter(diameter: Double, top: Double, height: Double): Double {
+    fun circleDiameter(diameter: Double, top: Double, height: Double, minimum: Double = MIN_CIRCLE): Double {
         // 중심이 화면 중심 아래일 때 아랫점이 원 안(여백 포함)에 닿는 한계. 윗점이 위쪽 여백 안이면 어차피 안 맞아 높이로만 줄인다
         val edge = diameter - diameter * SIDE_MARGIN - top
-        return max(MIN_CIRCLE, minOf(height, edge))
+        return max(minimum, minOf(height, edge))
     }
 
     /**
-     * 화면 위에서 [top]~[bottom]에 걸친 가로 띠(글 칸)의 네 귀퉁이가 원 안에 들어가는 최대 폭.
+     * 화면 위에서 [centerY] 높이의 줄 폭: 그 높이의 현 폭에서 좌우 여백을 뺀 값 (가운데 정렬 글자는 이 폭 안이면 원 안).
      * 좌우 여백 안쪽으로 제한한다.
      */
-    fun bandWidth(diameter: Double, top: Double, bottom: Double): Double {
+    fun rowWidth(diameter: Double, centerY: Double): Double {
         val radius = diameter / 2
-        val farthest = max(abs(top - radius), abs(bottom - radius))
-        val chord = if (farthest >= radius) 0.0 else 2 * sqrt(radius * radius - farthest * farthest)
-        return minOf(chord, diameter * (1 - 2 * SIDE_MARGIN))
+        val dy = abs(centerY - radius)
+        val chord = if (dy >= radius) 0.0 else 2 * sqrt(radius * radius - dy * dy)
+        return max(0.0, minOf(chord - 2 * diameter * SIDE_MARGIN, diameter * (1 - 2 * SIDE_MARGIN)))
     }
 }

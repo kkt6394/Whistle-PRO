@@ -48,13 +48,16 @@ class RoundFitTests {
         assertEquals(44.0, RoundFit.circleDiameter(192.0, 28.8, 30.0))
     }
 
-    @Test fun bandNearCenterUsesSideMarginWidth() {
-        assertEquals(192.0 * (1 - 2 * RoundFit.SIDE_MARGIN), RoundFit.bandWidth(192.0, 100.0, 130.0), 1e-9)
+    @Test fun circleMinimumCanBeRaised() {
+        assertEquals(67.2, RoundFit.circleDiameter(192.0, 28.8, 30.0, minimum = 67.2), 1e-9)
     }
 
-    @Test fun bandCornersStayInsideCircle() {
-        val width = RoundFit.bandWidth(192.0, 120.0, 150.0)
-        assertEquals(158.74, width, 0.01)
-        assertTrue(hypot(width / 2, 150.0 - 96.0) <= 96.0 + 1e-9)
+    @Test fun rowWidthNearCenterUsesSideMarginWidth() {
+        assertEquals(192.0 * (1 - 2 * RoundFit.SIDE_MARGIN), RoundFit.rowWidth(192.0, 96.0), 1e-9)
+    }
+
+    @Test fun rowWidthNearEdgeSubtractsMarginFromChord() {
+        // y=150 (중심에서 54): 현 158.74 - 좌우 여백 2*9.984
+        assertEquals(158.74 - 2 * 192.0 * RoundFit.SIDE_MARGIN, RoundFit.rowWidth(192.0, 150.0), 0.01)
     }
 }
