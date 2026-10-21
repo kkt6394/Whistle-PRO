@@ -20,6 +20,16 @@ class MainLayoutTests {
         for (d in diameters) for (band in bands) checkLayout(d, band)
     }
 
+    /** 휴식 화면의 [시작] 알약은 동그라미 둘 폭보다 넓고, 네 모서리 모두 내용 원 안 */
+    @Test fun intervalPillIsWiderThanTwoCircles() {
+        for (d in diameters) for (band in bands) {
+            val l = MainLayout.interval(d, band)
+            val name = "지름 $d 띠 $band"
+            assertTrue(l.buttons.width > MainLayout.round(d, band).buttons.width, name)
+            assertTrue(l.buttons.corners.all { l.inside(it) }, name)
+        }
+    }
+
     private fun checkLayout(d: Double, band: Double) {
         run {
             val l = MainLayout.round(d, band)

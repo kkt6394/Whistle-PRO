@@ -110,7 +110,13 @@ data class MainLayout(
         /** 원형 화면 (Wear OS). diameter는 화면 지름, headerBand는 상단 곡선 띠 높이(글자 크기 × 1.25). */
         fun round(diameter: Double, headerBand: Double): MainLayout = layout(diameter, headerBand, buttonCount = 2)
 
-        /** buttonCount 3은 예전 배치(시계 → 점수 → 줄 수 → 버튼). 둘일 때 시계·점수의 하한을 구하는 데만 쓴다 */
+        /**
+         * 휴식·연장 대기 화면: 버튼이 [시작] 알약 하나라 동그라미 둘 폭([round])보다 넓어야 한다 → 버튼 셋 때의 배치를 그대로 쓴다
+         * (알약 폭 = 그 줄 폭).
+         */
+        fun interval(diameter: Double, headerBand: Double): MainLayout = layout(diameter, headerBand, buttonCount = 3)
+
+        /** buttonCount 3은 예전 배치(시계 → 점수 → 줄 수 → 버튼). 둘일 때 시계·점수의 하한을 구하는 데도 쓴다 */
         private fun layout(diameter: Double, headerBand: Double, buttonCount: Int): MainLayout {
             val reference = if (buttonCount == 2) layout(diameter, headerBand, 3) else null
             val d = max(0.0, diameter)
