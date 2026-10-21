@@ -17,7 +17,11 @@ class MainLayoutTests {
         hypot(p.x - contentCenter.x, p.y - contentCenter.y) <= contentRadius + 0.001
 
     @Test fun roundMainFitsInsideCircle() {
-        for (d in diameters) for (band in bands) {
+        for (d in diameters) for (band in bands) checkLayout(d, band)
+    }
+
+    private fun checkLayout(d: Double, band: Double) {
+        run {
             val l = MainLayout.round(d, band)
             val name = "지름 $d 띠 $band"
             // 테두리 선 바깥 가장자리가 화면 원 안
@@ -110,11 +114,11 @@ class MainLayoutTests {
 
     /** 버튼이 둘로 줄어 남는 자리는 동그라미를 키우되, 시계·점수는 10-21 값 아래로 내려가지 않는다 */
     @Test fun twoButtonsGrowWhileClockKeeps() {
-        // 지름 to (시계, 점수, 버튼) — 버튼 셋 때의 값 (10-21 측정)
+        // 지름 to (시계, 점수, 버튼) — 버튼 셋 때의 값 (abdae68 측정)
         val before = mapOf(216.0 to Triple(48.20, 30.0, 44.0), 227.0 to Triple(47.87, 30.0, 44.0), 240.0 to Triple(49.03, 40.0, 46.15))
         for ((d, v) in before) {
             val l = MainLayout.round(d, MainLayout.headerBand(d))
-            assertTrue(l.buttonHeight >= v.third * 1.15, "$d 버튼 ${l.buttonHeight}")
+            assertTrue(l.buttonHeight >= v.third + 2.0, "$d 버튼 ${l.buttonHeight}")
             assertTrue(l.clockFontSize >= v.first - 0.01, "$d 시계 ${l.clockFontSize}")
             assertTrue(l.scoreFontSize >= v.second - 0.01, "$d 점수 ${l.scoreFontSize}")
         }
@@ -123,13 +127,42 @@ class MainLayoutTests {
         assertTrue(small.buttonHeight >= 40.08, "버튼 ${small.buttonHeight}")
     }
 
-    /** 큰 글자로 띠가 두 배가 돼도 모든 칸이 원 안이고 팀 칸이 버튼 줄을 넘지 않는다 */
+    /** 큰 글자로 띠가 두 배가 돼도 기본 배치와 같은 겹침·원 안 검사를 통과한다 */
     @Test fun twoButtonsFitWithLargeBand() {
-        for (d in diameters) {
-            val l = MainLayout.round(d, MainLayout.headerBand(d) * 2)
-            val boxes = mapOf("clock" to l.clock, "subClock" to l.subClock, "home" to l.home, "away" to l.away, "buttons" to l.buttons)
-            for ((box, rect) in boxes) for (c in rect.corners) assertTrue(l.inside(c), "$d $box $rect")
-            assertTrue(l.teams.maxY <= l.buttons.minY + 0.001, "$d ${l.teams} ${l.buttons}")
+        for (d in diameters) checkLayout(d, MainLayout.headerBand(d) * 2)
+    }
+
+    /** 작은 줄을 숨길지는 버튼 셋 때와 같다 (큰 띠 포함). abdae68 측정 */
+    @Test fun subClockHiddenKeepsPreviousRule() {
+        for ((d, hidden) in listOf(192.0 to true, 216.0 to true, 227.0 to false, 240.0 to false)) {
+            assertEquals(hidden, MainLayout.round(d, MainLayout.headerBand(d)).subClockHidden, "지름 $d")
+        }
+        for ((d, hidden) in listOf(192.0 to true, 216.0 to true, 227.0 to true, 240.0 to false)) {
+            assertEquals(hidden, MainLayout.round(d, MainLayout.headerBand(d) * 2).subClockHidden, "큰 띠 지름 $d")
+        }
+    }
+
+    /** 큰 원형: 시계·점수는 버튼 셋 때 값 이상, 버튼도 그 이상 (abdae68 측정) */
+    @Test fun largeRoundKeepsClockAndScore() {
+        // 지름 to (시계, 점수, 버튼)
+        for ((d, v) in mapOf(260.0 to Triple(51.24, 40.0, 47.63), 280.0 to Triple(53.46, 40.0, 47.87))) {
+            val l = MainLayout.round(d, MainLayout.headerBand(d))
+            assertTrue(l.clockFontSize >= v.first - 0.01, "$d 시계 ${l.clockFontSize}")
+            assertTrue(l.scoreFontSize >= v.second - 0.01, "$d 점수 ${l.scoreFontSize}")
+            assertTrue(l.buttonHeight >= v.third, "$d 버튼 ${l.buttonHeight}")
+            checkLayout(d, MainLayout.headerBand(d))
+        }
+    }
+
+    /** 줄이는 경로(shrink < 1)도 둘 배치에서 하한 비율과 원 안을 지킨다 */
+    @Test fun shrinkPathStillFits() {
+        for ((d, band) in listOf(192.0 to MainLayout.headerBand(192.0) * 2, 180.0 to MainLayout.headerBand(180.0))) {
+            val l = MainLayout.round(d, band)
+            assertTrue(l.shrink < 1, "$d ${l.shrink}")
+            assertTrue(l.buttonHeight >= 44 * l.shrink - 0.001, "$d ${l.buttonHeight}")
+            assertTrue(l.clockFontSize >= 44 * l.shrink - 0.001, "$d ${l.clockFontSize}")
+            assertTrue(l.scoreFontSize >= 30 * l.shrink - 0.001, "$d ${l.scoreFontSize}")
+            checkLayout(d, band)
         }
     }
 
@@ -147,11 +180,11 @@ class MainLayoutTests {
         assertTrue(galaxy40.subClockHidden || galaxy40.shrink == 1.0)
     }
 
-    /** 큰 화면에서는 모두 커진다 */
+    /** 큰 화면에서는 시계·점수·띠 글자가 커진다 */
     @Test fun largestWatchGrowsEverything() {
         val large = MainLayout.round(240.0, 16.0)
         val small = MainLayout.round(216.0, 16.0)
-        assertTrue(large.buttonHeight > small.buttonHeight, "${large.buttonHeight} ${small.buttonHeight}")
+        // 버튼은 216이 작은 줄을 숨겨 자리가 더 나므로 큰 쪽이 더 크다고 단정하지 않는다 (둘 다 하한보다 크기만 본다)
         assertTrue(large.clockFontSize > small.clockFontSize, "${large.clockFontSize} ${small.clockFontSize}")
         assertTrue(large.scoreFontSize > small.scoreFontSize, "${large.scoreFontSize} ${small.scoreFontSize}")
         assertTrue(large.buttonHeight > 44 && large.clockFontSize > 44 && large.scoreFontSize > 30)

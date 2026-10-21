@@ -24,8 +24,8 @@ data class Rect(val x: Double, val y: Double, val width: Double, val height: Dou
  * - 상단 띠: 테두리 안쪽 위 호를 따르는 곡선 글자. 띠 높이(headerBand)는 내용 원 위쪽에서 뺀다
  * - 테두리 안: 시계 줄 · 작은 줄(남은 시간·정지시간) · 팀 칸(홈 | 원정) · 버튼 줄(동그라미 둘). 각 줄의 폭은 그 줄 높이 범위에서
  *   가장 좁은 내용 원의 현이라 네 모서리가 모두 원 안에 든다
- * 하한(버튼 44 · 시계 44 · 점수 30 · 일시 퇴장 13 · 작은 줄 13)을 먼저 지키고, 남는 높이는
- * 시계(48.3까지) → 버튼(동그라미 둘) → 시계(목표 49.1까지) → 점수 → 일시 퇴장 줄 수 순으로 나눈다. 하한이 안 들어가면 작은 줄을 먼저 숨기고, 그래도 모자라면
+ * 하한(MIN_*)을 먼저 지키고, 남는 높이는 시계·점수가 버튼 셋 배치였다면 받았을 크기까지 먼저 받은 뒤
+ * 버튼(동그라미 둘) → 시계·점수 나머지 → 일시 퇴장 줄 수 순으로 나눈다. 하한이 안 들어가면 작은 줄을 먼저 숨기고, 그래도 모자라면
  * 모두 같은 비율(shrink)로 줄인다. 단위는 dp.
  */
 data class MainLayout(
@@ -92,12 +92,7 @@ data class MainLayout(
         internal const val CLOCK_EM = 2.9
         internal const val SCORE_EM = 2.0
         internal const val MAX_CLOCK_FONT = 56.0
-        /** 시계 글자 목표(버튼이 커져도 이만큼은 간다)와 버튼보다 먼저 받는 몫 */
-        internal const val CLOCK_FONT_GOAL = 49.1
-        internal const val CLOCK_FONT_FIRST = 48.3
         internal const val MAX_SCORE_FONT = 40.0
-        /** 작은 줄을 보이려면 하한에 더해 이만큼 더 남아야 한다. 아니면 작은 줄 대신 버튼을 키운다 */
-        internal const val SUB_CLOCK_SLACK = 20.0
         internal const val MAX_SIN_BIN_LINES = 3
         internal const val MAX_BUTTON_HEIGHT = 56.0
 
@@ -113,7 +108,11 @@ data class MainLayout(
         fun headerBand(diameter: Double): Double = WatchScale(max(0.0, diameter)).scaled(HEADER_FONT) * HEADER_BAND_LEADING
 
         /** 원형 화면 (Wear OS). diameter는 화면 지름, headerBand는 상단 곡선 띠 높이(글자 크기 × 1.25). */
-        fun round(diameter: Double, headerBand: Double): MainLayout {
+        fun round(diameter: Double, headerBand: Double): MainLayout = layout(diameter, headerBand, buttonCount = 2)
+
+        /** buttonCount 3은 예전 배치(시계 → 점수 → 줄 수 → 버튼). 둘일 때 시계·점수의 하한을 구하는 데만 쓴다 */
+        private fun layout(diameter: Double, headerBand: Double, buttonCount: Int): MainLayout {
+            val reference = if (buttonCount == 2) layout(diameter, headerBand, 3) else null
             val d = max(0.0, diameter)
             val center = Point(d / 2, d / 2)
             val lineWidth = (d * 0.03).coerceIn(4.0, 6.5)
@@ -138,9 +137,9 @@ data class MainLayout(
                 return max(contentTop, top)
             }
 
-            fun buttonRowWidth(h: Double) = min(radius * 2, h * 2 + BUTTON_SPACING)
+            fun buttonRowWidth(h: Double) = min(radius * 2, h * buttonCount + BUTTON_SPACING * (buttonCount - 1))
 
-            /** 지름 h인 동그라미 버튼 둘이 들어가는 가장 아래 끝 (Swift buttonLift의 원형판) */
+            /** 지름 h인 동그라미 버튼들이 들어가는 가장 아래 끝 (Swift buttonLift의 원형판) */
             fun buttonsBottom(h: Double) = center.y + halfChord(buttonRowWidth(h) / 2)
 
             fun available(scale: Double) =
@@ -154,7 +153,8 @@ data class MainLayout(
             val withoutSubClock = MIN_BUTTON_HEIGHT + clockRowMin + scoreRowMin + sinBinRowMin
             // 하한이 안 들어가면 ① 작은 줄을 숨기고 ② 그래도 모자라면 모두 같은 비율로 줄인다.
             // 줄이면 버튼 줄·시계 줄이 좁아져 원의 더 넓은 곳까지 내려갈 수 있으므로 비율은 이분법으로 찾는다
-            val subClockHidden = available(1.0) < withoutSubClock + subClockRowMin + SUB_CLOCK_SLACK
+            // 버튼 둘일 때도 숨김 여부는 버튼 셋 배치와 같게 둔다 (작은 줄이 보이는 화면이 늘어 시계 자리가 줄지 않게)
+            val subClockHidden = reference?.subClockHidden ?: (available(1.0) < withoutSubClock + subClockRowMin)
             val minimum = if (subClockHidden) withoutSubClock else withoutSubClock + subClockRowMin
             val shrink = if (available(1.0) >= minimum) 1.0 else largest(1.0) { available(it) >= it * minimum }
             val top = clockTop(MIN_CLOCK_FONT * shrink)
@@ -175,31 +175,36 @@ data class MainLayout(
             }
 
             val cellWidth = max(0.0, (radius * 2 - DIVIDER_GAP) / 2)
-            val clockCap = max(MIN_CLOCK_FONT, min(min(MAX_CLOCK_FONT, radius * 2 / CLOCK_EM), CLOCK_FONT_GOAL))
-            val clockFirst = min(clockCap, CLOCK_FONT_FIRST)
-            // 원에서는 시계가 커지면 줄도 그 폭의 현까지 내려가야 한다. 내려가는 높이도 시계가 받은 몫에서 쓴다.
-            // 시계는 먼저 CLOCK_FONT_FIRST까지만 받고, 버튼이 받은 뒤 남는 높이로 목표까지 더 큰다
-            val clockGrown = grow(spare, clockFirst - MIN_CLOCK_FONT) { x ->
+            val clockCap = max(MIN_CLOCK_FONT, min(MAX_CLOCK_FONT, radius * 2 / CLOCK_EM))
+            val scoreCap = max(MIN_SCORE_FONT, min(MAX_SCORE_FONT, cellWidth / SCORE_EM))
+            // 시계·점수가 버튼보다 먼저 받는 크기: 둘일 때는 버튼 셋 배치의 값, 셋일 때는 상한까지
+            val clockFirst = if (reference == null) clockCap else min(clockCap, max(MIN_CLOCK_FONT, reference.clockFontSize / shrink))
+            val scoreFirst = if (reference == null) scoreCap else min(scoreCap, max(MIN_SCORE_FONT, reference.scoreFontSize / shrink))
+            // 원에서는 시계가 커지면 줄도 그 폭의 현까지 내려가야 한다. 내려가는 높이도 시계가 받은 몫에서 쓴다
+            val clockWant = if (reference == null) (clockFirst - MIN_CLOCK_FONT) / CLOCK_FILL else spare
+            val clockGrown = grow(clockWant, clockFirst - MIN_CLOCK_FONT) { x ->
                 clockTop((MIN_CLOCK_FONT + x) * shrink) - top + x * shrink / CLOCK_FILL
             }
+            val scoreGrown = take((scoreFirst - MIN_SCORE_FONT) / SCORE_FILL) * SCORE_FILL
             // 버튼이 커지면 버튼 줄이 넓어져 위로 올라가야 한다. 올라가는 높이도 버튼이 받은 몫에서 쓴다
-            val buttonHeight = (
+            fun growButtons() = (
                 MIN_BUTTON_HEIGHT + grow(spare, MAX_BUTTON_HEIGHT - MIN_BUTTON_HEIGHT) { x ->
                     x * shrink + baseBottom - buttonsBottom((MIN_BUTTON_HEIGHT + x) * shrink)
                 }
                 ) * shrink
+            var buttonHeight = if (reference != null) growButtons() else 0.0
             val clockBase = MIN_CLOCK_FONT + clockGrown
             val clockMore = grow(spare, clockCap - clockBase) { y ->
                 clockTop((clockBase + y) * shrink) - clockTop(clockBase * shrink) + y * shrink / CLOCK_FILL
             }
             var clockFont = (clockBase + clockMore) * shrink
-            val scoreCap = max(MIN_SCORE_FONT, min(MAX_SCORE_FONT, cellWidth / SCORE_EM))
-            var scoreFont = (MIN_SCORE_FONT + take((scoreCap - MIN_SCORE_FONT) / SCORE_FILL) * SCORE_FILL) * shrink
+            var scoreFont = (MIN_SCORE_FONT + scoreGrown + take((scoreCap - MIN_SCORE_FONT - scoreGrown) / SCORE_FILL) * SCORE_FILL) * shrink
             var lines = 1
             while (lines < MAX_SIN_BIN_LINES && spare >= sinBinRowMin) {
                 spare -= sinBinRowMin
                 lines += 1
             }
+            if (reference == null) buttonHeight = growButtons()
             val sinBinFont = MIN_SIN_BIN_FONT * shrink
             val subClockFont = MIN_SIN_BIN_FONT * shrink
 
