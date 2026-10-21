@@ -99,21 +99,46 @@ class MainLayoutTests {
         }
     }
 
-    /** 둥근 버튼 셋(폭 ≥ 높이, 간격 6)이 버튼 줄에 들어간다 */
-    @Test fun roundButtonsThreeFitChord() {
+    /** 둥근 버튼 둘(폭 ≥ 지름 2개 + 간격 6)이 버튼 줄에 들어간다 */
+    @Test fun roundButtonsTwoFitChord() {
         for (d in diameters) for (band in bands) {
             val l = MainLayout.round(d, band)
-            assertTrue(l.buttons.width >= 3 * l.buttonHeight + 2 * MainLayout.BUTTON_SPACING - 0.001, "$d ${l.buttons}")
+            assertTrue(l.buttons.width >= 2 * l.buttonHeight + MainLayout.BUTTON_SPACING - 0.001, "$d ${l.buttons}")
             for (c in l.buttons.corners) assertTrue(l.inside(c), "$d $c")
         }
     }
 
-    /** 가장 작은 원형: 작은 줄을 먼저 숨기고, 그래도 모자라면 모두 같은 비율로 줄인다 */
+    /** 버튼이 둘로 줄어 남는 자리는 동그라미를 키우되, 시계·점수는 10-21 값 아래로 내려가지 않는다 */
+    @Test fun twoButtonsGrowWhileClockKeeps() {
+        // 지름 to (시계, 점수, 버튼) — 버튼 셋 때의 값 (10-21 측정)
+        val before = mapOf(216.0 to Triple(48.20, 30.0, 44.0), 227.0 to Triple(47.87, 30.0, 44.0), 240.0 to Triple(49.03, 40.0, 46.15))
+        for ((d, v) in before) {
+            val l = MainLayout.round(d, MainLayout.headerBand(d))
+            assertTrue(l.buttonHeight >= v.third * 1.15, "$d 버튼 ${l.buttonHeight}")
+            assertTrue(l.clockFontSize >= v.first - 0.01, "$d 시계 ${l.clockFontSize}")
+            assertTrue(l.scoreFontSize >= v.second - 0.01, "$d 점수 ${l.scoreFontSize}")
+        }
+        val small = MainLayout.round(192.0, MainLayout.headerBand(192.0))
+        assertTrue(small.shrink >= 0.911, "shrink ${small.shrink}")
+        assertTrue(small.buttonHeight >= 40.08, "버튼 ${small.buttonHeight}")
+    }
+
+    /** 큰 글자로 띠가 두 배가 돼도 모든 칸이 원 안이고 팀 칸이 버튼 줄을 넘지 않는다 */
+    @Test fun twoButtonsFitWithLargeBand() {
+        for (d in diameters) {
+            val l = MainLayout.round(d, MainLayout.headerBand(d) * 2)
+            val boxes = mapOf("clock" to l.clock, "subClock" to l.subClock, "home" to l.home, "away" to l.away, "buttons" to l.buttons)
+            for ((box, rect) in boxes) for (c in rect.corners) assertTrue(l.inside(c), "$d $box $rect")
+            assertTrue(l.teams.maxY <= l.buttons.minY + 0.001, "$d ${l.teams} ${l.buttons}")
+        }
+    }
+
+    /** 가장 작은 원형: 작은 줄을 먼저 숨기고, 그래도 모자라면 모두 같은 비율로 줄인다 (버튼이 둘이라 192에서는 숨기기만으로 들어간다) */
     @Test fun smallestRoundHidesSubClockBeforeShrinking() {
         val l = MainLayout.round(192.0, 16.0)
         assertTrue(l.subClockHidden)
         assertEquals(0.0, l.subClock.height)
-        assertTrue(l.shrink < 1)
+        assertTrue(l.shrink <= 1)
         assertTrue(l.buttonHeight >= 44 * l.shrink - 0.001, "${l.buttonHeight} ${l.shrink}")
         assertTrue(l.clockFontSize >= 44 * l.shrink - 0.001, "${l.clockFontSize} ${l.shrink}")
         assertTrue(l.scoreFontSize >= 30 * l.shrink - 0.001, "${l.scoreFontSize} ${l.shrink}")
