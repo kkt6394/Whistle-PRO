@@ -47,6 +47,9 @@ val MatchState.eventRows: List<EventRow>
 /** 명단이 있으면 번호 뒤에 이름을 붙인다 ("#10 홍길동"). */
 fun MatchState.eventRows(setup: MatchSetup): List<EventRow> = rows(setup::playerName)
 
+/** 마지막 확정 이벤트 한 줄 (Swift `lastEventRow`). 없으면 null. 화면 읽기에 쓴다. */
+fun MatchState.lastEventRow(setup: MatchSetup): EventRow? = eventRows(setup).firstOrNull()
+
 private fun MatchState.rows(name: (Team, Long?) -> String?): List<EventRow> = resolvedEvents.reversed().map { r ->
     val team = r.event.payload.team
     fun label(number: Long?): String? {

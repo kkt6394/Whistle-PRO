@@ -31,6 +31,28 @@ class EventPresentationTests {
         assertEquals(listOf("#7 → #14", "#4", "#9"), rows.map { it.detail })
     }
 
+    @Test fun lastEventRowIsNewestEvent() {
+        val s = makeState(listOf(start to 0.0,
+            event(EventPayload.Goal(Team.HOME, 9, false)) to 0.0,
+            event(EventPayload.Card(Team.AWAY, 4, CardKind.YELLOW)) to 1379.0))
+        val row = assertNotNull(s.lastEventRow(MatchSetup()))
+        assertEquals(ResolvedEventKind.YELLOW, row.kind)
+        assertEquals("#4", row.detail)
+        assertEquals(s.eventRows(MatchSetup()).first(), row)
+    }
+
+    @Test fun lastEventRowNullWithoutEvents() {
+        assertNull(makeState(listOf(start to 0.0)).lastEventRow(MatchSetup()))
+    }
+
+    @Test fun lastEventRowFallsBackAfterUndo() {
+        val s = makeState(listOf(start to 0.0,
+            event(EventPayload.Goal(Team.HOME, 9, false)) to 0.0,
+            event(EventPayload.Card(Team.AWAY, 4, CardKind.YELLOW)) to 1379.0,
+            CommandKind.Undo to 1380.0))
+        assertEquals(ResolvedEventKind.GOAL, s.lastEventRow(MatchSetup())?.kind)
+    }
+
     @Test fun secondHalfMinutesContinue() {
         val s = makeState(listOf(start to 0.0, end to 2700.0, start to 3600.0,
             event(EventPayload.Goal(Team.AWAY, null, false)) to 4200.0))
