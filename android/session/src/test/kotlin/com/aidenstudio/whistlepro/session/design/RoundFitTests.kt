@@ -30,4 +30,31 @@ class RoundFitTests {
     @Test fun cornerLargerThanRadiusIsClamped() {
         assertEquals(192.0, RoundFit.width(192.0, 0.0, 500.0))
     }
+
+    @Test fun circleTakesGivenHeightWhenItFits() {
+        assertEquals(85.0, RoundFit.circleDiameter(192.0, 28.8, 85.0), 1e-9)
+    }
+
+    @Test fun circleIsLimitedByRoundScreenMargin() {
+        // 높이가 넉넉해도 아래가 좌우 여백까지 원 안: 192 - 여백 9.984 - 위 28.8
+        assertEquals(153.216, RoundFit.circleDiameter(192.0, 28.8, 200.0), 1e-9)
+        // 그 크기의 원은 정말 화면 원 안
+        val d = RoundFit.circleDiameter(192.0, 28.8, 200.0)
+        val center = 28.8 + d / 2
+        assertTrue(kotlin.math.abs(center - 96.0) + d / 2 <= 96.0 - 192.0 * RoundFit.SIDE_MARGIN + 1e-9)
+    }
+
+    @Test fun circleHasMinimumSize() {
+        assertEquals(44.0, RoundFit.circleDiameter(192.0, 28.8, 30.0))
+    }
+
+    @Test fun bandNearCenterUsesSideMarginWidth() {
+        assertEquals(192.0 * (1 - 2 * RoundFit.SIDE_MARGIN), RoundFit.bandWidth(192.0, 100.0, 130.0), 1e-9)
+    }
+
+    @Test fun bandCornersStayInsideCircle() {
+        val width = RoundFit.bandWidth(192.0, 120.0, 150.0)
+        assertEquals(158.74, width, 0.01)
+        assertTrue(hypot(width / 2, 150.0 - 96.0) <= 96.0 + 1e-9)
+    }
 }
