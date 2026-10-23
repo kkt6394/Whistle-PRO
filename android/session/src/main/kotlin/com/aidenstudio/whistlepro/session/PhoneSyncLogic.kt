@@ -40,6 +40,20 @@ sealed interface ReceiveResult {
 }
 
 /**
+ * 디스크 작업을 돌릴 곳. 이 모듈은 코루틴 라이브러리를 쓰지 않아(워치와 버전을 맞추려고) 앱이 넘긴다:
+ * 폰 앱은 입출력 스레드로 옮겨 메인 스레드가 큰 경기 파일 쓰기(fsync 포함)에 막히지 않게 한다. 기본은 그 자리에서
+ */
+interface DiskRunner {
+    suspend fun <T> run(block: () -> T): T
+
+    companion object {
+        val Inline: DiskRunner = object : DiskRunner {
+            override suspend fun <T> run(block: () -> T): T = block()
+        }
+    }
+}
+
+/**
  * 워치에서 끝난 경기를 받아 저장하고 확인을 보내고, 프리셋과 구독 상태를 워치로 보내는 규칙.
  * Swift PhoneSync를 링크 인터페이스 위로 옮긴 것이다. 메인 스레드(한 스레드)에서 부른다.
  */
@@ -53,6 +67,8 @@ class PhoneSyncLogic(
     private val currentContext: () -> Pair<List<MatchPreset>, Entitlement>?,
     /** Unix 초 (컨텍스트의 보낸 시각) */
     private val clock: () -> Double = { System.currentTimeMillis() / 1000.0 },
+    /** 받은 경기 해석·저장을 돌릴 곳 */
+    private val disk: DiskRunner = DiskRunner.Inline,
 ) {
     private val delivery = ContextDelivery<Pair<List<MatchPreset>, Entitlement>>()
 
@@ -102,13 +118,16 @@ class PhoneSyncLogic(
     suspend fun receive(matchID: UUID?, bytes: ByteArray?): ReceiveResult {
         // 바이트가 없다 = Asset을 가져오지 못했다(실패·timeout): 형식 문제가 아니므로 답하지 않는다 (워치가 10분 뒤·다음 실행에 다시 보낸다)
         if (bytes == null) return ReceiveResult.Failed
-        val bundle = runCatching { MatchBundle.fromJson(parseJsonObject(bytes)) }.getOrNull()
+        // 해석·저장은 [disk]에서: 90분 GPS 경기는 수백 KB라 메인 스레드에서 쓰면 화면이 멈칫한다
+        val bundle = disk.run { runCatching { MatchBundle.fromJson(parseJsonObject(bytes)) }.getOrNull() }
         if (bundle == null) {
             if (matchID != null) reply(SyncPayload.unsupported(matchID))
             return ReceiveResult.Unsupported
         }
         val stored = try {
-            library.upsert(bundle)
+            disk.run { library.upsert(bundle) }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             return ReceiveResult.Failed
         }

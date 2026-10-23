@@ -150,4 +150,18 @@ class PhoneSyncLogicTests {
         // Data Layer DataItem 한도(100KB) 안에 든다 (base64로 커져도)
         assertTrue(link.contextSizes.single() < 100 * 1024, "크기 ${link.contextSizes.single()}")
     }
+
+    /** 받은 경기 해석·저장은 넘겨받은 DiskRunner 안에서 한다 (폰 앱은 입출력 스레드를 넘긴다) */
+    @Test fun receiveParsesAndStoresThroughDiskRunner() = runTest {
+        var calls = 0
+        val counting = object : DiskRunner {
+            override suspend fun <T> run(block: () -> T): T { calls += 1; return block() }
+        }
+        val counted = PhoneSyncLogic(library, link, { current }, clock = { 42.0 }, disk = counting)
+        val bundle = bundle()
+        val result = counted.receive(bundle.id, bytes(bundle))
+        assertTrue(result is ReceiveResult.Stored, "$result")
+        assertEquals(2, calls, "해석 1번 + 저장 1번")
+        assertTrue(library.received(listOf(bundle.id)).contains(bundle.id))
+    }
 }
