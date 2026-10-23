@@ -25,8 +25,8 @@ data class Rect(val x: Double, val y: Double, val width: Double, val height: Dou
  * - 테두리 안: 시계 줄 · 작은 줄(남은 시간·정지시간) · 팀 칸(홈 | 원정) · 버튼 줄(동그라미 둘). 각 줄의 폭은 그 줄 높이 범위에서
  *   가장 좁은 내용 원의 현이라 네 모서리가 모두 원 안에 든다
  * 하한(MIN_*)을 먼저 지키고, 남는 높이는 시계·점수가 버튼 셋 배치였다면 받았을 크기까지 먼저 받은 뒤
- * 버튼(동그라미 둘) → 시계·점수 나머지 → 일시 퇴장 줄 수 순으로 나눈다. 하한이 안 들어가면 작은 줄을 먼저 숨기고, 그래도 모자라면
- * 모두 같은 비율(shrink)로 줄인다. 단위는 dp.
+ * 버튼(동그라미 둘) → 시계·점수 나머지 → 일시 퇴장 줄 수 순으로 나눈다. 하한이 안 들어가면 모두 같은 비율(shrink)로 줄인다.
+ * 작은 줄은 어느 크기에서도 숨기지 않는다 (2026-10-23 사용자 결정: 모든 시계가 같은 구성, 애플워치와 같게). 단위는 dp.
  */
 data class MainLayout(
     val lineWidth: Double,
@@ -40,7 +40,7 @@ data class MainLayout(
     val headerSweepDegrees: Double,
     val headerFontSize: Double,
     val clock: Rect,
-    /** 큰 시계 바로 아래 작은 줄: 남은 시간(또는 경과·45+2:13)과 정지시간. 숨기면 높이 0 */
+    /** 큰 시계 바로 아래 작은 줄: 남은 시간(또는 경과·45+2:13)과 정지시간 */
     val subClock: Rect,
     val teams: Rect,
     val home: Rect,
@@ -55,8 +55,6 @@ data class MainLayout(
     val sinBinLines: Int,
     /** 하한이 안 들어가 모두 줄인 비율 (1이면 하한 그대로 이상) */
     val shrink: Double,
-    /** 하한이 안 들어가 작은 줄을 숨겼다 */
-    val subClockHidden: Boolean,
 ) {
     val buttonHeight: Double get() = buttons.height
 
@@ -156,12 +154,9 @@ data class MainLayout(
             val scoreRowMin = MIN_SCORE_FONT / SCORE_FILL
             val sinBinRowMin = MIN_SIN_BIN_FONT * SIN_BIN_LEADING
             val subClockRowMin = MIN_SIN_BIN_FONT * SIN_BIN_LEADING
-            val withoutSubClock = MIN_BUTTON_HEIGHT + clockRowMin + scoreRowMin + sinBinRowMin
-            // 하한이 안 들어가면 ① 작은 줄을 숨기고 ② 그래도 모자라면 모두 같은 비율로 줄인다.
+            val minimum = MIN_BUTTON_HEIGHT + clockRowMin + scoreRowMin + sinBinRowMin + subClockRowMin
+            // 하한이 안 들어가면 모두 같은 비율로 줄인다.
             // 줄이면 버튼 줄·시계 줄이 좁아져 원의 더 넓은 곳까지 내려갈 수 있으므로 비율은 이분법으로 찾는다
-            // 버튼 둘일 때도 숨김 여부는 버튼 셋 배치와 같게 둔다 (작은 줄이 보이는 화면이 늘어 시계 자리가 줄지 않게)
-            val subClockHidden = reference?.subClockHidden ?: (available(1.0) < withoutSubClock + subClockRowMin)
-            val minimum = if (subClockHidden) withoutSubClock else withoutSubClock + subClockRowMin
             val shrink = if (available(1.0) >= minimum) 1.0 else largest(1.0) { available(it) >= it * minimum }
             val top = clockTop(MIN_CLOCK_FONT * shrink)
             val baseBottom = buttonsBottom(MIN_BUTTON_HEIGHT * shrink)
@@ -220,7 +215,7 @@ data class MainLayout(
             clockFont = min(clockFont, clock.width / CLOCK_EM)
             val rowWidth = buttonRowWidth(buttonHeight)
             val buttons = Rect(center.x - rowWidth / 2, buttonsBottom(buttonHeight) - buttonHeight, rowWidth, buttonHeight)
-            val subClock = row(clock.maxY, if (subClockHidden) 0.0 else subClockFont * SIN_BIN_LEADING)
+            val subClock = row(clock.maxY, subClockFont * SIN_BIN_LEADING)
             // 팀 칸은 작은 줄과 버튼 줄 사이를 모두 쓴다 (남은 높이는 칸이 받는다)
             val teamsTop = subClock.maxY + GAP
             val teams = row(teamsTop, buttons.minY - GAP - teamsTop)
@@ -255,7 +250,6 @@ data class MainLayout(
                 sinBinRowHeight = sinBinFont * SIN_BIN_LEADING,
                 sinBinLines = lines,
                 shrink = shrink,
-                subClockHidden = subClockHidden,
             )
         }
 

@@ -5,7 +5,6 @@ import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /** Wear OS 원형 메인 배치 (B1 §3을 원에 적용). 지름(dp): 192 가장 작은 원형, 216 갤럭시 40mm, 227·240 갤럭시 44mm급 */
@@ -95,14 +94,13 @@ class MainLayoutTests {
             assertTrue(l.scoreFontSize >= 30, "$name ${l.scoreFontSize}")
             assertTrue(l.sinBinFontSize >= 13, "$name ${l.sinBinFontSize}")
             assertTrue(l.subClockFontSize >= 13, "$name ${l.subClockFontSize}")
-            assertFalse(l.subClockHidden, name)
             assertTrue(l.subClock.height >= l.subClockFontSize, "$name ${l.subClock}")
             assertEquals(1.0, l.shrink, name)
             assertTrue(l.sinBinLines >= 1)
         }
     }
 
-    /** 갤럭시 40mm: 작은 줄은 숨겨도 되지만 버튼·시계는 (거의) 하한 그대로 */
+    /** 갤럭시 40mm: 작은 줄을 보이면서 버튼·시계는 (거의) 하한 그대로 */
     @Test fun galaxy40KeepsButtonsAndClock() {
         for (band in bands) {
             val l = MainLayout.round(216.0, band)
@@ -124,8 +122,8 @@ class MainLayoutTests {
 
     /** 버튼이 둘로 줄어 남는 자리는 동그라미를 키우되, 시계·점수는 10-21 값 아래로 내려가지 않는다 */
     @Test fun twoButtonsGrowWhileClockKeeps() {
-        // 지름 to (시계, 점수, 버튼) — 버튼 셋 때의 값 (abdae68 측정)
-        val before = mapOf(216.0 to Triple(48.20, 30.0, 44.0), 227.0 to Triple(47.87, 30.0, 44.0), 240.0 to Triple(49.03, 40.0, 46.15))
+        // 지름 to (시계, 점수, 버튼) — 버튼 셋 때의 값 (abdae68 측정). 216은 작은 줄을 늘 보이게 한 뒤(2026-10-23) 시계가 하한 44
+        val before = mapOf(216.0 to Triple(44.0, 30.0, 44.0), 227.0 to Triple(47.87, 30.0, 44.0), 240.0 to Triple(49.03, 40.0, 46.15))
         for ((d, v) in before) {
             val l = MainLayout.round(d, MainLayout.headerBand(d))
             assertTrue(l.buttonHeight >= v.third + 2.0, "$d 버튼 ${l.buttonHeight}")
@@ -142,13 +140,12 @@ class MainLayoutTests {
         for (d in diameters) checkLayout(d, MainLayout.headerBand(d) * 2)
     }
 
-    /** 작은 줄을 숨길지는 버튼 셋 때와 같다 (큰 띠 포함). abdae68 측정 */
-    @Test fun subClockHiddenKeepsPreviousRule() {
-        for ((d, hidden) in listOf(192.0 to true, 216.0 to true, 227.0 to false, 240.0 to false)) {
-            assertEquals(hidden, MainLayout.round(d, MainLayout.headerBand(d)).subClockHidden, "지름 $d")
-        }
-        for ((d, hidden) in listOf(192.0 to true, 216.0 to true, 227.0 to true, 240.0 to false)) {
-            assertEquals(hidden, MainLayout.round(d, MainLayout.headerBand(d) * 2).subClockHidden, "큰 띠 지름 $d")
+    /** 작은 줄은 어느 크기·큰 띠에서도 숨기지 않는다 (2026-10-23 사용자 결정: 모든 시계가 같은 구성) */
+    @Test fun subClockAlwaysShown() {
+        for (d in diameters) for (band in listOf(MainLayout.headerBand(d), MainLayout.headerBand(d) * 2)) {
+            val l = MainLayout.round(d, band)
+            assertTrue(l.subClock.height >= l.subClockFontSize, "지름 $d 띠 $band ${l.subClock}")
+            assertEquals(13 * l.shrink, l.subClockFontSize, 1e-9)
         }
     }
 
@@ -176,25 +173,20 @@ class MainLayoutTests {
         }
     }
 
-    /** 가장 작은 원형: 작은 줄을 먼저 숨기고, 그래도 모자라면 모두 같은 비율로 줄인다 (버튼이 둘이라 192에서는 숨기기만으로 들어간다) */
-    @Test fun smallestRoundHidesSubClockBeforeShrinking() {
+    /** 가장 작은 원형: 작은 줄을 숨기지 않고 모두 같은 비율로 줄인다 */
+    @Test fun smallestRoundShrinksWithSubClock() {
         val l = MainLayout.round(192.0, 16.0)
-        assertTrue(l.subClockHidden)
-        assertEquals(0.0, l.subClock.height)
-        assertTrue(l.shrink <= 1)
+        assertTrue(l.subClock.height > 0)
+        assertTrue(l.shrink < 1)
         assertTrue(l.buttonHeight >= 44 * l.shrink - 0.001, "${l.buttonHeight} ${l.shrink}")
         assertTrue(l.clockFontSize >= 44 * l.shrink - 0.001, "${l.clockFontSize} ${l.shrink}")
         assertTrue(l.scoreFontSize >= 30 * l.shrink - 0.001, "${l.scoreFontSize} ${l.shrink}")
-        // 숨기기만으로 들어가는 216에서는 줄이지 않는다
-        val galaxy40 = MainLayout.round(216.0, 16.0)
-        assertTrue(galaxy40.subClockHidden || galaxy40.shrink == 1.0)
     }
 
     /** 큰 화면에서는 시계·점수·띠 글자가 커진다 */
     @Test fun largestWatchGrowsEverything() {
         val large = MainLayout.round(240.0, 16.0)
         val small = MainLayout.round(216.0, 16.0)
-        // 버튼은 216이 작은 줄을 숨겨 자리가 더 나므로 큰 쪽이 더 크다고 단정하지 않는다 (둘 다 하한보다 크기만 본다)
         assertTrue(large.clockFontSize > small.clockFontSize, "${large.clockFontSize} ${small.clockFontSize}")
         assertTrue(large.scoreFontSize > small.scoreFontSize, "${large.scoreFontSize} ${small.scoreFontSize}")
         assertTrue(large.buttonHeight > 44 && large.clockFontSize > 44 && large.scoreFontSize > 30)
