@@ -60,3 +60,16 @@ object Palette {
     /** 배경·카드 위에 글자·아이콘으로 쓰는 색 (대비 검사 대상) */
     val foregrounds = listOf(accent, added, rest, danger, caution, textPrimary, textSecondary)
 }
+
+/**
+ * 흰 종이(경기 보고서 PDF·이미지) 위 팀 색. 종이와 대비가 [OUTLINE_CONTRAST]보다 낮은 색(흰색·노랑 등)은
+ * 띠·점에 [OUTLINE] 테두리를 둘러 종이에 묻히지 않게 한다 (Swift `PaperMark`와 같은 값)
+ */
+object PaperMark {
+    const val OUTLINE_CONTRAST = 2.0
+    /** 테두리 색 0xRRGGBB */
+    const val OUTLINE = 0xB0B0B0
+    private val PAPER = RGB.hex(0xFFFFFF)
+
+    fun needsOutline(color: RGB): Boolean = RGB.contrast(color, PAPER) < OUTLINE_CONTRAST
+}

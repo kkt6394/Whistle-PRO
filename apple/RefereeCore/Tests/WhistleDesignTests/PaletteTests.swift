@@ -61,4 +61,10 @@ struct PaletteTests {
         // 이미 잘 보이는 색은 그대로
         #expect(TeamColor.red.markOnDark == RGB(red: TeamColor.red.red, green: TeamColor.red.green, blue: TeamColor.red.blue))
     }
+
+    /// 보고서 흰 종이: 흰색·노랑 견본은 테두리가 필요하고, 빨강·파랑·검정·남색은 필요 없다 (Kotlin과 같은 값)
+    @Test func paperOutlineForLightTeamColors() {
+        for hex: UInt32 in [0xFFFFFF, 0xFFCC00] { #expect(PaperMark.needsOutline(RGB(hex: hex)), "\(hex)") }
+        for hex: UInt32 in [0xFF3B30, 0x007AFF, 0x000000, 0x1C2B5A] { #expect(!PaperMark.needsOutline(RGB(hex: hex)), "\(hex)") }
+    }
 }

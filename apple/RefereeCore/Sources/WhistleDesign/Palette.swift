@@ -110,6 +110,23 @@ public enum Theme {
     public static let textSecondary = Palette.textSecondary.color
 }
 
+/// 흰 종이(경기 보고서 PDF·이미지) 위 팀 색. 종이와 대비가 `outlineContrast`보다 낮은 색(흰색·노랑 등)은
+/// 띠·점에 `outline` 테두리를 둘러 종이에 묻히지 않게 한다 (Kotlin `PaperMark`와 같은 값)
+public enum PaperMark {
+    public static let outlineContrast = 2.0
+    public static let outline = RGB(hex: 0xB0B0B0)
+    private static let paper = RGB(hex: 0xFFFFFF)
+
+    public static func needsOutline(_ color: RGB) -> Bool {
+        RGB.contrast(color, paper) < outlineContrast
+    }
+
+    /// 주색이나 보조 색 중 하나라도 테두리가 필요하면 true
+    public static func needsOutline(primary: TeamColor, secondary: TeamColor?) -> Bool {
+        [primary, secondary].compactMap { $0 }.contains { needsOutline(RGB(red: $0.red, green: $0.green, blue: $0.blue)) }
+    }
+}
+
 /// 팀 색 (sRGB 코드) → 화면 색. 워치·아이폰이 같이 쓴다
 extension TeamColor {
     public var color: Color { Color(.sRGB, red: red, green: green, blue: blue) }

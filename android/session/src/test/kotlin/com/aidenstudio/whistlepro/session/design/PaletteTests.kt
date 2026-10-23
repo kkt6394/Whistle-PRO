@@ -46,4 +46,10 @@ class PaletteTests {
         assertEquals(white, RGB.mix(black, white, 2.0))
         assertEquals(black, RGB.mix(black, white, -1.0))
     }
+
+    /** 보고서 흰 종이: 흰색·노랑 견본은 테두리가 필요하고, 빨강·파랑·검정·남색은 필요 없다 */
+    @Test fun paperOutlineForLightTeamColors() {
+        for (hex in listOf(0xFFFFFF, 0xFFCC00)) assertTrue(PaperMark.needsOutline(RGB.hex(hex)), "%06X".format(hex))
+        for (hex in listOf(0xFF3B30, 0x007AFF, 0x000000, 0x1C2B5A)) assertTrue(!PaperMark.needsOutline(RGB.hex(hex)), "%06X".format(hex))
+    }
 }
