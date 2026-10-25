@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -23,13 +24,25 @@ dependencies {
     testImplementation(libs.coroutines.test)
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.asm)
     testRuntimeOnly(libs.junit.launcher)
 }
+
+// Android SDK 위치: local.properties의 sdk.dir, 없으면 ANDROID_HOME (README "빌드")
+val androidSdk: String? = Properties().run {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use(::load)
+    getProperty("sdk.dir")
+} ?: System.getenv("ANDROID_HOME")
 
 tasks.test {
     useJUnitPlatform()
     // Swift가 만든 공용 픽스처 위치 (저장소 루트/shared/fixtures)
     systemProperty("fixtureDir", rootProject.projectDir.resolve("../shared/fixtures").canonicalPath)
+    // AndroidApiCompatibilityTests: 이 모듈·:core가 참조하는 java.* 멤버를 폰 minSdk 26의 android.jar와 대조한다
+    // (순수 JVM 모듈은 lint NewApi를 받지 않는다. `sdkmanager "platforms;android-26"`로 설치)
+    systemProperty("androidJar", "${androidSdk ?: ""}/platforms/android-26/android.jar")
+    systemProperty("androidRoot", rootProject.projectDir.canonicalPath)
     testLogging {
         events("failed")
         exceptionFormat = TestExceptionFormat.FULL
