@@ -66,6 +66,8 @@ data class MainLayout(
         const val MIN_CLOCK_FONT = 44.0
         const val MIN_SCORE_FONT = 30.0
         const val MIN_SIN_BIN_FONT = 13.0
+        /** 큰 시계 아래 작은 줄(남은 시간) 글자. 일시 퇴장 줄보다 크게 — 작고 회색이라 안 보인다는 피드백(2026-10-26) */
+        const val SUB_CLOCK_FONT = 17.0
         /** 두 팀 칸 사이 (가운데에 1dp 선) */
         const val DIVIDER_GAP = 6.0
         /** 버튼 둘 사이 간격 */
@@ -153,7 +155,7 @@ data class MainLayout(
             val clockRowMin = MIN_CLOCK_FONT / CLOCK_FILL
             val scoreRowMin = MIN_SCORE_FONT / SCORE_FILL
             val sinBinRowMin = MIN_SIN_BIN_FONT * SIN_BIN_LEADING
-            val subClockRowMin = MIN_SIN_BIN_FONT * SIN_BIN_LEADING
+            val subClockRowMin = SUB_CLOCK_FONT * SIN_BIN_LEADING
             val minimum = MIN_BUTTON_HEIGHT + clockRowMin + scoreRowMin + sinBinRowMin + subClockRowMin
             // 하한이 안 들어가면 모두 같은 비율로 줄인다.
             // 줄이면 버튼 줄·시계 줄이 좁아져 원의 더 넓은 곳까지 내려갈 수 있으므로 비율은 이분법으로 찾는다
@@ -207,7 +209,7 @@ data class MainLayout(
             }
             if (reference == null) buttonHeight = growButtons()
             val sinBinFont = MIN_SIN_BIN_FONT * shrink
-            val subClockFont = MIN_SIN_BIN_FONT * shrink
+            val subClockFont = SUB_CLOCK_FONT * shrink
 
             val clockRowHeight = max(clockFont, MIN_CLOCK_FONT * shrink) / CLOCK_FILL
             val clock = row(clockTop(clockFont), clockRowHeight)

@@ -93,7 +93,7 @@ class MainLayoutTests {
             assertTrue(l.clockFontSize >= 44, "$name ${l.clockFontSize}")
             assertTrue(l.scoreFontSize >= 30, "$name ${l.scoreFontSize}")
             assertTrue(l.sinBinFontSize >= 13, "$name ${l.sinBinFontSize}")
-            assertTrue(l.subClockFontSize >= 13, "$name ${l.subClockFontSize}")
+            assertTrue(l.subClockFontSize >= 17, "$name ${l.subClockFontSize}")
             assertTrue(l.subClock.height >= l.subClockFontSize, "$name ${l.subClock}")
             assertEquals(1.0, l.shrink, name)
             assertTrue(l.sinBinLines >= 1)
@@ -122,8 +122,9 @@ class MainLayoutTests {
 
     /** 버튼이 둘로 줄어 남는 자리는 동그라미를 키우되, 시계·점수는 10-21 값 아래로 내려가지 않는다 */
     @Test fun twoButtonsGrowWhileClockKeeps() {
-        // 지름 to (시계, 점수, 버튼) — 버튼 셋 때의 값 (abdae68 측정). 216은 작은 줄을 늘 보이게 한 뒤(2026-10-23) 시계가 하한 44
-        val before = mapOf(216.0 to Triple(44.0, 30.0, 44.0), 227.0 to Triple(47.87, 30.0, 44.0), 240.0 to Triple(49.03, 40.0, 46.15))
+        // 지름 to (시계, 점수, 버튼) — 버튼 셋 때의 값 (abdae68 측정). 216은 작은 줄을 늘 보이게 한 뒤(2026-10-23) 시계가 하한 44.
+        // 227은 작은 줄을 17로 키우면서(2026-10-26) 시계가 47.87 → 45.47 (원에서 시계가 커지면 줄이 내려가 비싸다). 240은 그대로
+        val before = mapOf(216.0 to Triple(44.0, 30.0, 44.0), 227.0 to Triple(45.47, 30.0, 44.0), 240.0 to Triple(49.03, 40.0, 46.15))
         for ((d, v) in before) {
             val l = MainLayout.round(d, MainLayout.headerBand(d))
             assertTrue(l.buttonHeight >= v.third + 2.0, "$d 버튼 ${l.buttonHeight}")
@@ -131,8 +132,9 @@ class MainLayoutTests {
             assertTrue(l.scoreFontSize >= v.second - 0.01, "$d 점수 ${l.scoreFontSize}")
         }
         val small = MainLayout.round(192.0, MainLayout.headerBand(192.0))
-        assertTrue(small.shrink >= 0.911, "shrink ${small.shrink}")
-        assertTrue(small.buttonHeight >= 40.08, "버튼 ${small.buttonHeight}")
+        // 작은 줄 17(2026-10-26)로 0.9109 → 0.9108: 사실상 같다
+        assertTrue(small.shrink >= 0.9108, "shrink ${small.shrink}")
+        assertTrue(small.buttonHeight >= 40.07, "버튼 ${small.buttonHeight}")
     }
 
     /** 큰 글자로 띠가 두 배가 돼도 기본 배치와 같은 겹침·원 안 검사를 통과한다 */
@@ -140,12 +142,16 @@ class MainLayoutTests {
         for (d in diameters) checkLayout(d, MainLayout.headerBand(d) * 2)
     }
 
-    /** 작은 줄은 어느 크기·큰 띠에서도 숨기지 않는다 (2026-10-23 사용자 결정: 모든 시계가 같은 구성) */
+    /**
+     * 작은 줄은 어느 크기·큰 띠에서도 숨기지 않는다 (2026-10-23 사용자 결정: 모든 시계가 같은 구성).
+     * 글자는 일시 퇴장 줄(13)보다 큰 17 — "남은 시간이 작고 회색이라 안 보인다"는 테스터 피드백(2026-10-26)
+     */
     @Test fun subClockAlwaysShown() {
         for (d in diameters) for (band in listOf(MainLayout.headerBand(d), MainLayout.headerBand(d) * 2)) {
             val l = MainLayout.round(d, band)
             assertTrue(l.subClock.height >= l.subClockFontSize, "지름 $d 띠 $band ${l.subClock}")
-            assertEquals(13 * l.shrink, l.subClockFontSize, 1e-9)
+            assertEquals(MainLayout.SUB_CLOCK_FONT * l.shrink, l.subClockFontSize, 1e-9)
+            assertTrue(l.subClockFontSize > l.sinBinFontSize, "작은 줄이 일시 퇴장 줄보다 크다")
         }
     }
 
