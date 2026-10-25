@@ -115,6 +115,8 @@ data class MatchSetup(
     val breakWarningBeforeEnd: Long = 300,
     /** GPS 경로 기록 (끄면 배터리를 아끼는 대신 히트맵·스프린트가 없다) */
     val recordsRoute: Boolean = true,
+    /** 경기 중 워치 화면 켜 두기 (손목을 내리면 어두워지되 꺼지지 않는다, 배터리를 더 쓴다). 안드로이드 워치만 (2026-10-26) */
+    val keepsScreenOn: Boolean = true,
     /** 선수 명단 (없으면 등번호만 입력한다) */
     val homeRoster: List<Player> = emptyList(),
     val awayRoster: List<Player> = emptyList(),
@@ -163,6 +165,8 @@ data class MatchSetup(
         put("warningBeforeEnd", JsonPrimitive(warningBeforeEnd))
         put("breakWarningBeforeEnd", JsonPrimitive(breakWarningBeforeEnd))
         put("recordsRoute", JsonPrimitive(recordsRoute))
+        // 기본값(켬)이면 키를 생략한다: Swift가 쓴 기록 JSON과 같아야 한다 (readsSwiftRecord)
+        if (!keepsScreenOn) put("keepsScreenOn", JsonPrimitive(false))
         put("homeRoster", JsonArray(homeRoster.map { it.toJson() }))
         put("awayRoster", JsonArray(awayRoster.map { it.toJson() }))
         competition?.let { put("competition", JsonPrimitive(it)) }
@@ -182,6 +186,7 @@ data class MatchSetup(
             warningBeforeEnd = json.long("warningBeforeEnd"),
             breakWarningBeforeEnd = json.optionalLong("breakWarningBeforeEnd") ?: 300,
             recordsRoute = json.optionalBoolean("recordsRoute") ?: true,
+            keepsScreenOn = json.optionalBoolean("keepsScreenOn") ?: true,
             homeRoster = json.roster("homeRoster"),
             awayRoster = json.roster("awayRoster"),
             competition = json.optionalString("competition"),

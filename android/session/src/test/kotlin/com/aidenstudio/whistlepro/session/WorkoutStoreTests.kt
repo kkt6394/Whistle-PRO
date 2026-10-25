@@ -39,6 +39,15 @@ class WorkoutStoreTests {
         assertEquals(setup, MatchSetup.fromJson(Json.parseToJsonElement(setup.toJson().toString()).jsonObject))
     }
 
+    /** 경기 중 화면 켜 두기(2026-10-26 사용자 결정): 기본 켬, JSON 왕복, 옛 JSON에 키가 없으면 켬 */
+    @Test fun keepsScreenOnRoundTripsAndDefaultsOn() {
+        assertTrue(MatchSetup().keepsScreenOn)
+        val off = MatchSetup(keepsScreenOn = false)
+        assertEquals(off, MatchSetup.fromJson(Json.parseToJsonElement(off.toJson().toString()).jsonObject))
+        assertFalse(MatchSetup.fromJson(Json.parseToJsonElement(off.toJson().toString()).jsonObject).keepsScreenOn)
+        assertTrue(MatchSetup.fromJson(JsonObject(MatchSetup().toJson() - "keepsScreenOn")).keepsScreenOn)
+    }
+
     @Test fun competitionRoundTripsAndOmittedWhenNull() {
         val setup = MatchSetup(competition = "2026 서울 리그")
         assertEquals(setup, MatchSetup.fromJson(Json.parseToJsonElement(setup.toJson().toString()).jsonObject))
