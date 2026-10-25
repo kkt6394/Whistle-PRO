@@ -68,6 +68,8 @@ health-connect-client = { module = "androidx.health.connect:connect-client", ver
 billing-ktx = { module = "com.android.billingclient:billing-ktx", version.ref = "billing" }
 # 앱이 앞으로 올 때(ON_START) 구독을 다시 확인한다
 lifecycle-process = { module = "androidx.lifecycle:lifecycle-process", version.ref = "lifecycle" }
+# 폰 앱 [워치에 설치]: 연결된 워치에 Play 스토어 페이지를 띄운다 (RemoteActivityHelper)
+wear-remote-interaction = { module = "androidx.wear:wear-remote-interactions", version = "1.2.0" }
 espresso-intents = { module = "androidx.test.espresso:espresso-intents", version.ref = "espresso" }
 
 [plugins]
