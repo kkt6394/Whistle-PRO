@@ -121,3 +121,66 @@ extension Heatmap {
             eastWestMeters: (maxLon - minLon) * 111_320 * cos(centerLatitude * .pi / 180))
     }
 }
+
+/// 부드러운 히트맵 격자: 칸마다 머문 양을 둥근 종 모양(가우시안)으로 번지게 더한 값.
+/// 네모 칸을 그대로 칠하면 계단처럼 보여서(2026-10-28 사용자 지적) 그림으로 그릴 때는 이 격자를 쓴다.
+public struct HeatDensity: Equatable, Sendable {
+    /// 가로·세로 픽셀 수
+    public var width: Int
+    public var height: Int
+    /// 줄 단위(첫 줄이 북쪽 끝), 가장 진한 곳이 1
+    public var values: [Double]
+    public var minLatitude: Double
+    public var maxLatitude: Double
+    public var minLongitude: Double
+    public var maxLongitude: Double
+
+    public func value(x: Int, y: Int) -> Double { values[y * width + x] }
+}
+
+extension Heatmap {
+    /// 칸 중심마다 머문 양(count)을 반경 `radiusMeters`(표준편차) 가우시안으로 번지게 더한다.
+    /// 가장자리가 잘리지 않게 반경의 3배만큼 둘레를 넓히고, 한 변이 `maximumSide` 픽셀을 넘지 않게 해상도를 낮춘다.
+    /// 머문 양은 몇 곳(하프타임 자리 등)만 지나치게 진해지지 않게 제곱근으로 누른다.
+    public static func density(cells: [HeatCell], radiusMeters: Double = 5,
+                               metersPerPixel: Double = 0.5, maximumSide: Int = 512) -> HeatDensity? {
+        guard !cells.isEmpty, radiusMeters > 0, metersPerPixel > 0, maximumSide > 1 else { return nil }
+        let metersPerDegree = 111_320.0
+        let centerLatitude = (cells.map(\.minLatitude).min()! + cells.map(\.maxLatitude).max()!) / 2
+        let longitudeScale = metersPerDegree * max(cos(centerLatitude * .pi / 180), 0.01)
+        let pad = radiusMeters * 3
+        let minLat = cells.map(\.minLatitude).min()! - pad / metersPerDegree
+        let maxLat = cells.map(\.maxLatitude).max()! + pad / metersPerDegree
+        let minLon = cells.map(\.minLongitude).min()! - pad / longitudeScale
+        let maxLon = cells.map(\.maxLongitude).max()! + pad / longitudeScale
+        let northSouth = (maxLat - minLat) * metersPerDegree
+        let eastWest = (maxLon - minLon) * longitudeScale
+        let step = max(metersPerPixel, max(northSouth, eastWest) / Double(maximumSide))
+        let width = max(1, min(maximumSide, Int((eastWest / step).rounded(.up))))
+        let height = max(1, min(maximumSide, Int((northSouth / step).rounded(.up))))
+
+        var values = [Double](repeating: 0, count: width * height)
+        let reach = Int((pad / step).rounded(.up))
+        let twoSigmaSquared = 2 * radiusMeters * radiusMeters
+        for cell in cells {
+            let weight = Double(cell.count).squareRoot()
+            // 픽셀 좌표(가로는 서→동, 세로는 북→남)
+            let cx = ((cell.minLongitude + cell.maxLongitude) / 2 - minLon) * longitudeScale / step
+            let cy = (maxLat - (cell.minLatitude + cell.maxLatitude) / 2) * metersPerDegree / step
+            let x0 = max(0, Int(cx) - reach), x1 = min(width - 1, Int(cx) + reach)
+            let y0 = max(0, Int(cy) - reach), y1 = min(height - 1, Int(cy) + reach)
+            guard x0 <= x1, y0 <= y1 else { continue }
+            for y in y0...y1 {
+                let dy = (Double(y) + 0.5 - cy) * step
+                for x in x0...x1 {
+                    let dx = (Double(x) + 0.5 - cx) * step
+                    values[y * width + x] += weight * exp(-(dx * dx + dy * dy) / twoSigmaSquared)
+                }
+            }
+        }
+        guard let peak = values.max(), peak > 0 else { return nil }
+        for i in values.indices { values[i] /= peak }
+        return HeatDensity(width: width, height: height, values: values,
+                           minLatitude: minLat, maxLatitude: maxLat, minLongitude: minLon, maxLongitude: maxLon)
+    }
+}

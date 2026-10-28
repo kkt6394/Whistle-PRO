@@ -124,3 +124,71 @@ data class HeatmapBounds(
             return !(centerLatitude < 35.0 && centerLongitude > 128.9)
         }
 }
+
+/**
+ * 부드러운 히트맵 격자 (아이폰 `HeatDensity`): 칸마다 머문 양을 둥근 종 모양(가우시안)으로 번지게 더한 값.
+ * 네모 칸을 그대로 칠하면 계단처럼 보여서(2026-10-28 사용자 지적) 지도 그림은 이 격자로 그린다.
+ * [values]는 줄 단위(첫 줄이 북쪽 끝), 가장 진한 곳이 1
+ */
+class HeatDensity(
+    val width: Int,
+    val height: Int,
+    val values: DoubleArray,
+    val minLatitude: Double,
+    val maxLatitude: Double,
+    val minLongitude: Double,
+    val maxLongitude: Double,
+) {
+    fun value(x: Int, y: Int): Double = values[y * width + x]
+}
+
+/**
+ * 칸 중심마다 머문 양(count)을 반경 [radiusMeters](표준편차) 가우시안으로 번지게 더한다 (아이폰 `Heatmap.density`와 같은 계산).
+ * 가장자리가 잘리지 않게 반경의 3배만큼 둘레를 넓히고, 한 변이 [maximumSide] 픽셀을 넘지 않게 해상도를 낮춘다.
+ * 머문 양은 몇 곳(하프타임 자리 등)만 지나치게 진해지지 않게 제곱근으로 누른다
+ */
+fun Heatmap.density(
+    cells: List<HeatCell>,
+    radiusMeters: Double = 5.0,
+    metersPerPixel: Double = 0.5,
+    maximumSide: Int = 512,
+): HeatDensity? {
+    if (cells.isEmpty() || radiusMeters <= 0 || metersPerPixel <= 0 || maximumSide <= 1) return null
+    val metersPerDegree = 111_320.0
+    val centerLatitude = (cells.minOf { it.minLatitude } + cells.maxOf { it.maxLatitude }) / 2
+    val longitudeScale = metersPerDegree * max(cos(centerLatitude * Math.PI / 180), 0.01)
+    val pad = radiusMeters * 3
+    val minLat = cells.minOf { it.minLatitude } - pad / metersPerDegree
+    val maxLat = cells.maxOf { it.maxLatitude } + pad / metersPerDegree
+    val minLon = cells.minOf { it.minLongitude } - pad / longitudeScale
+    val maxLon = cells.maxOf { it.maxLongitude } + pad / longitudeScale
+    val northSouth = (maxLat - minLat) * metersPerDegree
+    val eastWest = (maxLon - minLon) * longitudeScale
+    val step = max(metersPerPixel, max(northSouth, eastWest) / maximumSide)
+    val width = kotlin.math.ceil(eastWest / step).toInt().coerceIn(1, maximumSide)
+    val height = kotlin.math.ceil(northSouth / step).toInt().coerceIn(1, maximumSide)
+
+    val values = DoubleArray(width * height)
+    val reach = kotlin.math.ceil(pad / step).toInt()
+    val twoSigmaSquared = 2 * radiusMeters * radiusMeters
+    for (cell in cells) {
+        val weight = kotlin.math.sqrt(cell.count.toDouble())
+        // 픽셀 좌표(가로는 서→동, 세로는 북→남)
+        val cx = ((cell.minLongitude + cell.maxLongitude) / 2 - minLon) * longitudeScale / step
+        val cy = (maxLat - (cell.minLatitude + cell.maxLatitude) / 2) * metersPerDegree / step
+        val x0 = max(0, cx.toInt() - reach); val x1 = kotlin.math.min(width - 1, cx.toInt() + reach)
+        val y0 = max(0, cy.toInt() - reach); val y1 = kotlin.math.min(height - 1, cy.toInt() + reach)
+        if (x0 > x1 || y0 > y1) continue
+        for (y in y0..y1) {
+            val dy = (y + 0.5 - cy) * step
+            for (x in x0..x1) {
+                val dx = (x + 0.5 - cx) * step
+                values[y * width + x] += weight * kotlin.math.exp(-(dx * dx + dy * dy) / twoSigmaSquared)
+            }
+        }
+    }
+    val peak = values.maxOrNull() ?: return null
+    if (peak <= 0) return null
+    for (i in values.indices) values[i] /= peak
+    return HeatDensity(width, height, values, minLat, maxLat, minLon, maxLon)
+}
