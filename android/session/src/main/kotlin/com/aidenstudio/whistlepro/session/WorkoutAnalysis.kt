@@ -140,13 +140,15 @@ object WorkoutAnalysis {
     private fun stats(log: WorkoutLog, ranges: List<Pair<Double, Double>>, label: String?): WorkoutStats {
         fun inRanges(t: Double) = ranges.any { t >= it.first && t <= it.second }
         val heartRates = log.heartRate.filter { inRanges(it.t) }.map { it.value }
-        val distances = ranges.map { delta(log.distance, log.restarts, it.first, it.second) }
-        val distance = distances.sum()
-        // Swift와 같다: 비율은 GPS로, 양은 그 기간의 워치 거리로. 워치 거리 0인 기간은 빼고, 거리 샘플이 아예 없으면 GPS 그대로
-        val gpsZones = ranges.zip(distances).mapNotNull { (range, watchDistance) ->
-            if (log.distance.isNotEmpty() && watchDistance <= 0) null
-            else speedZones(log.route.filter { it.t >= range.first && it.t <= range.second })?.scaled(to = watchDistance)
+        // 기간마다 워치 거리와 GPS 거리 중 큰 쪽. 워치는 GPS를 끈 운동이라 거리가 걸음 추정이고, 삼성 워치는 축구 운동에서
+        // 거의 0을 준다. 속도별 거리는 비율을 GPS로, 합을 그 기간 거리로 (Swift는 워치 거리만 — 애플 워치 거리는 GPS를 쓴다)
+        val perRange = ranges.map { range ->
+            val gps = speedZones(log.route.filter { it.t >= range.first && it.t <= range.second })
+            val distance = maxOf(delta(log.distance, log.restarts, range.first, range.second), gps?.total ?: 0.0)
+            distance to gps?.takeIf { distance > 0 }?.scaled(to = distance)
         }
+        val distance = perRange.sumOf { it.first }
+        val gpsZones = perRange.mapNotNull { it.second }
         val zones = if (gpsZones.isEmpty()) null else gpsZones.fold(SpeedZones()) { a, b -> a + b }
         return WorkoutStats(
             label = label,

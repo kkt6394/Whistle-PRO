@@ -50,7 +50,7 @@ class SpeedZoneTests {
         assertNull(WorkoutAnalysis.overall(log, makeState(halves), 7000.0).zones)
     }
 
-    /** Swift와 같게: GPS가 전반에만 있으면 전반 워치 거리에만, 워치 거리 0인 기간은 빼기 */
+    /** GPS가 전반에만 있으면 전반 거리에만 맞춘다 (워치 거리가 GPS보다 크면 워치 거리) */
     @Test fun zonesScaleOnlyToPeriodsWithGPS() {
         val log = WorkoutLog(
             UUID.randomUUID(),
@@ -60,13 +60,23 @@ class SpeedZoneTests {
         near(3000.0, assertNotNull(WorkoutAnalysis.overall(log, makeState(halves), 7000.0).zones).total)
     }
 
-    @Test fun zeroWatchDistanceHasNoZones() {
+    /** 삼성 워치: GPS를 끈 축구 운동은 워치 거리가 거의 0이다. GPS 거리가 더 크면 그것을 쓴다 */
+    @Test fun zeroWatchDistanceUsesGPS() {
         val log = WorkoutLog(
             UUID.randomUUID(),
             distance = listOf(WorkoutSample(0.0, 0.0), WorkoutSample(2700.0, 0.0)),
             route = listOf(point(0.0, 0.0, 5.0), point(1.0, 10.0, 5.0)),
         )
-        kotlin.test.assertNull(WorkoutAnalysis.overall(log, makeState(halves), 7000.0).zones)
+        val overall = WorkoutAnalysis.overall(log, makeState(halves), 7000.0)
+        near(10.0, overall.distance)
+        near(10.0, assertNotNull(overall.zones).walking)
+    }
+
+    @Test fun stationaryGPSAndNoWatchDistanceHasNoZones() {
+        val log = WorkoutLog(UUID.randomUUID(), route = listOf(point(0.0, 0.0, 5.0), point(1.0, 0.0, 5.0)))
+        val overall = WorkoutAnalysis.overall(log, makeState(halves), 7000.0)
+        assertEquals(0.0, overall.distance)
+        assertNull(overall.zones)
     }
 
     @Test fun zonesScaleToWorkoutDistance() {
