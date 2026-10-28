@@ -96,3 +96,38 @@ class PitchTests {
         assertEquals(16.0, m.penaltyAreaWidth, 0.1)
     }
 }
+
+/** 경기장 안을 1 m 간격으로 채운 점들. */
+private fun filled(pitch: Pitch): List<GeoPoint> =
+    (0..pitch.width.toInt()).flatMap { x -> (0..pitch.length.toInt()).map { y -> pitch.geo(PitchPoint(x.toDouble(), y.toDouble())) } }
+
+class PitchEstimateTests {
+    private val truth = Pitch(center, 100.0, 60.0, 30.0)
+
+    private fun assertFits(pitch: Pitch, tolerance: Double) {
+        assertEquals(100.0, pitch.length, tolerance)
+        assertEquals(60.0, pitch.width, tolerance)
+        val diff = abs(pitch.bearing - 30.0)
+        assertTrue(diff <= 2.0 || abs(diff - 180) <= 2.0)
+    }
+
+    @Test fun estimateFitsCoveredRectangle() {
+        assertFits(assertNotNull(PitchEstimate.of(filled(truth))), 3.0)
+    }
+
+    @Test fun estimateIgnoresOutliers() {
+        val far = (0..2).map { GeoPoint(37.5 + (500.0 + it) / METERS_PER_DEGREE, 127.0) }
+        assertFits(assertNotNull(PitchEstimate.of(filled(truth) + far)), 3.0)
+    }
+
+    @Test fun thinStripIsWidenedTo30() {
+        val pitch = assertNotNull(PitchEstimate.of(filled(Pitch(center, 100.0, 4.0, 30.0))))
+        assertEquals(30.0, pitch.width, 0.5)
+        assertEquals(100.0, pitch.length, 3.0)
+    }
+
+    @Test fun tooFewPointsGiveNoEstimate() {
+        assertNull(PitchEstimate.of(emptyList()))
+        assertNull(PitchEstimate.of(filled(truth).take(9)))
+    }
+}

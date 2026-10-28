@@ -127,3 +127,74 @@ data class PitchMarkings(val scale: Double) {
         }
     }
 }
+
+/** 심판의 이동 경로(기간 중·정확도 20 m 이하 지점)로 경기장을 추정한다. */
+object PitchEstimate {
+    private const val METERS_PER_DEGREE = 111_320.0
+    private const val MINIMUM_POINTS = 10
+    private const val MINIMUM_WIDTH = 30.0
+
+    fun of(points: List<GeoPoint>): Pitch? {
+        if (points.size < MINIMUM_POINTS) return null
+        val centerLat = median(points.map { it.latitude })
+        val centerLon = median(points.map { it.longitude })
+        val metersPerDegreeLongitude = METERS_PER_DEGREE * cos(centerLat * PI / 180)
+        // 중앙값 중심 기준 (북, 동) m
+        val local = points.map {
+            doubleArrayOf((it.latitude - centerLat) * METERS_PER_DEGREE, (it.longitude - centerLon) * metersPerDegreeLongitude)
+        }
+        // 중심에서 95번째 백분위 거리의 1.2배를 넘는 점은 튀는 점으로 보고 버린다(그대로 자르면 긴 띠의 끝이 깎인다)
+        val distances = local.map { sqrt(it[0] * it[0] + it[1] * it[1]) }
+        val limit = distances.sorted()[((distances.size - 1) * 0.95).toInt()] * 1.2
+        val kept = local.filterIndexed { i, _ -> distances[i] <= limit }
+
+        // 0°…179°를 1°씩 돌려 가며 넓이가 가장 작은 축 정렬 사각형을 찾는다(같으면 작은 각도)
+        var bestAngle = 0
+        var bestArea = Double.MAX_VALUE
+        var bestRange = doubleArrayOf(0.0, 0.0, 0.0, 0.0)
+        for (angle in 0 until 180) {
+            val n = cos(angle * PI / 180)
+            val e = sin(angle * PI / 180)
+            var minAlong = Double.MAX_VALUE
+            var maxAlong = -Double.MAX_VALUE
+            var minAcross = Double.MAX_VALUE
+            var maxAcross = -Double.MAX_VALUE
+            for (p in kept) {
+                val along = p[0] * n + p[1] * e
+                val across = -p[0] * e + p[1] * n
+                minAlong = min(minAlong, along)
+                maxAlong = max(maxAlong, along)
+                minAcross = min(minAcross, across)
+                maxAcross = max(maxAcross, across)
+            }
+            val area = (maxAlong - minAlong) * (maxAcross - minAcross)
+            if (area < bestArea) {
+                bestArea = area
+                bestAngle = angle
+                bestRange = doubleArrayOf(minAlong, maxAlong, minAcross, maxAcross)
+            }
+        }
+        val alongSize = bestRange[1] - bestRange[0]
+        val acrossSize = bestRange[3] - bestRange[2]
+        // 긴 쪽이 length. 가로가 더 길면 방향을 90° 돌린다(A는 늘 0..<180 쪽)
+        val alongIsLength = alongSize >= acrossSize
+        val bearing = if (alongIsLength) bestAngle.toDouble() else ((bestAngle + 90) % 180).toDouble()
+        val length = max(alongSize, acrossSize)
+        val width = max(MINIMUM_WIDTH, min(alongSize, acrossSize))
+
+        // 범위의 한가운데를 중심으로 삼아 위도·경도로 되돌린다
+        val midAlong = (bestRange[0] + bestRange[1]) / 2
+        val midAcross = (bestRange[2] + bestRange[3]) / 2
+        val n = cos(bestAngle * PI / 180)
+        val e = sin(bestAngle * PI / 180)
+        val north = midAlong * n - midAcross * e
+        val east = midAlong * e + midAcross * n
+        val center = GeoPoint(centerLat + north / METERS_PER_DEGREE, centerLon + east / metersPerDegreeLongitude)
+        return Pitch(center, length, width, bearing)
+    }
+
+    private fun median(values: List<Double>): Double {
+        val s = values.sorted()
+        return if (s.size % 2 == 1) s[s.size / 2] else (s[s.size / 2 - 1] + s[s.size / 2]) / 2
+    }
+}

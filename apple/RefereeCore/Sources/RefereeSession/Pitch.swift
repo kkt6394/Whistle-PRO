@@ -154,3 +154,77 @@ public struct PitchMarkings: Equatable, Sendable {
         return PitchMarkings(scale: max(0.2, scale))
     }
 }
+
+/// 심판의 이동 경로(기간 중·정확도 20 m 이하 지점)로 경기장을 추정한다.
+public enum PitchEstimate {
+    private static let metersPerDegree = 111_320.0
+    private static let minimumPoints = 10
+    private static let minimumWidth = 30.0
+
+    public static func of(_ points: [GeoPoint]) -> Pitch? {
+        if points.count < minimumPoints { return nil }
+        let centerLat = median(points.map(\.latitude))
+        let centerLon = median(points.map(\.longitude))
+        let metersPerDegreeLongitude = metersPerDegree * cos(centerLat * .pi / 180)
+        // 중앙값 중심 기준 (북, 동) m
+        let local = points.map {
+            [($0.latitude - centerLat) * metersPerDegree, ($0.longitude - centerLon) * metersPerDegreeLongitude]
+        }
+        // 중심에서 95번째 백분위 거리의 1.2배를 넘는 점은 튀는 점으로 보고 버린다(그대로 자르면 긴 띠의 끝이 깎인다)
+        let distances = local.map { ($0[0] * $0[0] + $0[1] * $0[1]).squareRoot() }
+        let limit = distances.sorted()[Int(Double(distances.count - 1) * 0.95)] * 1.2
+        let kept = local.enumerated().filter { distances[$0.offset] <= limit }.map(\.element)
+
+        // 0°…179°를 1°씩 돌려 가며 넓이가 가장 작은 축 정렬 사각형을 찾는다(같으면 작은 각도)
+        var bestAngle = 0
+        var bestArea = Double.greatestFiniteMagnitude
+        var bestRange = [0.0, 0.0, 0.0, 0.0]
+        for angle in 0..<180 {
+            let n = cos(Double(angle) * .pi / 180)
+            let e = sin(Double(angle) * .pi / 180)
+            var minAlong = Double.greatestFiniteMagnitude
+            var maxAlong = -Double.greatestFiniteMagnitude
+            var minAcross = Double.greatestFiniteMagnitude
+            var maxAcross = -Double.greatestFiniteMagnitude
+            for p in kept {
+                let along = p[0] * n + p[1] * e
+                let across = -p[0] * e + p[1] * n
+                minAlong = min(minAlong, along)
+                maxAlong = max(maxAlong, along)
+                minAcross = min(minAcross, across)
+                maxAcross = max(maxAcross, across)
+            }
+            let area = (maxAlong - minAlong) * (maxAcross - minAcross)
+            if area < bestArea {
+                bestArea = area
+                bestAngle = angle
+                bestRange = [minAlong, maxAlong, minAcross, maxAcross]
+            }
+        }
+        let alongSize = bestRange[1] - bestRange[0]
+        let acrossSize = bestRange[3] - bestRange[2]
+        // 긴 쪽이 length. 가로가 더 길면 방향을 90° 돌린다(A는 늘 0..<180 쪽)
+        let alongIsLength = alongSize >= acrossSize
+        let bearing = alongIsLength ? Double(bestAngle) : Double((bestAngle + 90) % 180)
+        let length = max(alongSize, acrossSize)
+        let width = max(minimumWidth, min(alongSize, acrossSize))
+
+        // 범위의 한가운데를 중심으로 삼아 위도·경도로 되돌린다
+        let midAlong = (bestRange[0] + bestRange[1]) / 2
+        let midAcross = (bestRange[2] + bestRange[3]) / 2
+        let n = cos(Double(bestAngle) * .pi / 180)
+        let e = sin(Double(bestAngle) * .pi / 180)
+        let north = midAlong * n - midAcross * e
+        let east = midAlong * e + midAcross * n
+        let center = GeoPoint(
+            latitude: centerLat + north / metersPerDegree,
+            longitude: centerLon + east / metersPerDegreeLongitude
+        )
+        return Pitch(center: center, length: length, width: width, bearing: bearing)
+    }
+
+    private static func median(_ values: [Double]) -> Double {
+        let s = values.sorted()
+        return s.count % 2 == 1 ? s[s.count / 2] : (s[s.count / 2 - 1] + s[s.count / 2]) / 2
+    }
+}
