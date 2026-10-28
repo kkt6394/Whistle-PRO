@@ -48,4 +48,15 @@ struct HeatmapTests {
         log.heartRate = [WorkoutSample(t: 2640, value: 150), WorkoutSample(t: 3620, value: 140)]
         #expect(WorkoutAnalysis.heartRateTimeline(log, state: state, now: 7000).map(\.period) == [0, 1])
     }
+
+    /// 하프타임·경기 전후에 걸은 길은 칠하지 않는다 (2026-10-28 리뷰)
+    @Test func heatmapRouteSkipsHalfTimeAndAfterMatch() {
+        let state = makeState([(.startPeriod, 0), (.endPeriod, 2700), (.startPeriod, 3600), (.endPeriod, 6300)])
+        let route = [-60.0, 60, 3000, 3660, 6400].map { t -> RoutePoint in
+            var p = point(north: 0, east: 0)
+            p.t = t
+            return p
+        }
+        #expect(Heatmap.duringPeriods(route, state: state, now: 7000).map(\.t) == [60, 3660])
+    }
 }

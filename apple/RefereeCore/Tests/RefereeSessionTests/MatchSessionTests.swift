@@ -26,6 +26,27 @@ struct MatchSessionTests {
         #expect(store.active?.commands.map(\.timestamp) == [1000])
     }
 
+    @Test func commandCanBeStampedWithEarlierTime() {
+        let (s, _, clock) = makeSession()
+        clock.t = 1000
+        s.send(.startPeriod)
+        clock.t = 1300
+        #expect(s.send(.recordEvent(.goal(team: .home, number: 9, ownGoal: false)), at: 1240))
+        #expect(s.record.commands.last?.timestamp == 1240)
+        #expect(s.state.events.last?.timestamp == 1240)
+    }
+
+    @Test func earlierTimeIsClampedBetweenLastCommandAndNow() {
+        let (s, _, clock) = makeSession()
+        clock.t = 1000
+        s.send(.startPeriod)
+        clock.t = 1300
+        s.send(.recordEvent(.goal(team: .home, number: 9, ownGoal: false)), at: 900)
+        #expect(s.record.commands.last?.timestamp == 1000)
+        s.send(.recordEvent(.goal(team: .home, number: 9, ownGoal: false)), at: 2000)
+        #expect(s.record.commands.last?.timestamp == 1300)
+    }
+
     @Test func rejectedCommandIsNotLogged() {
         let (s, store, _) = makeSession()
         #expect(!s.send(.endPeriod))

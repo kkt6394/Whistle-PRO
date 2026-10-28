@@ -54,4 +54,12 @@ class HeatmapTests {
         val log = WorkoutLog(UUID.randomUUID(), heartRate = listOf(WorkoutSample(2640.0, 150.0), WorkoutSample(3620.0, 140.0)))
         assertEquals(listOf(0, 1), WorkoutAnalysis.heartRateTimeline(log, state, 7000.0).map { it.period })
     }
+
+    /** 하프타임·경기 전후에 걸은 길은 칠하지 않는다 (2026-10-28 리뷰) */
+    @Test fun heatmapRouteSkipsHalfTimeAndAfterMatch() {
+        val state = makeState(listOf(CommandKind.StartPeriod to 0.0, CommandKind.EndPeriod to 2700.0,
+            CommandKind.StartPeriod to 3600.0, CommandKind.EndPeriod to 6300.0))
+        val route = listOf(-60.0, 60.0, 3000.0, 3660.0, 6400.0).map { point(0.0, 0.0).copy(t = it) }
+        assertEquals(listOf(60.0, 3660.0), Heatmap.duringPeriods(route, state, 7000.0).map { it.t })
+    }
 }

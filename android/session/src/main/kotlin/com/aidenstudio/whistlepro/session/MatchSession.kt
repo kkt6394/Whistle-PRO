@@ -52,9 +52,14 @@ class MatchSession(
             return effective.size > kickoff + 1
         }
 
-    /** 현재 시각으로 명령을 만들어 적용한다. 거부되면 로그에 남기지 않고 false. */
-    fun send(kind: CommandKind): Boolean {
-        val command = Command(timestamp = now(), kind = kind)
+    /**
+     * 현재 시각으로 명령을 만들어 적용한다. 거부되면 로그에 남기지 않고 false.
+     * [at]을 주면 그 시각으로 찍는다 (이벤트는 점수 칸을 누른 순간, 2026-10-28). 순서가 꼬이지 않게 마지막 명령과 지금 사이로 자른다.
+     */
+    fun send(kind: CommandKind, at: Double? = null): Boolean {
+        val current = now()
+        val timestamp = at?.coerceIn(minOf(record.commands.lastOrNull()?.timestamp ?: at, current), current) ?: current
+        val command = Command(timestamp = timestamp, kind = kind)
         val next = try {
             state.apply(command)
         } catch (e: EngineException) {

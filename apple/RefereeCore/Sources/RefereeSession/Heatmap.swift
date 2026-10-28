@@ -15,6 +15,12 @@ public struct HeatCell: Equatable, Sendable {
 public enum Heatmap {
     private static let metersPerDegree = 111_320.0
 
+    /// 기간이 진행된 동안의 지점만 고른다: 하프타임·경기 전후에 걸은 길은 칠하지 않는다 (2026-10-28 리뷰)
+    public static func duringPeriods(_ route: [RoutePoint], state: MatchState, now: Double) -> [RoutePoint] {
+        let ranges = state.periods.map { ($0.startedAt, $0.endedAt ?? now) }
+        return route.filter { p in ranges.contains { p.t >= $0.0 && p.t <= $0.1 } }
+    }
+
     /// GPS 지점을 cellMeters 격자로 묶는다. 정확도가 나쁜(20m 초과·음수) 지점은 버린다.
     public static func cells(_ route: [RoutePoint], cellMeters: Double = 4) -> [HeatCell] {
         let points = route.filter { $0.accuracy >= 0 && $0.accuracy <= WorkoutAnalysis.maximumAccuracy }

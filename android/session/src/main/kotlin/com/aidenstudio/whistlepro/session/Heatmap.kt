@@ -19,6 +19,12 @@ data class HeatCell(
 object Heatmap {
     private const val METERS_PER_DEGREE = 111_320.0
 
+    /** 기간이 진행된 동안의 지점만 고른다: 하프타임·경기 전후에 걸은 길은 칠하지 않는다 (2026-10-28 리뷰) */
+    fun duringPeriods(route: List<RoutePoint>, state: MatchState, now: Double): List<RoutePoint> {
+        val ranges = state.periods.map { it.startedAt to (it.endedAt ?: now) }
+        return route.filter { p -> ranges.any { p.t >= it.first && p.t <= it.second } }
+    }
+
     /** GPS 지점을 cellMeters 격자로 묶는다. 정확도가 나쁜(20m 초과·음수) 지점은 버린다. */
     fun cells(route: List<RoutePoint>, cellMeters: Double = 4.0): List<HeatCell> {
         val points = route.filter { it.accuracy >= 0 && it.accuracy <= WorkoutAnalysis.MAXIMUM_ACCURACY }

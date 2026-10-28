@@ -2,6 +2,7 @@ package com.aidenstudio.whistlepro.session
 
 import com.aidenstudio.whistlepro.core.AlertKind
 import com.aidenstudio.whistlepro.core.CommandKind
+import com.aidenstudio.whistlepro.core.EventPayload
 import com.aidenstudio.whistlepro.core.Phase
 import com.aidenstudio.whistlepro.core.PeriodRef
 import com.aidenstudio.whistlepro.core.Team
@@ -35,6 +36,27 @@ class MatchSessionTests {
         assertTrue(s.send(CommandKind.StartPeriod))
         assertEquals(firstHalf, s.state.phase)
         assertEquals(listOf(1000.0), store.active?.commands?.map { it.timestamp })
+    }
+
+    @Test fun commandCanBeStampedWithEarlierTime() {
+        val (s, _, clock) = makeSession()
+        clock.t = 1000.0
+        s.send(CommandKind.StartPeriod)
+        clock.t = 1300.0
+        assertTrue(s.send(CommandKind.RecordEvent(EventPayload.Goal(Team.HOME, 9, false)), at = 1240.0))
+        assertEquals(1240.0, s.record.commands.last().timestamp)
+        assertEquals(1240.0, s.state.events.last().timestamp)
+    }
+
+    @Test fun earlierTimeIsClampedBetweenLastCommandAndNow() {
+        val (s, _, clock) = makeSession()
+        clock.t = 1000.0
+        s.send(CommandKind.StartPeriod)
+        clock.t = 1300.0
+        s.send(CommandKind.RecordEvent(EventPayload.Goal(Team.HOME, 9, false)), at = 900.0)
+        assertEquals(1000.0, s.record.commands.last().timestamp)
+        s.send(CommandKind.RecordEvent(EventPayload.Goal(Team.HOME, 9, false)), at = 2000.0)
+        assertEquals(1300.0, s.record.commands.last().timestamp)
     }
 
     @Test fun rejectedCommandIsNotLogged() {
