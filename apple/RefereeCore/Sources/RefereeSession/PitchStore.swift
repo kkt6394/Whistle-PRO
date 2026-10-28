@@ -77,9 +77,17 @@ extension MatchLibrary {
         return file.bestMatch(points)?.pitch
     }
 
+    /// 다시 맞춘 경기장이 기존 구장을 고친 것인지. 중심이 30 m 이내이고 서로의 중심이 상대 경기장 안이어야 한다
+    /// (옆 구장처럼 많이 어긋나면 새 구장)
+    static func isSamePitch(_ existing: Pitch, _ refit: Pitch) -> Bool {
+        meters(existing.center, refit.center) <= samePitchDistance
+            && existing.contains(refit.center, margin: 0)
+            && refit.contains(existing.center, margin: 0)
+    }
+
     /// 찍은 모서리를 다듬어 이 경기에 연결한다. 다듬어지지 않으면 nil이고 저장하지 않는다.
-    /// 기존 구장(이 경기에 연결된 것, 없으면 새 경기장과 겹쳐 자동 판정되는 것)의 중심이 30 m 이내로 옮겨졌으면
-    /// 그 구장을 고치고(같은 구장을 쓰는 다른 경기도 따라 바뀐다), 멀면 새 구장으로 저장한다.
+    /// 기존 구장(이 경기에 연결된 것, 없으면 새 경기장과 겹쳐 자동 판정되는 것)과 같은 구장이면(isSamePitch)
+    /// 그 구장을 고치고(같은 구장을 쓰는 다른 경기도 따라 바뀐다), 아니면 새 구장으로 저장해 이 경기만 연결한다.
     /// 파일이 깨졌으면 새로 시작한다.
     @discardableResult
     public func savePitch(matchID: UUID, corners: [GeoPoint], now: Double) throws -> Pitch? {
@@ -90,7 +98,7 @@ extension MatchLibrary {
         var pitches = file.pitches
         let id: UUID
         if let existing, let existingPitch = Pitch.fromCorners(existing.corners),
-           meters(existingPitch.center, pitch.center) <= samePitchDistance,
+           Self.isSamePitch(existingPitch, pitch),
            let index = pitches.firstIndex(of: existing) {
             id = existing.id
             pitches[index].corners = pitch.corners

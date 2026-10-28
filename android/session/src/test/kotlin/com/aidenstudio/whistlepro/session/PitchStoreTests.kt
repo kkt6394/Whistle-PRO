@@ -105,6 +105,23 @@ class PitchStoreTests {
         assertSame(moved, library.pitch(b, track(moved, 10, 0)))
     }
 
+    @Test fun refittingAdjacentSmallPitchCreatesNewPitch() {
+        val library = MatchLibrary(tempDirectory())
+        val small = Pitch(center, 40.0, 20.0, 30.0)
+        library.savePitch(a, small.corners, 100.0)
+        library.savePitch(b, small.corners, 150.0)
+        assertEquals(1, library.readPitches()!!.pitches.size)
+        // 길이 방향으로 25 m 옮긴 옆 구장(중심 거리는 30 m 이내지만 서로의 중심이 상대 경기장 밖)
+        val next = Pitch(small.geo(PitchPoint(10.0, 45.0)), 40.0, 20.0, 30.0)
+        library.savePitch(b, next.corners, 200.0)
+        val file = library.readPitches()!!
+        assertEquals(2, file.pitches.size)
+        assertSame(small, library.pitch(a, anyPoint))
+        val aCorners = file.pitches.first { it.id == file.links[a]!!.pitch }.corners
+        small.corners.zip(aCorners).forEach { (e, x) -> assertTrue(meters(e, x) < 0.01) }
+        assertSame(next, library.pitch(b, anyPoint))
+    }
+
     @Test fun refittingFarAwayCreatesNewPitch() {
         val library = MatchLibrary(tempDirectory())
         library.savePitch(a, basePitch().corners, 100.0)

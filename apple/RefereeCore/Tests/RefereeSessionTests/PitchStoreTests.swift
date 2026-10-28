@@ -105,6 +105,23 @@ struct PitchStoreTests {
         try expectSame(moved, library.pitch(matchID: b, points: track(moved, inside: 10, outside: 0)))
     }
 
+    @Test func refittingAdjacentSmallPitchCreatesNewPitch() throws {
+        let library = MatchLibrary(directory: tempDirectory())
+        let small = Pitch(center: center, length: 40, width: 20, bearing: 30)
+        try library.savePitch(matchID: a, corners: small.corners, now: 100)
+        try library.savePitch(matchID: b, corners: small.corners, now: 150)
+        #expect(library.readPitches()?.pitches.count == 1)
+        // 길이 방향으로 25 m 옮긴 옆 구장(중심 거리는 30 m 이내지만 서로의 중심이 상대 경기장 밖)
+        let next = Pitch(center: small.geo(PitchPoint(x: 10, y: 45)), length: 40, width: 20, bearing: 30)
+        try library.savePitch(matchID: b, corners: next.corners, now: 200)
+        let file = try #require(library.readPitches())
+        #expect(file.pitches.count == 2)
+        try expectSame(small, library.pitch(matchID: a, points: anyPoint))
+        let aCorners = try #require(file.pitches.first { $0.id == file.links[a]?.pitch }).corners
+        for (e, x) in zip(small.corners, aCorners) { #expect(meters(e, x) < 0.01) }
+        try expectSame(next, library.pitch(matchID: b, points: anyPoint))
+    }
+
     @Test func refittingFarAwayCreatesNewPitch() throws {
         let library = MatchLibrary(directory: tempDirectory())
         try library.savePitch(matchID: a, corners: basePitch().corners, now: 100)
