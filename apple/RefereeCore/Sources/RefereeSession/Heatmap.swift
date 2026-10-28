@@ -190,3 +190,51 @@ extension Heatmap {
                            minLatitude: minLat, maxLatitude: maxLat, minLongitude: minLon, maxLongitude: maxLon)
     }
 }
+
+/// 경기장 좌표 히트 격자: 칸 중심을 `Pitch.local`로 경기장 m 좌표에 옮겨 가우시안으로 번지게 더한다.
+/// 격자는 가로 width+2×margin, 세로 length+2×margin(m)이고 첫 줄이 골라인 A 쪽이다.
+/// 반환 `HeatDensity`의 위경도 필드에는 경기장 m 범위(`minLatitude`=-margin … `maxLatitude`=length+margin, 경도는 width)를 넣는다.
+/// 번지는 반경(5 m)·제곱근 누름·정규화는 `Heatmap.density`와 같다. 터치라인·골라인 밖 margin을 넘은 칸은 버린다.
+public enum PitchHeat {
+    public static let margin = 8.0
+
+    public static func density(cells: [HeatCell], pitch: Pitch, radiusMeters: Double = 5,
+                               metersPerPixel: Double = 0.5, maximumSide: Int = 256) -> HeatDensity? {
+        guard radiusMeters > 0, metersPerPixel > 0, maximumSide > 1 else { return nil }
+        let spots: [(x: Double, y: Double, weight: Double)] = cells.compactMap { cell in
+            let p = pitch.local(GeoPoint(latitude: (cell.minLatitude + cell.maxLatitude) / 2,
+                                         longitude: (cell.minLongitude + cell.maxLongitude) / 2))
+            guard p.x >= -margin, p.x <= pitch.width + margin, p.y >= -margin, p.y <= pitch.length + margin else { return nil }
+            return (p.x, p.y, Double(cell.count).squareRoot())
+        }
+        guard !spots.isEmpty else { return nil }
+        let eastWest = pitch.width + 2 * margin
+        let northSouth = pitch.length + 2 * margin
+        let step = max(metersPerPixel, max(northSouth, eastWest) / Double(maximumSide))
+        let width = max(1, min(maximumSide, Int((eastWest / step).rounded(.up))))
+        let height = max(1, min(maximumSide, Int((northSouth / step).rounded(.up))))
+
+        var values = [Double](repeating: 0, count: width * height)
+        let reach = Int((radiusMeters * 3 / step).rounded(.up))
+        let twoSigmaSquared = 2 * radiusMeters * radiusMeters
+        for spot in spots {
+            let cx = (spot.x + margin) / step
+            let cy = (spot.y + margin) / step
+            let x0 = max(0, Int(cx) - reach), x1 = min(width - 1, Int(cx) + reach)
+            let y0 = max(0, Int(cy) - reach), y1 = min(height - 1, Int(cy) + reach)
+            guard x0 <= x1, y0 <= y1 else { continue }
+            for y in y0...y1 {
+                let dy = (Double(y) + 0.5 - cy) * step
+                for x in x0...x1 {
+                    let dx = (Double(x) + 0.5 - cx) * step
+                    values[y * width + x] += spot.weight * exp(-(dx * dx + dy * dy) / twoSigmaSquared)
+                }
+            }
+        }
+        guard let peak = values.max(), peak > 0 else { return nil }
+        for i in values.indices { values[i] /= peak }
+        return HeatDensity(width: width, height: height, values: values,
+                           minLatitude: -margin, maxLatitude: pitch.length + margin,
+                           minLongitude: -margin, maxLongitude: pitch.width + margin)
+    }
+}

@@ -43,4 +43,38 @@ struct HeatDensityTests {
         #expect(d.width <= 256 && d.height <= 256)
         #expect(d.width > d.height)
     }
+
+    // 경기장 좌표 히트 격자
+    private static let pitch = Pitch(center: GeoPoint(latitude: 37.5, longitude: 127.0), length: 100, width: 64, bearing: 0)
+
+    /// 경기장 중심에서 (앞 m, 오른쪽 m)만큼 떨어진 칸 하나. 방위 0이라 앞=북, 오른쪽=동
+    private func pitchCell(forward: Double, right: Double) -> [HeatCell] {
+        let latitude = Self.pitch.center.latitude + forward / metersPerDegree
+        let longitude = Self.pitch.center.longitude + right / (metersPerDegree * cos(Self.pitch.center.latitude * .pi / 180))
+        return [HeatCell(minLatitude: latitude, minLongitude: longitude, maxLatitude: latitude, maxLongitude: longitude,
+                         count: 1, intensity: 1)]
+    }
+
+    @Test func pitchHeatCentersOnPitchCenter() throws {
+        let d = try #require(PitchHeat.density(cells: pitchCell(forward: 0, right: 0), pitch: Self.pitch))
+        let peak = d.values.firstIndex(of: 1)!
+        #expect(d.values.max() == 1)
+        #expect(abs(peak % d.width - d.width / 2) <= 1)
+        #expect(abs(peak / d.width - d.height / 2) <= 1)
+        #expect(d.minLatitude == -PitchHeat.margin)
+        #expect(d.maxLatitude == Self.pitch.length + PitchHeat.margin)
+        #expect(d.minLongitude == -PitchHeat.margin)
+        #expect(d.maxLongitude == Self.pitch.width + PitchHeat.margin)
+    }
+
+    @Test func pitchHeatTopRowIsGoalLineA() throws {
+        // 방위 0이면 A는 남쪽 골라인: 중심에서 남쪽으로 45 m = 골라인 A에서 5 m
+        let d = try #require(PitchHeat.density(cells: pitchCell(forward: -45, right: 0), pitch: Self.pitch))
+        let peakRow = d.values.firstIndex(of: 1)! / d.width
+        #expect(peakRow < d.height / 4)
+    }
+
+    @Test func heatOutsideMarginIsDropped() {
+        #expect(PitchHeat.density(cells: pitchCell(forward: 0, right: 32 + 30), pitch: Self.pitch) == nil)
+    }
 }

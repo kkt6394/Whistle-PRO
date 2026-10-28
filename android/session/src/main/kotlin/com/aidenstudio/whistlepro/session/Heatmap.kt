@@ -198,3 +198,56 @@ fun Heatmap.density(
     for (i in values.indices) values[i] /= peak
     return HeatDensity(width, height, values, minLat, maxLat, minLon, maxLon)
 }
+
+/**
+ * 경기장 좌표 히트 격자: 칸 중심을 [Pitch.local]로 경기장 m 좌표에 옮겨 가우시안으로 번지게 더한다.
+ * 격자는 가로 width+2×MARGIN, 세로 length+2×MARGIN(m)이고 첫 줄이 골라인 A 쪽이다.
+ * 반환 [HeatDensity]의 위경도 필드에는 경기장 m 범위(`minLatitude`=-MARGIN … `maxLatitude`=length+MARGIN, 경도는 width)를 넣는다.
+ * 번지는 반경(5 m)·제곱근 누름·정규화는 `Heatmap.density`와 같다. 터치라인·골라인 밖 MARGIN을 넘은 칸은 버린다
+ */
+object PitchHeat {
+    const val MARGIN = 8.0
+
+    fun density(
+        cells: List<HeatCell>,
+        pitch: Pitch,
+        radiusMeters: Double = 5.0,
+        metersPerPixel: Double = 0.5,
+        maximumSide: Int = 256,
+    ): HeatDensity? {
+        if (radiusMeters <= 0 || metersPerPixel <= 0 || maximumSide <= 1) return null
+        val spots = cells.mapNotNull { cell ->
+            val p = pitch.local(GeoPoint((cell.minLatitude + cell.maxLatitude) / 2, (cell.minLongitude + cell.maxLongitude) / 2))
+            if (p.x < -MARGIN || p.x > pitch.width + MARGIN || p.y < -MARGIN || p.y > pitch.length + MARGIN) null
+            else Triple(p.x, p.y, kotlin.math.sqrt(cell.count.toDouble()))
+        }
+        if (spots.isEmpty()) return null
+        val eastWest = pitch.width + 2 * MARGIN
+        val northSouth = pitch.length + 2 * MARGIN
+        val step = max(metersPerPixel, max(northSouth, eastWest) / maximumSide)
+        val width = kotlin.math.ceil(eastWest / step).toInt().coerceIn(1, maximumSide)
+        val height = kotlin.math.ceil(northSouth / step).toInt().coerceIn(1, maximumSide)
+
+        val values = DoubleArray(width * height)
+        val reach = kotlin.math.ceil(radiusMeters * 3 / step).toInt()
+        val twoSigmaSquared = 2 * radiusMeters * radiusMeters
+        for ((x, y, weight) in spots) {
+            val cx = (x + MARGIN) / step
+            val cy = (y + MARGIN) / step
+            val x0 = max(0, cx.toInt() - reach); val x1 = kotlin.math.min(width - 1, cx.toInt() + reach)
+            val y0 = max(0, cy.toInt() - reach); val y1 = kotlin.math.min(height - 1, cy.toInt() + reach)
+            if (x0 > x1 || y0 > y1) continue
+            for (py in y0..y1) {
+                val dy = (py + 0.5 - cy) * step
+                for (px in x0..x1) {
+                    val dx = (px + 0.5 - cx) * step
+                    values[py * width + px] += weight * kotlin.math.exp(-(dx * dx + dy * dy) / twoSigmaSquared)
+                }
+            }
+        }
+        val peak = values.maxOrNull() ?: return null
+        if (peak <= 0) return null
+        for (i in values.indices) values[i] /= peak
+        return HeatDensity(width, height, values, -MARGIN, pitch.length + MARGIN, -MARGIN, pitch.width + MARGIN)
+    }
+}
