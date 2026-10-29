@@ -87,6 +87,25 @@ struct PitchTests {
         #expect(abs(m.scale - 0.397) <= 0.01)
         #expect(abs(m.penaltyAreaWidth - 16.0) <= 0.1)
     }
+
+    /// 경기장 라인 (경기장 좌표): 하프라인, 센터서클, 양 끝(짧은 변)마다 페널티·골 에어리어와 골대
+    @Test func markingLinesPutGoalsOnShortSides() {
+        let lines = PitchMarkings.lines(length: 105, width: 68)
+        #expect(lines.count == 8)
+        // 하프라인은 가로로 가운데
+        #expect(lines[0] == [PitchPoint(x: 0, y: 52.5), PitchPoint(x: 68, y: 52.5)])
+        // 센터서클은 닫힌 원
+        #expect(lines[1].first == lines[1].last)
+        #expect(lines[1].allSatisfy { abs(hypot($0.x - 34, $0.y - 52.5) - 9.15) < 1e-6 })
+        // 페널티 에어리어는 양 골라인(y 0, 105)에서 16.5 m 안쪽으로, 폭 40.32 m
+        let near = lines[2], far = lines[5]
+        #expect(abs(near[0].y) < 1e-9 && abs(near[1].y - 16.5) < 1e-9)
+        #expect(abs(far[0].y - 105) < 1e-9 && abs(far[1].y - 88.5) < 1e-9)
+        #expect(abs(near[3].x - near[0].x - 40.32) < 1e-9)
+        // 골대는 골라인 바깥
+        #expect(lines[4].contains { $0.y < 0 })
+        #expect(lines[7].contains { $0.y > 105 })
+    }
 }
 
 /// 경기장 안을 1 m 간격으로 채운 점들.

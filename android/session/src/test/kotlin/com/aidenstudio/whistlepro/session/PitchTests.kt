@@ -85,6 +85,26 @@ class PitchTests {
         assertFalse(pitch.contains(p, 2.0))
     }
 
+    /** 경기장 라인 (경기장 좌표): 하프라인, 센터서클, 양 끝(짧은 변)마다 페널티·골 에어리어와 골대 */
+    @Test fun markingLinesPutGoalsOnShortSides() {
+        val lines = PitchMarkings.lines(length = 105.0, width = 68.0)
+        assertEquals(8, lines.size)
+        // 하프라인은 가로로 가운데
+        assertEquals(listOf(PitchPoint(0.0, 52.5), PitchPoint(68.0, 52.5)), lines[0])
+        // 센터서클은 닫힌 원
+        assertEquals(lines[1].first(), lines[1].last())
+        assertTrue(lines[1].all { abs(sqrt((it.x - 34) * (it.x - 34) + (it.y - 52.5) * (it.y - 52.5)) - 9.15) < 1e-6 })
+        // 페널티 에어리어는 양 골라인(y 0, 105)에서 16.5 m 안쪽으로, 폭 40.32 m
+        val near = lines[2]
+        val far = lines[5]
+        assertTrue(abs(near[0].y) < 1e-9 && abs(near[1].y - 16.5) < 1e-9)
+        assertTrue(abs(far[0].y - 105) < 1e-9 && abs(far[1].y - 88.5) < 1e-9)
+        assertEquals(40.32, near[3].x - near[0].x, 1e-9)
+        // 골대는 골라인 바깥
+        assertTrue(lines[4].any { it.y < 0 })
+        assertTrue(lines[7].any { it.y > 105 })
+    }
+
     @Test fun standardPitchKeepsMarkings() {
         assertEquals(1.0, PitchMarkings.of(105.0, 68.0).scale, 1e-9)
         assertEquals(1.0, PitchMarkings.of(90.0, 60.0).scale, 1e-9)

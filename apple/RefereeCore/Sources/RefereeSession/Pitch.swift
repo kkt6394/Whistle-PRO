@@ -149,9 +149,36 @@ public struct PitchMarkings: Equatable, Sendable {
     public var goalAreaDepth: Double { 5.5 * scale }
     public var penaltyMarkDistance: Double { 11.0 * scale }
 
+    public var goalWidth: Double { 7.32 * scale }
+    public var goalDepth: Double { 2.0 * scale }
+
     public static func of(length: Double, width: Double) -> PitchMarkings {
         let scale = min(1.0, min((width - 4) / 40.32, (length / 2 - 1) / (16.5 + 9.15)))
         return PitchMarkings(scale: max(0.2, scale))
+    }
+
+    /// 지도에 그릴 라인 (경기장 좌표, 테두리 제외): 하프라인, 센터서클, 그리고 양 끝(y 0, length)마다
+    /// 페널티 에어리어·골 에어리어·골대(골라인 바깥). 골대 방향이 보이게 하려는 것이다
+    public static func lines(length: Double, width: Double) -> [[PitchPoint]] {
+        let marks = of(length: length, width: width)
+        let middle = width / 2
+        let half = [PitchPoint(x: 0, y: length / 2), PitchPoint(x: width, y: length / 2)]
+        let circle = (0...36).map { i -> PitchPoint in
+            let angle = Double(i % 36) / 36 * 2 * .pi
+            return PitchPoint(x: middle + marks.centerCircleRadius * cos(angle), y: length / 2 + marks.centerCircleRadius * sin(angle))
+        }
+        /// 골라인 위 가운데에서 depth만큼 (inward 방향으로) 나간 열린 사각형
+        func box(goalLine: Double, inward: Double, width boxWidth: Double, depth: Double) -> [PitchPoint] {
+            let left = middle - boxWidth / 2, right = middle + boxWidth / 2, inner = goalLine + inward * depth
+            return [PitchPoint(x: left, y: goalLine), PitchPoint(x: left, y: inner),
+                    PitchPoint(x: right, y: inner), PitchPoint(x: right, y: goalLine)]
+        }
+        let ends = [(goalLine: 0.0, inward: 1.0), (goalLine: length, inward: -1.0)].flatMap { end in [
+            box(goalLine: end.goalLine, inward: end.inward, width: marks.penaltyAreaWidth, depth: marks.penaltyAreaDepth),
+            box(goalLine: end.goalLine, inward: end.inward, width: marks.goalAreaWidth, depth: marks.goalAreaDepth),
+            box(goalLine: end.goalLine, inward: -end.inward, width: marks.goalWidth, depth: marks.goalDepth),
+        ] }
+        return [half, circle] + ends
     }
 }
 

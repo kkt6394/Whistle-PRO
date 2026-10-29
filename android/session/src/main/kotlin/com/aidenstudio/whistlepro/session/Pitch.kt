@@ -119,11 +119,43 @@ data class PitchMarkings(val scale: Double) {
     val goalAreaWidth get() = 18.32 * scale
     val goalAreaDepth get() = 5.5 * scale
     val penaltyMarkDistance get() = 11.0 * scale
+    val goalWidth get() = 7.32 * scale
+    val goalDepth get() = 2.0 * scale
 
     companion object {
         fun of(length: Double, width: Double): PitchMarkings {
             val scale = min(1.0, min((width - 4) / 40.32, (length / 2 - 1) / (16.5 + 9.15)))
             return PitchMarkings(max(0.2, scale))
+        }
+
+        /**
+         * 지도에 그릴 라인 (경기장 좌표, 테두리 제외): 하프라인, 센터서클, 그리고 양 끝(y 0, length)마다
+         * 페널티 에어리어·골 에어리어·골대(골라인 바깥). 골대 방향이 보이게 하려는 것이다
+         */
+        fun lines(length: Double, width: Double): List<List<PitchPoint>> {
+            val marks = of(length, width)
+            val middle = width / 2
+            val half = listOf(PitchPoint(0.0, length / 2), PitchPoint(width, length / 2))
+            val circle = (0..36).map { i ->
+                val angle = (i % 36) / 36.0 * 2 * PI
+                PitchPoint(middle + marks.centerCircleRadius * cos(angle), length / 2 + marks.centerCircleRadius * sin(angle))
+            }
+
+            /** 골라인 위 가운데에서 depth만큼 (inward 방향으로) 나간 열린 사각형 */
+            fun box(goalLine: Double, inward: Double, boxWidth: Double, depth: Double): List<PitchPoint> {
+                val left = middle - boxWidth / 2
+                val right = middle + boxWidth / 2
+                val inner = goalLine + inward * depth
+                return listOf(PitchPoint(left, goalLine), PitchPoint(left, inner), PitchPoint(right, inner), PitchPoint(right, goalLine))
+            }
+            val ends = listOf(0.0 to 1.0, length to -1.0).flatMap { (goalLine, inward) ->
+                listOf(
+                    box(goalLine, inward, marks.penaltyAreaWidth, marks.penaltyAreaDepth),
+                    box(goalLine, inward, marks.goalAreaWidth, marks.goalAreaDepth),
+                    box(goalLine, -inward, marks.goalWidth, marks.goalDepth),
+                )
+            }
+            return listOf(half, circle) + ends
         }
     }
 }
