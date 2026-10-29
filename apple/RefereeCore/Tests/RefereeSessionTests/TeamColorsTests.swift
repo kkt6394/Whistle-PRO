@@ -42,6 +42,22 @@ struct TeamColorsTests {
         #expect(TeamColor.wheelSteps == 36 && TeamColor.wheelLevels == 5)
     }
 
+    /// 색상환 시작 칸: 지금 색에 가장 가까운 색상 (무채색은 0 = 빨강)
+    @Test func wheelStepNearestHue() {
+        #expect(TeamColor(hex: "#FF0000")?.wheelStep == 0)
+        #expect(TeamColor(hex: "#00FF00")?.wheelStep == 12)
+        #expect(TeamColor(hex: "#0000FF")?.wheelStep == 24)
+        #expect(TeamColor.white.wheelStep == 0)
+        #expect(TeamColor.black.wheelStep == 0)
+        // 355° 근처는 36이 아니라 0으로 감긴다
+        #expect(TeamColor(hex: "#FF0015")?.wheelStep == 0)
+        for s in [0, 1, 5, 11, 17, 23, 29, 35] {
+            for level in 1...3 {
+                #expect(TeamColor.wheel(step: s, level: level).wheelStep == s)
+            }
+        }
+    }
+
     @Test func jsonOmitsMissingSecond() throws {
         let colors = TeamColors(home: .red, away: .blue, home2: .white, away2: nil)
         let json = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(colors)) as? [String: Any])

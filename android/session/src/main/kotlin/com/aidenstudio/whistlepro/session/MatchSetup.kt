@@ -52,6 +52,24 @@ data class TeamColor(val hex: String) {
             return mark
         }
 
+    /** 이 색에 가장 가까운 색상환 칸 0..<36 (무채색이면 0 = 빨강). 색상환 화면의 시작 칸. Swift `wheelStep`과 같다 */
+    val wheelStep: Int
+        get() {
+            val c = rgb
+            val maxV = maxOf(c.red, c.green, c.blue)
+            val minV = minOf(c.red, c.green, c.blue)
+            val d = maxV - minV
+            if (d <= 0.0001) return 0
+            var h = when (maxV) {
+                c.red -> (c.green - c.blue) / d
+                c.green -> (c.blue - c.red) / d + 2
+                else -> (c.red - c.green) / d + 4
+            }
+            h *= 60
+            if (h < 0) h += 360
+            return Math.round(h / (360.0 / WHEEL_STEPS)).toInt() % WHEEL_STEPS
+        }
+
     /** 구분하기 어려운지 판정에 쓰는 CIE Lab (sRGB D65) */
     private val lab: Triple<Double, Double, Double>
         get() {

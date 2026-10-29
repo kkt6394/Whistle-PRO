@@ -47,6 +47,20 @@ class TeamColorsTests {
         assertEquals(5, TeamColor.WHEEL_LEVELS)
     }
 
+    /** 색상환 시작 칸: 지금 색에 가장 가까운 색상 (무채색은 0 = 빨강). Swift `wheelStep`과 같다 */
+    @Test fun wheelStepNearestHue() {
+        assertEquals(0, TeamColor("#FF0000").wheelStep)
+        assertEquals(12, TeamColor("#00FF00").wheelStep)
+        assertEquals(24, TeamColor("#0000FF").wheelStep)
+        assertEquals(0, TeamColor.WHITE.wheelStep)
+        assertEquals(0, TeamColor.BLACK.wheelStep)
+        // 355° 근처는 36이 아니라 0으로 감긴다
+        assertEquals(0, TeamColor("#FF0015").wheelStep)
+        for (s in listOf(0, 1, 5, 11, 17, 23, 29, 35)) {
+            for (level in 1..3) assertEquals(s, TeamColor.wheel(s, level).wheelStep, "step $s level $level")
+        }
+    }
+
     @Test fun jsonOmitsMissingSecond() {
         val json = TeamColors(TeamColor.RED, TeamColor.BLUE, TeamColor.WHITE, null).toJson()
         assertEquals("\"#FF3B30\"", json["home"].toString())

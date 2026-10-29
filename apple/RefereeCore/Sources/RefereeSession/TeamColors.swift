@@ -75,4 +75,22 @@ extension TeamColor {
         }
         return TeamColor(red: shade(rgb.0), green: shade(rgb.1), blue: shade(rgb.2))
     }
+
+    /// 이 색에 가장 가까운 색상환 칸 0..<36 (무채색이면 0 = 빨강). 색상환 화면의 시작 칸
+    public var wheelStep: Int {
+        let maxV = max(red, green, blue), minV = min(red, green, blue)
+        let d = maxV - minV
+        guard d > 0.0001 else { return 0 }
+        var h: Double
+        if maxV == red {
+            h = (green - blue) / d
+        } else if maxV == green {
+            h = (blue - red) / d + 2
+        } else {
+            h = (red - green) / d + 4
+        }
+        h *= 60
+        if h < 0 { h += 360 }
+        return Int((h / (360 / Double(Self.wheelSteps))).rounded()) % Self.wheelSteps
+    }
 }
