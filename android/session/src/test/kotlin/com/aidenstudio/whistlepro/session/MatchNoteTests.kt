@@ -54,4 +54,22 @@ class MatchNoteTests {
         val r = MatchReport(bundle, MatchNote(competition = " ", venue = "\n"), " 김기태 ")
         assertTrue(r.competition == null && r.venue == null && r.referee == "김기태")
     }
+
+    /** 경기 정보 편집기: 기록과 같은 색이면 노트에 색을 넣지 않는다. 주 색과 같은 두 번째 색은 정리한 뒤 비교한다 (Swift와 같게) */
+    @Test fun editedKeepsOnlyChangedColors() {
+        val recorded = TeamColors(TeamColor.RED, TeamColor.BLUE, home2 = TeamColor.YELLOW)
+        val same = MatchNote.edited("Cup", null, recorded, recorded)
+        assertNull(same.colors)
+        assertEquals("Cup", same.competition)
+        // 두 번째 색을 없앤 것도 바꾼 것이다 (노트에 남는다)
+        val cleared = TeamColors(TeamColor.RED, TeamColor.BLUE)
+        assertEquals(cleared, MatchNote.edited(null, null, cleared, recorded).colors)
+        // 주 색과 같은 두 번째 색은 없는 것: 정리하면 기록과 같다
+        val plain = TeamColors(TeamColor.RED, TeamColor.BLUE)
+        val doubled = TeamColors(TeamColor.RED, TeamColor.BLUE, TeamColor.RED, TeamColor.BLUE)
+        assertNull(MatchNote.edited(null, null, doubled, plain).colors)
+        // 정리한 색으로 남긴다
+        val picked = TeamColors(TeamColor.WHITE, TeamColor.BLUE, home2 = TeamColor.WHITE)
+        assertEquals(TeamColors(TeamColor.WHITE, TeamColor.BLUE), MatchNote.edited(null, null, picked, plain).colors)
+    }
 }

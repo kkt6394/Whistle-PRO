@@ -123,6 +123,23 @@ struct MatchNoteColorsTests {
         #expect(MatchSummary(record: bundle.record).applying(nil).homeColor == .red)
     }
 
+    /// 경기 정보 편집기: 기록과 같은 색이면 노트에 색을 넣지 않는다. 주 색과 같은 두 번째 색은 정리한 뒤 비교한다
+    @Test func editedKeepsOnlyChangedColors() {
+        let recorded = TeamColors(home: .red, away: .blue, home2: .yellow, away2: nil)
+        let same = MatchNote.edited(competition: "Cup", venue: nil, colors: recorded, recorded: recorded)
+        #expect(same.colors == nil && same.competition == "Cup")
+        // 두 번째 색을 없앤 것도 바꾼 것이다 (노트에 남는다)
+        let cleared = TeamColors(home: .red, away: .blue, home2: nil, away2: nil)
+        #expect(MatchNote.edited(competition: nil, venue: nil, colors: cleared, recorded: recorded).colors == cleared)
+        // 주 색과 같은 두 번째 색은 없는 것: 정리하면 기록과 같다
+        let plain = TeamColors(home: .red, away: .blue)
+        let doubled = TeamColors(home: .red, away: .blue, home2: .red, away2: .blue)
+        #expect(MatchNote.edited(competition: nil, venue: nil, colors: doubled, recorded: plain).colors == nil)
+        // 정리한 색으로 남긴다
+        let picked = TeamColors(home: .white, away: .blue, home2: .white, away2: nil)
+        #expect(MatchNote.edited(competition: nil, venue: nil, colors: picked, recorded: plain).colors == TeamColors(home: .white, away: .blue))
+    }
+
     @Test func noteColorsClearSecondColor() {
         let setup = MatchSetup(homeColor: .red, awayColor: .blue, homeColor2: .yellow)
         let bundle = MatchBundle(record: makeRecord(setup, [(.startPeriod, 0)]), workout: nil)
