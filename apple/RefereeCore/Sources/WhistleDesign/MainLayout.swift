@@ -4,13 +4,15 @@ import CoreGraphics
 /// - 상단 띠: 테두리 밖, 시스템 시각 왼쪽 같은 줄
 /// - 테두리: 시스템 시각 글자 바로 아래에서 시작한다. 네 모서리 모두 화면 모서리 반지름 (2026-10-15 사용자 결정 — 시각과 겹치지 않게)
 /// - 테두리 안: 시계 줄 · 작은 줄(남은 시간·정지시간) · 팀 칸(홈 | 원정) · 버튼 줄을 겹치지 않게 놓는다
-/// 하한(버튼 44 · 시계 44 · 점수 30 · 일시 퇴장 13 · 작은 줄 13)을 먼저 지키고, 남는 높이는
+/// 하한(버튼 44 · 시계 44 · 점수 30 · 일시 퇴장 13 · 작은 줄 17)을 먼저 지키고, 남는 높이는
 /// 시계 → 점수 → 일시 퇴장 줄 수 → 버튼 순으로 나눈다.
 public struct MainLayout: Equatable, Sendable {
     public static let minButtonHeight: CGFloat = 44
     public static let minClockFont: CGFloat = 44
     public static let minScoreFont: CGFloat = 30
     public static let minSinBinFont: CGFloat = 13
+    /// 큰 시계 아래 작은 줄(남은 시간) 글자. 일시 퇴장 줄보다 크게 — 작고 회색이라 안 보인다는 테스터 피드백(2026-10-26, 안드로이드와 같게)
+    public static let subClockFont: CGFloat = 17
     /// 두 팀 칸 사이 (가운데에 1pt 선)
     public static let dividerGap: CGFloat = 6
     /// 버튼 셋 사이 간격
@@ -108,7 +110,7 @@ public struct MainLayout: Equatable, Sendable {
         let clockRowMin = Self.minClockFont / Self.clockFill
         let scoreRowMin = Self.minScoreFont / Self.scoreFill
         let sinBinRowMin = Self.minSinBinFont * Self.sinBinLeading
-        let subClockRowMin = Self.minSinBinFont * Self.sinBinLeading
+        let subClockRowMin = Self.subClockFont * Self.sinBinLeading
         let minimum = Self.minButtonHeight + clockRowMin + subClockRowMin + scoreRowMin + sinBinRowMin
         // 하한도 안 들어가면(아주 작은 화면) 모두 같은 비율로 줄인다
         let shrink = minimum > 0 ? min(1, available / minimum) : 1
@@ -131,7 +133,7 @@ public struct MainLayout: Equatable, Sendable {
         }
         sinBinLines = lines
         sinBinFontSize = Self.minSinBinFont * shrink
-        subClockFontSize = Self.minSinBinFont * shrink
+        subClockFontSize = Self.subClockFont * shrink
         var buttonHeight = (Self.minButtonHeight + take(Self.maxButtonHeight - Self.minButtonHeight)) * shrink
         // 더 키우면 버튼 줄을 더 올려야 하는 화면에서는 키우지 않는다 (남는 높이는 팀 칸이 받는다)
         while buttonHeight > Self.minButtonHeight * shrink + 0.5, buttonLift(buttonHeight) > baseLift + 0.001 {

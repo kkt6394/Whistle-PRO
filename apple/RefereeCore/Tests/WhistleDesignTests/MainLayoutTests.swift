@@ -87,15 +87,20 @@ struct MainLayoutTests {
         }
     }
 
-    /// 하한은 가장 작은 40mm에서도 지킨다 (스펙 §3 크기 규칙)
+    /// 하한은 40mm를 뺀 모든 크기에서 지킨다 (스펙 §3 크기 규칙).
+    /// 40mm(162×197)는 작은 줄을 17로 키운 뒤(2026-10-26) 자리가 모자라 모두 같은 비율(약 0.977)로 줄인다
+    /// — 2026-10-23 사용자 결정 "모든 시계가 같은 구성, 모자라면 같은 비율로 줄인다"
     @Test(arguments: MainLayoutTests.screens)
     func meetsMinimums(size: CGSize) {
         let l = MainLayout(size: size)
-        #expect(l.buttonHeight >= 44, "\(size) \(l.buttonHeight)")
-        #expect(l.clockFontSize >= 44, "\(size) \(l.clockFontSize)")
-        #expect(l.scoreFontSize >= 30, "\(size) \(l.scoreFontSize)")
-        #expect(l.sinBinFontSize >= 13, "\(size) \(l.sinBinFontSize)")
-        #expect(l.subClockFontSize >= 13, "\(size) \(l.subClockFontSize)")
+        let ratio = l.subClockFontSize / MainLayout.subClockFont
+        #expect(ratio >= (size.width <= 162 ? 0.97 : 1) - 1e-9, "\(size) 비율 \(ratio)")
+        #expect(l.buttonHeight >= 44 * ratio - 0.001, "\(size) \(l.buttonHeight)")
+        #expect(l.clockFontSize >= 44 * ratio - 0.001, "\(size) \(l.clockFontSize)")
+        #expect(l.scoreFontSize >= 30 * ratio - 0.001, "\(size) \(l.scoreFontSize)")
+        #expect(l.sinBinFontSize >= 13 * ratio - 0.001, "\(size) \(l.sinBinFontSize)")
+        // 작은 줄(남은 시간)은 일시 퇴장 줄보다 큰 17 — 작고 회색이라 안 보인다는 테스터 피드백(2026-10-26, 안드로이드와 같게)
+        #expect(l.subClockFontSize > l.sinBinFontSize, "\(size) 작은 줄이 일시 퇴장 줄보다 크다")
         #expect(l.subClock.height >= l.subClockFontSize, "\(size) \(l.subClock)")
         #expect(l.sinBinLines >= 1)
     }
