@@ -28,6 +28,9 @@ data class TeamColors(
     fun setting(team: Team, second: TeamColor?): TeamColors =
         if (team == Team.HOME) copy(home2 = second) else copy(away2 = second)
 
+    /** 두 번째 색이 주 색과 같으면 없앤 네 색 (MatchSetup 정리 규칙) */
+    fun normalized(): TeamColors = from(applied(MatchSetup()))
+
     fun toJson(): JsonObject = buildJsonObject {
         put("home", JsonPrimitive(home.hex))
         put("away", JsonPrimitive(away.hex))

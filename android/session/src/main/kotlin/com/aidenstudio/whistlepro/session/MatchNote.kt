@@ -26,6 +26,15 @@ data class MatchNote(
     }
 
     companion object {
+        /**
+         * 경기 정보 편집기에서 고른 값으로 만든 노트. 고른 네 색이 기록의 색과 같으면 덮어쓰지 않는다 (colors null).
+         * 두 번째 색이 주 색과 같으면 없는 것으로 정리한 뒤 비교한다 (Swift `MatchNote.edited`)
+         */
+        fun edited(competition: String?, venue: String?, colors: TeamColors, recorded: TeamColors): MatchNote {
+            val picked = colors.normalized()
+            return MatchNote(competition, venue, picked.takeIf { it != recorded.normalized() })
+        }
+
         fun fromJson(json: JsonObject) = MatchNote(
             json.optionalString("competition"), json.optionalString("venue"),
             (json["colors"] as? JsonObject)?.let(TeamColors::fromJson),
@@ -67,6 +76,9 @@ internal fun MatchLibrary.writeNotes(notes: Map<UUID, MatchNote>) {
     val items = notes.flatMap { (id, note) -> listOf(JsonPrimitive(id.swiftString), note.toJson()) }
     writeFileAtomically(notesFile, JsonArray(items).toString().toByteArray(Charsets.UTF_8))
 }
+
+/** 모든 경기의 노트 (목록 요약에 팀 색을 합칠 때). 파일이 없거나 깨졌으면 빈 사전 */
+fun MatchLibrary.notes(): Map<UUID, MatchNote> = readNotes() ?: emptyMap()
 
 fun MatchLibrary.note(id: UUID): MatchNote? = readNotes()?.get(id)
 
