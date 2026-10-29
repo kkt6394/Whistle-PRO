@@ -24,7 +24,7 @@ public struct ReplayFrame: Equatable {
 }
 
 /// 경기 기간만 이어 붙인 15초 영상의 시간축. 하프타임은 건너뛰고 승부차기는 기간이 아니라 들어가지 않는다.
-public struct ReplayTimeline {
+public struct ReplayTimeline: Sendable {
     public static let fps = 30
     public static let duration = 15.0
     /// 끝 장면을 붙잡아 두는 시간 (초)
