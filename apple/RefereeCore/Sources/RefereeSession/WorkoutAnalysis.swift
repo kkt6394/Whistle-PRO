@@ -135,6 +135,11 @@ public enum WorkoutAnalysis {
         stats(log, ranges: state.periods.map { ($0.startedAt, $0.endedAt ?? now) }, label: nil, includeZones: includeZones)
     }
 
+    /// 여러 구간의 값만 합친다 (구역 계산 없음). 리플레이 영상이 경기 도중 값을 구할 때 쓴다.
+    public static func stats(_ log: WorkoutLog, ranges: [(Double, Double)]) -> WorkoutStats {
+        stats(log, ranges: ranges, label: nil, includeZones: false)
+    }
+
     private static func stats(_ log: WorkoutLog, ranges: [(Double, Double)], label: String?, includeZones: Bool = true) -> WorkoutStats {
         func inRanges(_ t: Double) -> Bool { ranges.contains { t >= $0.0 && t <= $0.1 } }
         let heartRates = log.heartRate.filter { inRanges($0.t) }.map(\.value)
