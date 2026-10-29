@@ -10,20 +10,26 @@ import kotlinx.serialization.json.buildJsonObject
 import java.io.File
 import java.util.UUID
 
-/** 경기마다 폰에서 적는 메모 (대회명·장소). 폰 전용이라 워치로는 보내지 않는다. (Swift MatchNote와 같은 JSON 키) */
+/** 경기마다 폰에서 적는 메모 (대회명·장소·팀 색). 폰 전용이라 워치로는 보내지 않는다. (Swift MatchNote와 같은 JSON 키) */
 data class MatchNote(
     val competition: String? = null,
     val venue: String? = null,
+    /** 이 경기에서 바꾼 팀 색 (없으면 기록의 색). 예전 notes.json에는 이 키가 없다 */
+    val colors: TeamColors? = null,
 ) {
-    val isEmpty: Boolean get() = competition == null && venue == null
+    val isEmpty: Boolean get() = competition == null && venue == null && colors == null
 
     fun toJson(): JsonObject = buildJsonObject {
         competition?.let { put("competition", JsonPrimitive(it)) }
         venue?.let { put("venue", JsonPrimitive(it)) }
+        colors?.let { put("colors", it.toJson()) }
     }
 
     companion object {
-        fun fromJson(json: JsonObject) = MatchNote(json.optionalString("competition"), json.optionalString("venue"))
+        fun fromJson(json: JsonObject) = MatchNote(
+            json.optionalString("competition"), json.optionalString("venue"),
+            (json["colors"] as? JsonObject)?.let(TeamColors::fromJson),
+        )
     }
 }
 

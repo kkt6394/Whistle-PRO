@@ -89,6 +89,38 @@ data class TeamColor(val hex: String) {
         /** 편집 화면의 빠른 견본 (앞 8개는 예전 이름 색) */
         val QUICK_PICKS = listOf(RED, BLUE, WHITE, BLACK, YELLOW, GREEN, ORANGE, PURPLE, SKY, NAVY, MAROON, PINK, GRAY)
 
+        /** 색상환 단계 수 (10°씩)와 밝기 단계 수 */
+        const val WHEEL_STEPS = 36
+        const val WHEEL_LEVELS = 5
+
+        /**
+         * 색상환 한 칸. step 0 = 빨강 0°, 10°씩 (범위 밖은 나머지로 감는다).
+         * level 0 흰색 · 1 순색과 흰색 반반 · 2 순색 · 3 순색×0.55 · 4 검정. Swift `wheel(step:level:)`과 같다.
+         */
+        fun wheel(step: Int, level: Int): TeamColor {
+            val n = ((step % WHEEL_STEPS) + WHEEL_STEPS) % WHEEL_STEPS
+            val h = n * 10 / 60.0   // 0..<6
+            val sector = h.toInt()
+            val f = h - sector
+            val rgb = when (sector) {
+                0 -> doubleArrayOf(1.0, f, 0.0)
+                1 -> doubleArrayOf(1 - f, 1.0, 0.0)
+                2 -> doubleArrayOf(0.0, 1.0, f)
+                3 -> doubleArrayOf(0.0, 1 - f, 1.0)
+                4 -> doubleArrayOf(f, 0.0, 1.0)
+                else -> doubleArrayOf(1.0, 0.0, 1 - f)
+            }
+            fun shade(v: Double) = when {
+                level <= 0 -> 1.0
+                level == 1 -> (v + 1) / 2
+                level == 2 -> v
+                level == 3 -> v * 0.55
+                else -> 0.0
+            }
+            fun byte(v: Double) = Math.round(minOf(1.0, maxOf(0.0, v)) * 255).toInt()
+            return TeamColor(String.format("#%02X%02X%02X", byte(shade(rgb[0])), byte(shade(rgb[1])), byte(shade(rgb[2]))))
+        }
+
         private val legacy = mapOf("red" to RED, "blue" to BLUE, "white" to WHITE, "black" to BLACK,
             "yellow" to YELLOW, "green" to GREEN, "orange" to ORANGE, "purple" to PURPLE)
         private val hexPattern = Regex("^#?[0-9A-Fa-f]{6}$")

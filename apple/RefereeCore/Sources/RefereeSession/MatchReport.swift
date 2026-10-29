@@ -66,7 +66,8 @@ public struct MatchReport: Equatable, Sendable {
     public var workoutOverall: WorkoutStats?
 
     public init(bundle: MatchBundle, note: MatchNote? = nil, referee: String? = nil) {
-        let setup = bundle.record.setup
+        // 노트에 바꾼 팀 색이 있으면 그 색을 쓴다
+        let setup = note?.colors?.applied(to: bundle.record.setup) ?? bundle.record.setup
         let state = MatchEngine.reduce(rules: setup.rules, commands: bundle.record.commands)
         let end = state.periods.last.map { $0.endedAt ?? $0.startedAt } ?? bundle.record.createdAt
 
@@ -227,6 +228,18 @@ public struct MatchSummary: Codable, Equatable, Sendable, Identifiable {
         }
         periodCount = setup.rules.periodCount
         periodMinutes = setup.rules.periodLength / 60
+    }
+
+    /// 노트에 바꾼 팀 색이 있으면 그 네 색으로 바꾼 요약 (없으면 그대로)
+    public func applying(_ note: MatchNote?) -> MatchSummary {
+        guard let colors = note?.colors else { return self }
+        var s = self
+        let applied = colors.applied(to: MatchSetup(homeColor: s.homeColor, awayColor: s.awayColor))
+        s.homeColor = applied.homeColor
+        s.awayColor = applied.awayColor
+        s.homeColor2 = applied.homeColor2
+        s.awayColor2 = applied.awayColor2
+        return s
     }
 
     /// 폰 보관함용: 시즌 통계 값까지 (보고서를 한 번 만든다)

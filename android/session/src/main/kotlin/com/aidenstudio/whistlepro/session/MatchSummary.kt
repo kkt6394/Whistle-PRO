@@ -84,6 +84,14 @@ data class MatchSummary(
     /** 기간 하나의 규정 길이 (분) */
     val periodMinutes: Int? = null,
 ) {
+    /** 노트에 바꾼 팀 색이 있으면 그 네 색으로 바꾼 요약 (없으면 그대로) */
+    fun applying(note: MatchNote?): MatchSummary {
+        val colors = note?.colors ?: return this
+        val applied = colors.applied(MatchSetup(homeColor = homeColor, awayColor = awayColor))
+        return copy(homeColor = applied.homeColor, awayColor = applied.awayColor,
+            homeColor2 = applied.homeColor2, awayColor2 = applied.awayColor2)
+    }
+
     val isCurrent: Boolean get() = (summaryVersion ?: 1) >= CURRENT_VERSION
 
     fun toJson(): JsonObject = buildJsonObject {

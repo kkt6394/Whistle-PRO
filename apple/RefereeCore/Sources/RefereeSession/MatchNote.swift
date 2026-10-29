@@ -1,16 +1,19 @@
 import Foundation
 
-/// 경기마다 폰에서 적는 메모 (대회명·장소). 폰 전용이라 워치로는 보내지 않는다.
+/// 경기마다 폰에서 적는 메모 (대회명·장소·팀 색). 폰 전용이라 워치로는 보내지 않는다.
 public struct MatchNote: Codable, Equatable, Sendable {
     public var competition: String?
     public var venue: String?
+    /// 이 경기에서 바꾼 팀 색 (없으면 기록의 색). 예전 notes.json에는 이 키가 없다
+    public var colors: TeamColors?
 
-    public init(competition: String? = nil, venue: String? = nil) {
+    public init(competition: String? = nil, venue: String? = nil, colors: TeamColors? = nil) {
         self.competition = competition
         self.venue = venue
+        self.colors = colors
     }
 
-    public var isEmpty: Bool { competition == nil && venue == nil }
+    public var isEmpty: Bool { competition == nil && venue == nil && colors == nil }
 }
 
 extension MatchLibrary {

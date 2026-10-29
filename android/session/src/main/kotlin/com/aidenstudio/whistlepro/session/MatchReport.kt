@@ -79,7 +79,8 @@ class MatchReport(bundle: MatchBundle, note: MatchNote? = null, referee: String?
     val workoutOverall: WorkoutStats?
 
     init {
-        val setup = bundle.record.setup
+        // 노트에 바꾼 팀 색이 있으면 그 색을 쓴다
+        val setup = note?.colors?.applied(bundle.record.setup) ?: bundle.record.setup
         val state = MatchEngine.reduce(setup.rules, bundle.record.commands)
         val end = state.periods.lastOrNull()?.let { it.endedAt ?: it.startedAt } ?: bundle.record.createdAt
 

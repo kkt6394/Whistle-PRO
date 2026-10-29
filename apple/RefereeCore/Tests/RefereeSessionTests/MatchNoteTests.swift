@@ -84,3 +84,50 @@ struct MatchNoteTests {
         #expect(r.competition == nil && r.venue == nil && r.referee == "김기태")
     }
 }
+
+struct MatchNoteColorsTests {
+    private let colors = TeamColors(home: .white, away: .black, home2: nil, away2: .yellow)
+
+    @Test func noteColorsRoundTrip() throws {
+        let note = MatchNote(competition: "Cup", colors: colors)
+        let data = try JSONEncoder().encode(note)
+        #expect(try JSONDecoder().decode(MatchNote.self, from: data) == note)
+        let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let inner = try #require(json["colors"] as? [String: Any])
+        #expect(inner["home2"] == nil)
+        #expect(inner["away2"] as? String == "#FFCC00")
+    }
+
+    @Test func oldNoteWithoutColorsDecodes() throws {
+        let note = try JSONDecoder().decode(MatchNote.self, from: Data(#"{"competition":"Cup"}"#.utf8))
+        #expect(note.colors == nil)
+        #expect(!note.isEmpty)
+        #expect(MatchNote().isEmpty)
+        #expect(MatchNote(colors: nil).isEmpty)
+        #expect(!MatchNote(colors: colors).isEmpty)
+    }
+
+    @Test func reportAndSummaryUseNoteColors() {
+        let setup = MatchSetup(homeColor: .red, awayColor: .blue, homeColor2: .yellow)
+        let bundle = MatchBundle(record: makeRecord(setup, [(.startPeriod, 0)]), workout: nil)
+        let note = MatchNote(colors: colors)
+        let report = MatchReport(bundle: bundle, note: note)
+        #expect(report.homeColor == .white && report.awayColor == .black)
+        #expect(report.homeColor2 == nil && report.awayColor2 == .yellow)
+        let summary = MatchSummary(record: bundle.record).applying(note)
+        #expect(summary.homeColor == .white && summary.awayColor == .black)
+        #expect(summary.homeColor2 == nil && summary.awayColor2 == .yellow)
+        // 노트 색이 없으면 기록 색
+        let plain = MatchReport(bundle: bundle, note: MatchNote(competition: "Cup"))
+        #expect(plain.homeColor == .red && plain.homeColor2 == .yellow)
+        #expect(MatchSummary(record: bundle.record).applying(nil).homeColor == .red)
+    }
+
+    @Test func noteColorsClearSecondColor() {
+        let setup = MatchSetup(homeColor: .red, awayColor: .blue, homeColor2: .yellow)
+        let bundle = MatchBundle(record: makeRecord(setup, [(.startPeriod, 0)]), workout: nil)
+        let note = MatchNote(colors: TeamColors(home: .red, away: .blue, home2: nil, away2: nil))
+        #expect(MatchReport(bundle: bundle, note: note).homeColor2 == nil)
+        #expect(MatchSummary(record: bundle.record).applying(note).homeColor2 == nil)
+    }
+}
