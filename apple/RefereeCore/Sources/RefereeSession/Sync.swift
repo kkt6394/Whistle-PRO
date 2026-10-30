@@ -61,6 +61,23 @@ public enum SyncPayload {
     public static let sentAtKey = "sentAt"
 
     public static let contextRequestKey = "contextRequest"
+    public static let watchBuildKey = "watchBuild"
+
+    /// 워치 → 폰 컨텍스트: 워치 앱 빌드 번호. 워치가 켜질 때 올려 두면 폰 앱이 꺼져 있어도 다음 실행 때 받는다.
+    /// 폰과 워치는 한 아카이브로 올라가 빌드 번호(YYYYMMDDHHMM)가 같다 — 워치 자동 업데이트가 꺼져 있으면 어긋난다
+    public static func watchBuild(_ build: String) -> [String: Any] {
+        [watchBuildKey: build]
+    }
+
+    public static func watchBuild(from context: [String: Any]) -> String? {
+        context[watchBuildKey] as? String
+    }
+
+    /// 워치 앱이 폰 앱보다 옛 빌드인가. 모르는 값(버전을 안 알리는 옛 워치 앱·숫자가 아닌 빌드)은 아니라고 본다
+    public static func isWatchOutdated(watchBuild: String?, phoneBuild: String?) -> Bool {
+        guard let watch = watchBuild.flatMap(Int.init), let phone = phoneBuild.flatMap(Int.init) else { return false }
+        return watch < phone
+    }
 
     /// 워치 → 폰: 프리셋·구독 상태를 보내 달라는 요청. 새로 설치된 워치 앱은 컨텍스트가 비어 있는데,
     /// 폰 앱이 그때 실행 중이 아니면 재설치 알림(sessionWatchStateDidChange)을 놓쳐 다시 보내지 않는다.

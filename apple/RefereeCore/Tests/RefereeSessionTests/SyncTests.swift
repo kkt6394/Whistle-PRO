@@ -24,6 +24,20 @@ struct SyncTests {
         }
     }
 
+    /// 워치 앱 버전 알림: 폰과 같은 아카이브의 빌드 번호(YYYYMMDDHHMM)를 비교한다
+    @Test func watchBuildOutdated() {
+        let context = SyncPayload.watchBuild("202610301545")
+        #expect(SyncPayload.watchBuild(from: context) == "202610301545")
+        #expect(SyncPayload.watchBuild(from: [:]) == nil)
+        #expect(SyncPayload.isWatchOutdated(watchBuild: "202610301545", phoneBuild: "202611051200"))
+        #expect(!SyncPayload.isWatchOutdated(watchBuild: "202611051200", phoneBuild: "202611051200"))
+        // 워치가 더 새것(폰 업데이트가 늦음)이면 안내하지 않는다
+        #expect(!SyncPayload.isWatchOutdated(watchBuild: "202611051200", phoneBuild: "202610301545"))
+        // 모르는 값(버전을 안 알리는 옛 워치 앱, 숫자가 아닌 빌드)은 안내하지 않는다
+        #expect(!SyncPayload.isWatchOutdated(watchBuild: nil, phoneBuild: "202611051200"))
+        #expect(!SyncPayload.isWatchOutdated(watchBuild: "1.3.0", phoneBuild: "202611051200"))
+    }
+
     @Test func ackRoundTrips() {
         let id = UUID()
         #expect(SyncPayload.matchID(from: SyncPayload.ack(id)) == id)
