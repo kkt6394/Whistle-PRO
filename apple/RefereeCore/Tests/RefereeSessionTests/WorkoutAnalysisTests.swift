@@ -41,6 +41,30 @@ struct WorkoutAnalysisTests {
         #expect(WorkoutAnalysis.sprintCount(route) == 2)
     }
 
+    /// 아이폰 위치(속도 없음)에서 워치 GPS로 넘어온 첫 5초는 속도가 미끄러져 20km/h로 찍힐 수 있다 (2026-10-30 실기기)
+    /// — 스프린트에서 빼고, 자리 잡은 뒤의 진짜 전력 질주는 그대로 센다
+    @Test func firstFixesAfterPhoneHandoverAreNotASprint() {
+        let phone = [point(0, kmh: -3.6), point(6, kmh: -3.6)]
+        let handover = (10...13).map { point(Double($0), kmh: 21) }
+        let settled = (14...20).map { point(Double($0), kmh: 0) }
+        #expect(WorkoutAnalysis.sprintCount(phone + handover + settled) == 0)
+        let later = (21...24).map { point(Double($0), kmh: 22) }
+        #expect(WorkoutAnalysis.sprintCount(phone + handover + settled + later) == 1)
+    }
+
+    /// 넘어온 첫 5초의 거리는 속도 구간에도 넣지 않는다 (위치도 미끄러진다)
+    @Test func speedZonesSkipHandoverWarmup() {
+        func at(_ t: Double, _ north: Double, kmh: Double) -> RoutePoint {
+            RoutePoint(t: t, latitude: 37.5 + north / 111_320, longitude: 127, speed: kmh / 3.6, accuracy: 5)
+        }
+        let route = [at(0, 0, kmh: -3.6), at(2, 0, kmh: -3.6), at(4, 7, kmh: 21), at(5, 14, kmh: 21), at(6, 21, kmh: 21),
+                     at(10, 22, kmh: 0), at(11, 23, kmh: 0)]
+        let zones = WorkoutAnalysis.speedZones(route)!
+        #expect(zones.sprinting == 0)
+        #expect(zones.running == 0)
+        #expect(zones.walking > 0)
+    }
+
     @Test func perPeriodSplitsDistanceEnergyAndHeartRate() {
         var log = WorkoutLog(matchID: UUID())
         log.distance = [WorkoutSample(t: 0, value: 0), WorkoutSample(t: 2700, value: 5000),

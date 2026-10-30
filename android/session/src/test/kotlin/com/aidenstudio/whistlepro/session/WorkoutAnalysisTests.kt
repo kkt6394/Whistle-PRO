@@ -44,6 +44,30 @@ class WorkoutAnalysisTests {
         assertEquals(2, WorkoutAnalysis.sprintCount(route))
     }
 
+    /**
+     * 휴대폰 위치(속도 없음)에서 워치 GPS로 넘어온 첫 5초는 속도가 미끄러져 20km/h로 찍힐 수 있다 (2026-10-30 실기기)
+     * — 스프린트에서 빼고, 자리 잡은 뒤의 진짜 전력 질주는 그대로 센다
+     */
+    @Test fun firstFixesAfterPhoneHandoverAreNotASprint() {
+        val phone = listOf(point(0.0, -3.6), point(6.0, -3.6))
+        val handover = (10..13).map { point(it.toDouble(), 21.0) }
+        val settled = (14..20).map { point(it.toDouble(), 0.0) }
+        assertEquals(0, WorkoutAnalysis.sprintCount(phone + handover + settled))
+        val later = (21..24).map { point(it.toDouble(), 22.0) }
+        assertEquals(1, WorkoutAnalysis.sprintCount(phone + handover + settled + later))
+    }
+
+    /** 넘어온 첫 5초의 거리는 속도 구간에도 넣지 않는다 (위치도 미끄러진다) */
+    @Test fun speedZonesSkipHandoverWarmup() {
+        fun at(t: Double, north: Double, kmh: Double) = RoutePoint(t, 37.5 + north / 111_320, 127.0, kmh / 3.6, 5.0)
+        val route = listOf(at(0.0, 0.0, -3.6), at(2.0, 0.0, -3.6), at(4.0, 7.0, 21.0), at(5.0, 14.0, 21.0), at(6.0, 21.0, 21.0),
+            at(10.0, 22.0, 0.0), at(11.0, 23.0, 0.0))
+        val zones = WorkoutAnalysis.speedZones(route)!!
+        assertEquals(0.0, zones.sprinting)
+        assertEquals(0.0, zones.running)
+        assert(zones.walking > 0)
+    }
+
     @Test fun perPeriodSplitsDistanceEnergyAndHeartRate() {
         val log = WorkoutLog(
             UUID.randomUUID(),

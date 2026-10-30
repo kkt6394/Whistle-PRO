@@ -24,7 +24,8 @@ struct SpeedZoneTests {
     }
 
     @Test func unknownSpeedUsesDistanceOverTime() throws {
-        let zones = try #require(WorkoutAnalysis.speedZones([point(0, north: 0, kmh: -1), point(2, north: 12, kmh: 5)]))
+        // 속도 없는 점이 뒤에 온다: 속도 없는 점 → 속도 있는 점 순서는 '넘어옴'이라 첫 5초를 뺀다 (speedSettledRoute)
+        let zones = try #require(WorkoutAnalysis.speedZones([point(0, north: 0, kmh: 5), point(2, north: 12, kmh: -1)]))
         // 12m / 2초 = 6m/s = 21.6km/h → 스프린트
         #expect(abs(zones.sprinting - 12) < 0.01)
     }

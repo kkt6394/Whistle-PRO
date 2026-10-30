@@ -60,6 +60,27 @@ object WorkoutAnalysis {
     const val RUNNING_SPEED = 13.0 / 3.6
     /** 사람이 낼 수 있는 가장 빠른 이동 (m/s): 전력 질주(약 10 m/s)보다 조금 빠르게. 이보다 빨리 튄 점은 위치 오류 */
     const val MAXIMUM_SPEED = 12.0
+    /**
+     * 휴대폰 위치(속도 없음)에서 워치 GPS로 넘어온 뒤 속도·위치가 자리 잡기까지 (초). 첫 fix 몇 개는 참 위치로
+     * 미끄러지며 20km/h로 찍혔다 (Apple Watch SE 1세대 실기기, 2026-10-30) — 속도 구간·스프린트에서는 뺀다
+     */
+    const val SPEED_WARMUP = 5.0
+
+    /**
+     * 속도 계산에 쓸 지점: 속도 없는 지점(휴대폰 위치) 다음에 처음 속도가 생긴 때부터 [SPEED_WARMUP] 안의 지점은 뺀다.
+     * 경로 시작·하프타임 뒤 재개는 넘어옴이 아니라 그대로 둔다. usable은 [usableRoute] 결과(시간순)
+     */
+    fun speedSettledRoute(usable: List<RoutePoint>): List<RoutePoint> {
+        var acquiredAt: Double? = null
+        var previousHadSpeed = true
+        return usable.filter { point ->
+            val hasSpeed = point.speed >= 0
+            if (hasSpeed && !previousHadSpeed) acquiredAt = point.t
+            previousHadSpeed = hasSpeed
+            val acquired = acquiredAt
+            !hasSpeed || acquired == null || point.t - acquired >= SPEED_WARMUP
+        }
+    }
 
     /**
      * 쓸 GPS 지점: 정확도 20m 이하, 시간순, 혼자 튄 점은 뺀다 — 앞·뒤 지점 모두와 [MAXIMUM_SPEED]보다 빠르게 떨어져 있고
@@ -83,7 +104,7 @@ object WorkoutAnalysis {
 
     /**
      * GPS 경로의 속도 구간별 거리. 연속한 두 지점(정확도 20m 이하, 간격 3초 이하) 사이 거리를
-     * 두 지점 평균 속도의 구간에 더한다. 속도를 모르면 거리÷시간을 쓴다. 쓸 구간이 없으면 null.
+     * 두 지점 평균 속도의 구간에 더한다. 속도를 모르면 거리÷시간을 쓴다. 넘어온 직후([SPEED_WARMUP])는 뺀다. 쓸 구간이 없으면 null.
      */
     fun speedZones(route: List<RoutePoint>): SpeedZones? {
         var walking = 0.0
@@ -92,7 +113,7 @@ object WorkoutAnalysis {
         var sprinting = 0.0
         var found = false
         var previous: RoutePoint? = null
-        for (point in usableRoute(route)) {
+        for (point in speedSettledRoute(usableRoute(route))) {
             val prev = previous
             previous = point
             if (prev == null) continue
@@ -131,7 +152,7 @@ object WorkoutAnalysis {
             if (start != null && runEnd - start >= MINIMUM_SPRINT_DURATION) count += 1
             runStart = null
         }
-        for (point in usableRoute(route)) {
+        for (point in speedSettledRoute(usableRoute(route))) {
             val last = lastTime
             if (last != null && point.t - last > MAXIMUM_GAP) closeRun()
             if (point.speed >= SPRINT_SPEED) {

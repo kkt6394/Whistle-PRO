@@ -33,7 +33,8 @@ class SpeedZoneTests {
     }
 
     @Test fun unknownSpeedUsesDistanceOverTime() {
-        val zones = assertNotNull(WorkoutAnalysis.speedZones(listOf(point(0.0, 0.0, -1.0), point(2.0, 12.0, 5.0))))
+        // 속도 없는 점이 뒤에 온다: 속도 없는 점 → 속도 있는 점 순서는 '넘어옴'이라 첫 5초를 뺀다 (speedSettledRoute)
+        val zones = assertNotNull(WorkoutAnalysis.speedZones(listOf(point(0.0, 0.0, 5.0), point(2.0, 12.0, -1.0))))
         // 12m / 2초 = 6m/s = 21.6km/h → 스프린트
         near(12.0, zones.sprinting)
     }
