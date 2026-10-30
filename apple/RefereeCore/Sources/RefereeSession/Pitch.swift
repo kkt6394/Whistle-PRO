@@ -44,6 +44,12 @@ public struct Pitch: Codable, Equatable, Hashable, Sendable {
     private var directionNorth: Double { cos(bearing * .pi / 180) }
     private var directionEast: Double { sin(bearing * .pi / 180) }
 
+    /// 위아래 뒤집기: 같은 자리·크기에 A·B 골라인만 바꾼 경기장 (방향 +180°).
+    /// 그림 경기장과 리플레이는 골라인 기준으로 위아래를 두니, 사용자가 보기에 거꾸로면 이걸로 돌린다
+    public var flipped: Pitch {
+        Pitch(center: center, length: length, width: width, bearing: (bearing + 180).truncatingRemainder(dividingBy: 360))
+    }
+
     /// A왼쪽, A오른쪽, B오른쪽, B왼쪽 순서.
     public var corners: [GeoPoint] {
         [

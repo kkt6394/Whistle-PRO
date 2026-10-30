@@ -25,6 +25,12 @@ data class Pitch(val center: GeoPoint, val length: Double, val width: Double, va
     private val directionEast get() = sin(bearing * PI / 180)
 
     /** A왼쪽, A오른쪽, B오른쪽, B왼쪽 순서. */
+    /**
+     * 위아래 뒤집기: 같은 자리·크기에 A·B 골라인만 바꾼 경기장 (방향 +180°).
+     * 그림 경기장과 리플레이는 골라인 기준으로 위아래를 두니, 사용자가 보기에 거꾸로면 이걸로 돌린다
+     */
+    fun flipped(): Pitch = copy(bearing = (bearing + 180) % 360)
+
     val corners: List<GeoPoint>
         get() = listOf(
             geo(PitchPoint(0.0, 0.0)),

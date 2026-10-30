@@ -144,4 +144,22 @@ struct PitchEstimateTests {
         #expect(PitchEstimate.of([]) == nil)
         #expect(PitchEstimate.of(Array(filled(truth).prefix(9))) == nil)
     }
+
+    /// 위아래 뒤집기: 네 점·크기는 그대로, 방향만 180° (A·B 골라인이 바뀐다)
+    @Test func flippedTurnsBearingOnly() throws {
+        let pitch = Pitch(center: center, length: 100, width: 60, bearing: 30)
+        let flipped = pitch.flipped
+        #expect(flipped.center == pitch.center)
+        #expect(flipped.length == pitch.length)
+        #expect(flipped.width == pitch.width)
+        #expect(abs(flipped.bearing - 210) < 1e-9)
+        #expect(abs(Pitch(center: center, length: 100, width: 60, bearing: 300).flipped.bearing - 120) < 1e-9)
+        // A왼쪽이 원래 B오른쪽 자리로
+        #expect(abs(flipped.corners[0].latitude - pitch.corners[2].latitude) < 1e-9)
+        #expect(abs(flipped.corners[0].longitude - pitch.corners[2].longitude) < 1e-9)
+        // 뒤집은 네 점으로 다시 다듬어도 뒤집힌 방향 그대로 (저장 경로)
+        let saved = try #require(Pitch.fromCorners(flipped.corners))
+        #expect(abs(saved.bearing - 210) <= 1)
+        #expect(abs(saved.length - 100) <= 0.5)
+    }
 }
