@@ -32,6 +32,8 @@ public struct ReplayTimeline: Sendable {
     public static let tailSeconds = 300.0
     public static let fadeSeconds = 0.25
     public static let minimumPoints = 10
+    /// 꼬리를 이을 수 있는 가장 빠른 이동 (m/s): 전력 질주(약 10 m/s)보다 조금 빠르게
+    public static let maximumTailSpeed = 12.0
     /// 영상 0.5초마다 통계를 미리 구한다
     private static let statsStep = 15
 
@@ -137,7 +139,13 @@ public struct ReplayTimeline: Sendable {
         while start > 0, points[start - 1].t >= period.start { start -= 1 }
         guard end > start else { return (nil, []) }
         let previous = points[end - 1]
-        let tail = points[start..<end].filter { $0.t >= t - ReplayTimeline.tailSeconds }.map { GeoPoint(latitude: $0.latitude, longitude: $0.longitude) }
+        let recent = Array(points[start..<end].filter { $0.t >= t - ReplayTimeline.tailSeconds })
+        // 사람이 낼 수 없는 속도로 튄 곳에서 꼬리를 끊는다: 그 뒤만 잇는다 (긴 직선이 그어졌다 — 2026-10-30, 안드로이드와 같다)
+        let cut = recent.indices.dropFirst().last { i in
+            let gap = recent[i].t - recent[i - 1].t
+            return gap > 0 && WorkoutAnalysis.distance(recent[i - 1], recent[i]) / gap > ReplayTimeline.maximumTailSpeed
+        } ?? 0
+        let tail = recent[cut...].map { GeoPoint(latitude: $0.latitude, longitude: $0.longitude) }
         let here = GeoPoint(latitude: previous.latitude, longitude: previous.longitude)
         if previous.t == t { return (here, tail) }
         // 뒤 점: 같은 기간 안에서 t 다음 점

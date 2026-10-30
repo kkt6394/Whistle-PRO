@@ -175,6 +175,22 @@ class ReplayTimelineTests {
         assertTrue(timeline.frame(449).distance > timeline.frame(200).distance)
     }
 
+    /** 위치가 수백 m 튀면(휴대폰 위치가 섞인 순간 등) 꼬리는 튄 뒤부터만 잇는다 — 긴 직선을 그리지 않는다 */
+    @Test fun tailCutsAtImpossibleJump() {
+        val (log, state) = regular()
+        // 후반 4000초에 동쪽으로 300m 튄 점 하나
+        val jump = RoutePoint(4001.0, 37.5, 127.0 + 300 / (METERS_PER_DEGREE * cos(37.5 * Math.PI / 180)), -1.0, 5.0)
+        val route = (log.route + jump).sortedBy { it.t }
+        val timeline = timeline(log.copy(route = route), state)
+        val jumped = GeoPoint(jump.latitude, jump.longitude)
+        for (i in 0 until 450) {
+            val frame = timeline.frame(i)
+            val at = frame.tail.indexOf(jumped)
+            // 튄 점이 꼬리에 있으면 그 앞(튀기 전) 점과 잇지 않는다: 튄 점에서 시작하거나, 튄 점 뒤에서 다시 끊긴다
+            if (at > 0) error("프레임 $i: 튄 점 앞의 점과 이어졌다")
+        }
+    }
+
     @Test fun openLastPeriodUsesNow() {
         val log = makeLog(listOf(0.0 to 2700.0, 3600.0 to 6000.0))
         val state = makeState(listOf(CommandKind.StartPeriod to 0.0, CommandKind.EndPeriod to 2700.0, CommandKind.StartPeriod to 3600.0))

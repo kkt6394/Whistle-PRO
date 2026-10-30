@@ -101,7 +101,13 @@ class ReplayTimeline private constructor(
         while (start > 0 && points[start - 1].t >= period.start) start--
         if (end <= start) return null to emptyList()
         val previous = points[end - 1]
-        val tail = points.subList(start, end).filter { it.t >= t - TAIL_SECONDS }.map { GeoPoint(it.latitude, it.longitude) }
+        val recent = points.subList(start, end).filter { it.t >= t - TAIL_SECONDS }
+        // 사람이 낼 수 없는 속도로 튄 곳(위치 출처가 바뀐 순간 등)에서 꼬리를 끊는다: 그 뒤만 잇는다 (긴 직선이 그어졌다 — 2026-10-30)
+        val cut = recent.indices.drop(1).lastOrNull { i ->
+            val gap = recent[i].t - recent[i - 1].t
+            gap > 0 && WorkoutAnalysis.distance(recent[i - 1], recent[i]) / gap > MAXIMUM_TAIL_SPEED
+        } ?: 0
+        val tail = recent.drop(cut).map { GeoPoint(it.latitude, it.longitude) }
         val here = GeoPoint(previous.latitude, previous.longitude)
         if (previous.t == t) return here to tail
         // 뒤 점: 같은 기간 안에서 t 다음 점
@@ -140,6 +146,8 @@ class ReplayTimeline private constructor(
         const val TAIL_SECONDS = 300.0
         const val FADE_SECONDS = 0.25
         const val MINIMUM_POINTS = 10
+        /** 꼬리를 이을 수 있는 가장 빠른 이동 (m/s): 전력 질주(약 10 m/s)보다 조금 빠르게 */
+        const val MAXIMUM_TAIL_SPEED = 12.0
         /** 영상 0.5초마다 통계를 미리 구한다 */
         private const val STATS_STEP = 15
 
