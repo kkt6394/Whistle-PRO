@@ -150,4 +150,22 @@ class PitchEstimateTests {
         assertNull(PitchEstimate.of(emptyList()))
         assertNull(PitchEstimate.of(filled(truth).take(9)))
     }
+
+    /** 위아래 뒤집기: 네 점·크기는 그대로, 방향만 180° (A·B 골라인이 바뀐다) */
+    @Test fun flippedTurnsBearingOnly() {
+        val pitch = Pitch(center, 100.0, 60.0, 30.0)
+        val flipped = pitch.flipped()
+        assertEquals(pitch.center, flipped.center)
+        assertEquals(pitch.length, flipped.length, 0.0)
+        assertEquals(pitch.width, flipped.width, 0.0)
+        assertEquals(210.0, flipped.bearing, 1e-9)
+        assertEquals(120.0, Pitch(center, 100.0, 60.0, 300.0).flipped().bearing, 1e-9)
+        // A왼쪽이 원래 B오른쪽 자리로
+        assertEquals(pitch.corners[2].latitude, flipped.corners[0].latitude, 1e-9)
+        assertEquals(pitch.corners[2].longitude, flipped.corners[0].longitude, 1e-9)
+        // 뒤집은 네 점으로 다시 다듬어도 뒤집힌 방향 그대로 (저장 경로)
+        val saved = assertNotNull(Pitch.fromCorners(flipped.corners))
+        assertEquals(210.0, saved.bearing, 1.0)
+        assertEquals(100.0, saved.length, 0.5)
+    }
 }
