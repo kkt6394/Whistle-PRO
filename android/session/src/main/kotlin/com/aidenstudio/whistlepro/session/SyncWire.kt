@@ -30,6 +30,12 @@ object SyncPaths {
     const val CONTEXT_REQUEST = "/whistlepro/context-request"
     const val CAPABILITY_WEAR = "whistlepro_wear"
     const val CAPABILITY_MOBILE = "whistlepro_mobile"
+    /** 워치 앱 버전 capability 앞부분: `whistlepro_wear_v<versionCode>` (워치 res/values/wear.xml) */
+    const val CAPABILITY_WEAR_VERSION_PREFIX = "whistlepro_wear_v"
+
+    /** 버전 capability 이름의 versionCode. 버전 capability가 아니면 null */
+    fun wearVersion(capability: String): Long? =
+        capability.takeIf { it.startsWith(CAPABILITY_WEAR_VERSION_PREFIX) }?.removePrefix(CAPABILITY_WEAR_VERSION_PREFIX)?.toLongOrNull()
 
     /** 경기 DataItem 경로. transfer는 전송마다 다른 이름 (같은 경로면 끝난 이전 전송의 정리가 새 전송을 지울 수 있다) */
     fun match(matchID: UUID, transfer: String): String = "$MATCH_PREFIX${matchID.swiftString}/$transfer"

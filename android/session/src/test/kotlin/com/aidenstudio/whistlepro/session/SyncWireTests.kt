@@ -55,6 +55,14 @@ class SyncWireTests {
         assertNull(SyncWire.requestId("쓰레기".toByteArray()))
     }
 
+    /** 워치 버전 capability `whistlepro_wear_v<versionCode>`만 버전으로 읽는다 (설치 capability·폰 capability는 아님) */
+    @Test fun wearVersionCapabilityParses() {
+        assertEquals(226103002L, SyncPaths.wearVersion("whistlepro_wear_v226103002"))
+        assertNull(SyncPaths.wearVersion(SyncPaths.CAPABILITY_WEAR))
+        assertNull(SyncPaths.wearVersion(SyncPaths.CAPABILITY_MOBILE))
+        assertNull(SyncPaths.wearVersion("whistlepro_wear_vabc"))
+    }
+
     @Test fun matchPathCarriesId() {
         val id = UUID.randomUUID()
         val path = SyncPaths.match(id, "t1")
