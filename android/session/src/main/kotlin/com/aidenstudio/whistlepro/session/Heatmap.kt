@@ -27,7 +27,7 @@ object Heatmap {
 
     /** GPS 지점을 cellMeters 격자로 묶는다. 정확도가 나쁜(20m 초과·음수) 지점은 버린다. */
     fun cells(route: List<RoutePoint>, cellMeters: Double = 4.0): List<HeatCell> {
-        val points = route.filter { it.accuracy >= 0 && it.accuracy <= WorkoutAnalysis.MAXIMUM_ACCURACY }
+        val points = WorkoutAnalysis.usableRoute(route)
         val reference = points.firstOrNull() ?: return emptyList()
         val latitudeStep = cellMeters / METERS_PER_DEGREE
         val longitudeStep = cellMeters / (METERS_PER_DEGREE * cos(reference.latitude * Math.PI / 180))

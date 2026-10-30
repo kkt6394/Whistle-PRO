@@ -61,6 +61,26 @@ public enum WorkoutAnalysis {
     public static let joggingSpeed = 7.0 / 3.6
     /// 달리기 시작 속도 13km/h (m/s)
     public static let runningSpeed = 13.0 / 3.6
+    /// 사람이 낼 수 있는 가장 빠른 이동 (m/s): 전력 질주(약 10 m/s)보다 조금 빠르게. 이보다 빨리 튄 점은 위치 오류
+    public static let maximumSpeed = 12.0
+
+    /// 쓸 GPS 지점: 정확도 20m 이하, 시간순, 혼자 튄 점은 뺀다 — 앞·뒤 지점 모두와 maximumSpeed보다 빠르게 떨어져 있고
+    /// 앞·뒤끼리는 그렇지 않은 점 (휴대폰 위치가 한 번 섞이는 등, 2026-10-30). 거리·히트맵·이벤트 위치·리플레이가 함께 쓴다
+    public static func usableRoute(_ route: [RoutePoint]) -> [RoutePoint] {
+        let points = route.filter { $0.accuracy >= 0 && $0.accuracy <= maximumAccuracy }.sorted { $0.t < $1.t }
+        guard points.count >= 3 else { return points }
+        return points.indices.compactMap { i in
+            if i == 0 || i == points.count - 1 { return points[i] }
+            let before = points[i - 1], point = points[i], after = points[i + 1]
+            let spike = jumps(before, point) && jumps(point, after) && !jumps(before, after)
+            return spike ? nil : point
+        }
+    }
+
+    private static func jumps(_ a: RoutePoint, _ b: RoutePoint) -> Bool {
+        let dt = b.t - a.t
+        return dt > 0 && distance(a, b) / dt > maximumSpeed
+    }
 
     /// GPS 경로의 속도 구간별 거리. 연속한 두 지점(정확도 20m 이하, 간격 3초 이하) 사이 거리를
     /// 두 지점 평균 속도의 구간에 더한다. 속도를 모르면 거리÷시간을 쓴다. 쓸 구간이 없으면 nil.
@@ -68,7 +88,7 @@ public enum WorkoutAnalysis {
         var zones = SpeedZones()
         var found = false
         var previous: RoutePoint?
-        for point in route where point.accuracy >= 0 && point.accuracy <= maximumAccuracy {
+        for point in usableRoute(route) {
             defer { previous = point }
             guard let previous else { continue }
             let dt = point.t - previous.t
@@ -105,7 +125,7 @@ public enum WorkoutAnalysis {
             if let start = runStart, runEnd - start >= minimumSprintDuration { count += 1 }
             runStart = nil
         }
-        for point in route where point.accuracy >= 0 && point.accuracy <= maximumAccuracy {
+        for point in usableRoute(route) {
             if let lastTime, point.t - lastTime > maximumGap { closeRun() }
             if point.speed >= sprintSpeed {
                 if runStart == nil { runStart = point.t }

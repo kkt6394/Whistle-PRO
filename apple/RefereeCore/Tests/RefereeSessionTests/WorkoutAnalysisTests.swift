@@ -10,6 +10,17 @@ private func point(_ t: Double, kmh: Double, accuracy: Double = 5) -> RoutePoint
 private let halves: [(CommandKind, Double)] = [(.startPeriod, 0), (.endPeriod, 2700), (.startPeriod, 3600), (.endPeriod, 6300)]
 
 struct WorkoutAnalysisTests {
+    /// 혼자 300m 튄 점(앞·뒤 모두와 12 m/s 초과)은 빼고, 꾸준히 움직인 점은 남긴다
+    @Test func usableRouteDropsLoneSpike() {
+        func at(_ t: Double, _ east: Double) -> RoutePoint {
+            RoutePoint(t: t, latitude: 37.5, longitude: 127.0 + east / (111_320.0 * cos(37.5 * .pi / 180)), speed: -1, accuracy: 5)
+        }
+        let route = [at(0, 0), at(1, 3), at(2, 300), at(3, 6), at(4, 9)]
+        #expect(WorkoutAnalysis.usableRoute(route).map(\.t) == [0, 1, 3, 4])
+        let zones = WorkoutAnalysis.speedZones(route)!
+        #expect(zones.walking + zones.jogging + zones.running + zones.sprinting < 20)
+    }
+
     @Test func sprintCountsSeparateRuns() {
         let route = [point(0, kmh: 10), point(1, kmh: 22), point(2, kmh: 23), point(3, kmh: 24), point(4, kmh: 10),
                      point(5, kmh: 25), point(6, kmh: 26), point(7, kmh: 27), point(8, kmh: 10)]

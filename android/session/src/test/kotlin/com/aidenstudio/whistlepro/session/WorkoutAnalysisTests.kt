@@ -13,6 +13,17 @@ private val halves = listOf(
 )
 
 class WorkoutAnalysisTests {
+    /** 혼자 300m 튄 점(앞·뒤 모두와 12 m/s 초과)은 빼고, 꾸준히 움직인 점과 진짜 빠른 이동은 남긴다 */
+    @Test fun usableRouteDropsLoneSpike() {
+        fun at(t: Double, east: Double) = RoutePoint(t, 37.5, 127.0 + east / (111_320.0 * kotlin.math.cos(37.5 * Math.PI / 180)), -1.0, 5.0)
+        val route = listOf(at(0.0, 0.0), at(1.0, 3.0), at(2.0, 300.0), at(3.0, 6.0), at(4.0, 9.0))
+        val usable = WorkoutAnalysis.usableRoute(route)
+        assertEquals(listOf(0.0, 1.0, 3.0, 4.0), usable.map { it.t })
+        // 튄 점이 빠지니 거리도 9m 남짓 (튄 점을 넣으면 600m 가까이)
+        val zones = WorkoutAnalysis.speedZones(route)!!
+        assert(zones.walking + zones.jogging + zones.running + zones.sprinting < 20)
+    }
+
     @Test fun sprintCountsSeparateRuns() {
         val route = listOf(point(0.0, 10.0), point(1.0, 22.0), point(2.0, 23.0), point(3.0, 24.0), point(4.0, 10.0),
             point(5.0, 25.0), point(6.0, 26.0), point(7.0, 27.0), point(8.0, 10.0))

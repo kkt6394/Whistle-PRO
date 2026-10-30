@@ -23,7 +23,7 @@ public enum Heatmap {
 
     /// GPS 지점을 cellMeters 격자로 묶는다. 정확도가 나쁜(20m 초과·음수) 지점은 버린다.
     public static func cells(_ route: [RoutePoint], cellMeters: Double = 4) -> [HeatCell] {
-        let points = route.filter { $0.accuracy >= 0 && $0.accuracy <= WorkoutAnalysis.maximumAccuracy }
+        let points = WorkoutAnalysis.usableRoute(route)
         guard let reference = points.first else { return [] }
         let latitudeStep = cellMeters / metersPerDegree
         let longitudeStep = cellMeters / (metersPerDegree * cos(reference.latitude * .pi / 180))

@@ -147,19 +147,14 @@ class ReplayTimeline private constructor(
         const val FADE_SECONDS = 0.25
         const val MINIMUM_POINTS = 10
         /** 꼬리를 이을 수 있는 가장 빠른 이동 (m/s): 전력 질주(약 10 m/s)보다 조금 빠르게 */
-        const val MAXIMUM_TAIL_SPEED = 12.0
+        const val MAXIMUM_TAIL_SPEED = WorkoutAnalysis.MAXIMUM_SPEED
         /** 영상 0.5초마다 통계를 미리 구한다 */
         private const val STATS_STEP = 15
 
         fun make(log: WorkoutLog, state: MatchState, now: Double): ReplayTimeline? {
             val periods = state.periods.map { Period(it.startedAt, it.endedAt ?: now) }.filter { it.length > 0 }
             if (periods.isEmpty()) return null
-            val points = log.route
-                .filter { p ->
-                    p.accuracy >= 0 && p.accuracy <= WorkoutAnalysis.MAXIMUM_ACCURACY &&
-                        periods.any { p.t >= it.start && p.t <= it.end }
-                }
-                .sortedBy { it.t }
+            val points = WorkoutAnalysis.usableRoute(log.route).filter { p -> periods.any { p.t >= it.start && p.t <= it.end } }
             if (points.size < MINIMUM_POINTS) return null
             return ReplayTimeline(log, periods, points)
         }

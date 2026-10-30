@@ -58,6 +58,28 @@ object WorkoutAnalysis {
     const val JOGGING_SPEED = 7.0 / 3.6
     /** 달리기 시작 속도 13km/h (m/s) */
     const val RUNNING_SPEED = 13.0 / 3.6
+    /** 사람이 낼 수 있는 가장 빠른 이동 (m/s): 전력 질주(약 10 m/s)보다 조금 빠르게. 이보다 빨리 튄 점은 위치 오류 */
+    const val MAXIMUM_SPEED = 12.0
+
+    /**
+     * 쓸 GPS 지점: 정확도 20m 이하, 시간순, 혼자 튄 점은 뺀다 — 앞·뒤 지점 모두와 [MAXIMUM_SPEED]보다 빠르게 떨어져 있고
+     * 앞·뒤끼리는 그렇지 않은 점 (휴대폰 위치가 한 번 섞이는 등, 2026-10-30). 거리·히트맵·이벤트 위치·리플레이가 함께 쓴다
+     */
+    fun usableRoute(route: List<RoutePoint>): List<RoutePoint> {
+        val points = route.filter { it.accuracy >= 0 && it.accuracy <= MAXIMUM_ACCURACY }.sortedBy { it.t }
+        if (points.size < 3) return points
+        return points.filterIndexed { i, point ->
+            if (i == 0 || i == points.lastIndex) return@filterIndexed true
+            val before = points[i - 1]
+            val after = points[i + 1]
+            !(jumps(before, point) && jumps(point, after) && !jumps(before, after))
+        }
+    }
+
+    private fun jumps(a: RoutePoint, b: RoutePoint): Boolean {
+        val dt = b.t - a.t
+        return dt > 0 && distance(a, b) / dt > MAXIMUM_SPEED
+    }
 
     /**
      * GPS 경로의 속도 구간별 거리. 연속한 두 지점(정확도 20m 이하, 간격 3초 이하) 사이 거리를
@@ -70,8 +92,7 @@ object WorkoutAnalysis {
         var sprinting = 0.0
         var found = false
         var previous: RoutePoint? = null
-        for (point in route) {
-            if (!(point.accuracy >= 0 && point.accuracy <= MAXIMUM_ACCURACY)) continue
+        for (point in usableRoute(route)) {
             val prev = previous
             previous = point
             if (prev == null) continue
@@ -110,8 +131,7 @@ object WorkoutAnalysis {
             if (start != null && runEnd - start >= MINIMUM_SPRINT_DURATION) count += 1
             runStart = null
         }
-        for (point in route) {
-            if (!(point.accuracy >= 0 && point.accuracy <= MAXIMUM_ACCURACY)) continue
+        for (point in usableRoute(route)) {
             val last = lastTime
             if (last != null && point.t - last > MAXIMUM_GAP) closeRun()
             if (point.speed >= SPRINT_SPEED) {

@@ -26,8 +26,7 @@ object EventLocation {
     fun locate(route: List<RoutePoint>, t: Double): RoutePoint? {
         var best: RoutePoint? = null
         var bestOffset = Double.POSITIVE_INFINITY
-        for (point in route) {
-            if (!(point.accuracy >= 0 && point.accuracy <= WorkoutAnalysis.MAXIMUM_ACCURACY)) continue
+        for (point in WorkoutAnalysis.usableRoute(route)) {
             val offset = abs(point.t - t)
             if (offset <= MAXIMUM_OFFSET && offset < bestOffset) {
                 best = point

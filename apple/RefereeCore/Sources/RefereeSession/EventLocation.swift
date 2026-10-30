@@ -21,7 +21,7 @@ public enum EventLocation {
     public static func locate(_ route: [RoutePoint], at t: Double) -> RoutePoint? {
         var best: RoutePoint?
         var bestOffset = Double.infinity
-        for point in route where point.accuracy >= 0 && point.accuracy <= WorkoutAnalysis.maximumAccuracy {
+        for point in WorkoutAnalysis.usableRoute(route) {
             let offset = abs(point.t - t)
             if offset <= maximumOffset && offset < bestOffset {
                 best = point

@@ -33,7 +33,7 @@ public struct ReplayTimeline: Sendable {
     public static let fadeSeconds = 0.25
     public static let minimumPoints = 10
     /// 꼬리를 이을 수 있는 가장 빠른 이동 (m/s): 전력 질주(약 10 m/s)보다 조금 빠르게
-    public static let maximumTailSpeed = 12.0
+    public static let maximumTailSpeed = WorkoutAnalysis.maximumSpeed
     /// 영상 0.5초마다 통계를 미리 구한다
     private static let statsStep = 15
 
@@ -58,12 +58,7 @@ public struct ReplayTimeline: Sendable {
     public static func make(log: WorkoutLog, state: MatchState, now: Double) -> ReplayTimeline? {
         let periods = state.periods.map { Period(start: $0.startedAt, end: $0.endedAt ?? now) }.filter { $0.length > 0 }
         guard !periods.isEmpty else { return nil }
-        let points = log.route
-            .filter { p in
-                p.accuracy >= 0 && p.accuracy <= WorkoutAnalysis.maximumAccuracy
-                    && periods.contains { p.t >= $0.start && p.t <= $0.end }
-            }
-            .sorted { $0.t < $1.t }
+        let points = WorkoutAnalysis.usableRoute(log.route).filter { p in periods.contains { p.t >= $0.start && p.t <= $0.end } }
         guard points.count >= minimumPoints else { return nil }
         return ReplayTimeline(log: log, periods: periods, points: points)
     }
