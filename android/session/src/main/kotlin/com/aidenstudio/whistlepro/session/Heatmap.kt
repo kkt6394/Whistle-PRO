@@ -122,7 +122,7 @@ data class HeatmapBounds(
     /** 넓은 쪽 길이의 2.5배 높이에서 보면 여백을 두고 다 들어온다. 최소 150m */
     val viewingDistance: Double get() = max(max(northSouthMeters, eastWestMeters) * 2.5, 150.0)
 
-    /** 한국은 위성 사진을 경기장 크기까지 확대할 수 없어(Apple 지도 제한) 일반 지도로 그린다. */
+    /** 한국 안이다: SNS 카드·보고서 지도 사진은 일반 지도로, 폰 위성 보기는 확대를 18까지 (Google 한국 위성 사진 한계) */
     val inKorea: Boolean
         get() {
             if (centerLatitude !in 33.0..38.7 || centerLongitude !in 124.5..131.9) return false
