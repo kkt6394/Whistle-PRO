@@ -21,6 +21,9 @@ coreKtx = "1.19.1"
 navigationCompose = "2.10.2"
 mapsCompose = "9.0.1"
 playServicesMaps = "20.1.0"
+# 한국 위성 지도 (Google 한국 위성 사진이 흐려서). Compose 래퍼가 끌어오는 SDK보다 새 SDK로 맞춘다
+naverMapSdk = "3.24.0"
+naverMapCompose = "1.9.0"
 espresso = "3.7.0"
 healthConnect = "1.1.0"
 # Play 결제 (PendingPurchasesParams·자동 재연결은 8.0부터)
@@ -64,6 +67,8 @@ navigation-compose = { module = "androidx.navigation:navigation-compose", versio
 lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 maps-compose = { module = "com.google.maps.android:maps-compose", version.ref = "mapsCompose" }
 play-services-maps = { module = "com.google.android.gms:play-services-maps", version.ref = "playServicesMaps" }
+naver-map-sdk = { module = "com.naver.maps:map-sdk", version.ref = "naverMapSdk" }
+naver-map-compose = { module = "io.github.fornewid:naver-map-compose", version.ref = "naverMapCompose" }
 # 폰이 받은 경기의 운동을 Health Connect에 (노트10 Android 12는 따로 받는 Play 앱)
 health-connect-client = { module = "androidx.health.connect:connect-client", version.ref = "healthConnect" }
 # 폰 앱 Play 구독 (묶음 3)
