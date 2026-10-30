@@ -34,41 +34,9 @@ iPhone · Apple Watch · Android 폰 · Wear OS 네 앱을 1인 개발했습니�
 
 ## 전체 구조
 
-```mermaid
-flowchart TB
-    subgraph private["비공개 저장소"]
-        direction LR
-        watch["Apple Watch 앱"]
-        iphone["iPhone 앱"]
-        wear["Wear OS 앱"]
-        phone["Android 폰 앱"]
-    end
+<img src="docs/images/architecture.png" alt="전체 구조: Apple(Swift)과 Android(Kotlin) 앱이 각각 공유 모듈을 쓰고, 두 엔진이 같은 시나리오를 통과한다">
 
-    subgraph swift["apple/RefereeCore (Swift Package)"]
-        core["RefereeCore<br/>경기 엔진"]
-        session["RefereeSession<br/>기록·동기화·통계·히트맵"]
-        design["WhistleDesign<br/>워치 화면 크기별 레이아웃"]
-    end
-
-    subgraph kotlin["android (Kotlin)"]
-        kcore[":core<br/>경기 엔진"]
-        ksession[":session<br/>기록·동기화·통계·히트맵"]
-    end
-
-    scenarios[("shared/engine-scenarios<br/>공용 시나리오")]
-    fixtures[("shared/fixtures<br/>Swift가 저장한 경기 파일")]
-
-    watch & iphone --> design --> session --> core
-    wear & phone --> ksession --> kcore
-    watch <-. "WatchConnectivity" .-> iphone
-    wear <-. "Wear Data Layer" .-> phone
-    scenarios --> core & kcore
-    fixtures --> ksession
-
-    style private stroke-dasharray: 5 5
-```
-
-점선 상자 안의 네 앱은 비공개이고, 나머지가 이 저장소입니다.
+점선 상자 안의 네 앱은 비공개이고, 나머지가 이 저장소입니다. 그림 원본은 [`docs/images/architecture.mmd`](docs/images/architecture.mmd)(mermaid)입니다.
 
 ## 설계 결정
 

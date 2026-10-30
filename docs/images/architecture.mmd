@@ -1,0 +1,42 @@
+%%{init: {"flowchart": {"wrappingWidth": 400, "nodeSpacing": 40, "rankSpacing": 50}}}%%
+flowchart TB
+    subgraph android["Android — Kotlin"]
+        direction TB
+        subgraph kapps["앱 (비공개)"]
+            direction LR
+            wear["Wear OS"] <-. Data Layer .-> phone["Android 폰"]
+        end
+        ksession[":session<br/>기록 · 동기화 · 통계 · 히트맵<br/>워치 화면 크기별 레이아웃"]
+        kcore[":core<br/>경기 엔진"]
+        kapps --> ksession --> kcore
+    end
+
+    subgraph apple["Apple — Swift"]
+        direction TB
+        subgraph aapps["앱 (비공개)"]
+            direction LR
+            watch["Apple Watch"] <-. WatchConnectivity .-> iphone["iPhone"]
+        end
+        design["WhistleDesign<br/>워치 화면 크기별 레이아웃"]
+        session["RefereeSession<br/>기록 · 동기화 · 통계 · 히트맵"]
+        core["RefereeCore<br/>경기 엔진"]
+        aapps --> design --> session --> core
+    end
+
+    scenarios[("shared/engine-scenarios<br/>두 엔진 공용 시나리오")]
+    fixtures[("shared/fixtures<br/>Swift가 저장한 경기 파일")]
+
+    core -. 같은 시나리오 통과 .- scenarios
+    kcore -. 같은 시나리오 통과 .- scenarios
+    ksession -. 그대로 읽기 .- fixtures
+
+    classDef private fill:#f4f4f5,stroke:#a1a1aa,stroke-dasharray:5 5,color:#52525b
+    classDef pub fill:#ffffff,stroke:#18181b,color:#18181b
+    classDef data fill:#ecfccb,stroke:#4d7c0f,color:#1a2e05
+    class watch,iphone,wear,phone private
+    class design,session,core,ksession,kcore pub
+    class scenarios,fixtures data
+    style aapps fill:#fafafa,stroke:#a1a1aa,stroke-dasharray:5 5
+    style kapps fill:#fafafa,stroke:#a1a1aa,stroke-dasharray:5 5
+    style apple fill:#ffffff,stroke:#d4d4d8
+    style android fill:#ffffff,stroke:#d4d4d8
