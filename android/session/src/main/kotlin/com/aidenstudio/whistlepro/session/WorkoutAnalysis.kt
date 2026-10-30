@@ -137,7 +137,10 @@ object WorkoutAnalysis {
     fun overall(log: WorkoutLog, state: MatchState, now: Double): WorkoutStats =
         stats(log, state.periods.map { it.startedAt to (it.endedAt ?: now) }, null)
 
-    private fun stats(log: WorkoutLog, ranges: List<Pair<Double, Double>>, label: String?): WorkoutStats {
+    /** 여러 구간의 값만 합친다 (구역 계산 없음). 리플레이 영상이 경기 도중 값을 구할 때 쓴다. */
+    fun stats(log: WorkoutLog, ranges: List<Pair<Double, Double>>): WorkoutStats = stats(log, ranges, null, includeZones = false)
+
+    private fun stats(log: WorkoutLog, ranges: List<Pair<Double, Double>>, label: String?, includeZones: Boolean = true): WorkoutStats {
         fun inRanges(t: Double) = ranges.any { t >= it.first && t <= it.second }
         val heartRates = log.heartRate.filter { inRanges(it.t) }.map { it.value }
         // 기간마다 워치 거리와 GPS 거리 중 큰 쪽. 워치는 GPS를 끈 운동이라 거리가 걸음 추정이고, 삼성 워치는 축구 운동에서
@@ -145,7 +148,7 @@ object WorkoutAnalysis {
         val perRange = ranges.map { range ->
             val gps = speedZones(log.route.filter { it.t >= range.first && it.t <= range.second })
             val distance = maxOf(delta(log.distance, log.restarts, range.first, range.second), gps?.total ?: 0.0)
-            distance to gps?.takeIf { distance > 0 }?.scaled(to = distance)
+            distance to gps?.takeIf { includeZones && distance > 0 }?.scaled(to = distance)
         }
         val distance = perRange.sumOf { it.first }
         val gpsZones = perRange.mapNotNull { it.second }
