@@ -1,0 +1,33 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  swift:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v5
+      - name: Swift 엔진·세션·레이아웃 테스트
+        run: swift test --package-path apple/RefereeCore
+
+  kotlin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platforms;android-26
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Kotlin 엔진·세션 테스트
+        working-directory: android
+        run: ./gradlew :core:test :session:test
