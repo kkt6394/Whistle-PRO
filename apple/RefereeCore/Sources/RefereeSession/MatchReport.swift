@@ -6,6 +6,12 @@ public struct ReportLine: Equatable, Sendable {
     public var team: Team
     public var kind: ResolvedEventKind
     public var detail: String
+    /// periods 인덱스 (승부차기는 nil). 휴식 중 기록은 직전 기간.
+    public var period: Int? = nil
+    /// 기간 안 경과 초. 휴식 중이면 그 기간 played.
+    public var second: Int? = nil
+    /// 골·자책골만: 이 줄 직후 점수 (승부차기 제외)
+    public var scoreAfter: TeamPair<Int>? = nil
 }
 
 public struct PeriodSummary: Equatable, Sendable {
@@ -16,6 +22,8 @@ public struct PeriodSummary: Equatable, Sendable {
     public var stoppage: Int
     /// 규정 시간을 넘겨 진행한 시간(초)
     public var added: Int
+    /// 규정 길이(초)
+    public var nominal: Int = 0
 }
 
 public struct RuleLine: Equatable, Sendable {
@@ -96,23 +104,37 @@ public struct MatchReport: Equatable, Sendable {
         shootout = shootoutStatus.kicks.home + shootoutStatus.kicks.away > 0 ? shootoutStatus.goals : nil
 
         let rows = Array(state.eventRows(setup: setup).reversed())
-        func lines(_ kinds: Set<ResolvedEventKind>) -> [ReportLine] {
-            rows.filter { kinds.contains($0.kind) }
-                .map { ReportLine(minute: $0.minute, team: $0.team, kind: $0.kind, detail: $0.detail) }
+        let stoppages = state.stoppageTotals(at: end)
+        let playedSeconds = state.periods.map { max(0, wholeSeconds(($0.endedAt ?? end) - $0.startedAt)) }
+        let timelineKinds: Set<ResolvedEventKind> = [.goal, .ownGoal, .yellow, .secondYellow, .red, .sinBin, .substitution]
+        var running = TeamPair(home: 0, away: 0)
+        let all: [ReportLine] = rows.compactMap { row in
+            guard timelineKinds.contains(row.kind) else { return nil }
+            var line = ReportLine(minute: row.minute, team: row.team, kind: row.kind, detail: row.detail)
+            if let index = state.periods.firstIndex(where: { $0.ref == row.time.period }) {
+                line.period = index
+                line.second = row.time.duringPlay ? row.time.matchSecond - state.periods[index].offset : playedSeconds[index]
+            }
+            if row.kind == .goal || row.kind == .ownGoal {
+                running[line.columnTeam] += 1
+                line.scoreAfter = running
+            }
+            return line
         }
+        func lines(_ kinds: Set<ResolvedEventKind>) -> [ReportLine] { all.filter { kinds.contains($0.kind) } }
         goals = lines([.goal, .ownGoal])
         discipline = lines([.yellow, .secondYellow, .red, .sinBin])
         substitutions = lines([.substitution])
-        timeline = lines([.goal, .ownGoal, .yellow, .secondYellow, .red, .sinBin, .substitution])
+        timeline = all
 
-        let stoppages = state.stoppageTotals(at: end)
         periods = state.periods.enumerated().map { index, p in
-            let played = max(0, wholeSeconds((p.endedAt ?? end) - p.startedAt))
+            let played = playedSeconds[index]
             return PeriodSummary(
                 label: p.ref.label(periodCount: setup.rules.periodCount),
                 played: played,
                 stoppage: stoppages[index],
-                added: max(0, played - p.nominalLength))
+                added: max(0, played - p.nominalLength),
+                nominal: p.nominalLength)
         }
         var scores = Array(repeating: TeamPair(home: 0, away: 0), count: state.periods.count)
         for resolved in state.resolvedEvents where resolved.kind == .goal || resolved.kind == .ownGoal {
@@ -148,6 +170,13 @@ public struct MatchReport: Equatable, Sendable {
             String(name.map { "/\\:?%*|\"<>".contains($0) ? "-" : $0 }).trimmingCharacters(in: .whitespaces)
         }
         return "WhistlePRO \(date) \(clean(homeName)) vs \(clean(awayName))"
+    }
+
+    /// index번째 기간 시작 때의 점수 (앞 기간 골 합)
+    public func scoreBefore(period index: Int) -> TeamPair<Int> {
+        var sum = TeamPair(home: 0, away: 0)
+        for s in periodScores.prefix(index) { sum.home += s.home; sum.away += s.away }
+        return sum
     }
 
     public func color2(of team: Team) -> TeamColor? {

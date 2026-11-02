@@ -22,6 +22,8 @@ public struct EventRow: Equatable, Identifiable, Sendable {
     /// 승부차기 킥 성공 여부 (킥이 아니면 nil)
     public var scored: Bool?
     public var warnings: [EventWarning]
+    /// 기록한 시각 (기간·진행 중 여부·경기 초)
+    public var time: EventTime
 }
 
 /// 이벤트를 기록한 직후 심판에게 보여줄 안내
@@ -75,7 +77,8 @@ extension MatchState {
                 team: r.event.payload.team,
                 detail: detail,
                 scored: scored,
-                warnings: r.warnings)
+                warnings: r.warnings,
+                time: r.event.time)
         }
     }
 

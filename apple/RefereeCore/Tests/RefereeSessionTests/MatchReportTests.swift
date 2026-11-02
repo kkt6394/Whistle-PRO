@@ -44,8 +44,8 @@ struct MatchReportTests {
         #expect(report.discipline.map(\.kind) == [.yellow, .secondYellow])
         #expect(report.substitutions.map(\.detail) == ["#7 → #14"])
         #expect(report.periods == [
-            PeriodSummary(label: "1H", played: 2820, stoppage: 90, added: 120),
-            PeriodSummary(label: "2H", played: 2700, stoppage: 0, added: 0),
+            PeriodSummary(label: "1H", played: 2820, stoppage: 90, added: 120, nominal: 2700),
+            PeriodSummary(label: "2H", played: 2700, stoppage: 0, added: 0, nominal: 2700),
         ])
         #expect(report.ruleDeviations.isEmpty)
     }
@@ -84,4 +84,57 @@ struct MatchReportTests {
         #expect(report.shootout == TeamPair(home: 1, away: 0))
         #expect(report.ruleDeviations == [RuleLine(field: .penalties, value: "true")])
     }
+
+/// 전후반 2–2, 하프타임 중 카드 1(엔진은 휴식 중 골을 거절한다), 자책골 1 (타임라인 줄마다 기간·초·점수)
+private let flow: [(CommandKind, Double)] = [
+    (.startPeriod, 0),
+    (.recordEvent(.goal(team: .home, number: 9, ownGoal: false)), 700),        // 12' 1–0
+    (.recordEvent(.card(team: .away, number: 4, kind: .yellow)), 1350),
+    (.recordEvent(.goal(team: .away, number: 11, ownGoal: false)), 2150),      // 36' 1–1
+    (.endPeriod, 2820),                                                          // 전반 47:00
+    (.recordEvent(.card(team: .home, number: 10, kind: .yellow)), 3000),       // 휴식 중 카드
+    (.startPeriod, 3720),
+    (.recordEvent(.goal(team: .away, number: 5, ownGoal: true)), 4800),        // 자책골 → 홈 2–1
+    (.recordEvent(.goal(team: .away, number: 11, ownGoal: false)), 6300),      // 2–2
+    (.endPeriod, 6500),
+]
+
+@Test func timelineCarriesPeriodSecondAndScore() {
+    let report = MatchReport(bundle: MatchBundle(record: makeRecord(flow), workout: nil))
+    #expect(report.timeline.map(\.period) == [0, 0, 0, 0, 1, 1])
+    #expect(report.timeline.map(\.second) == [700, 1350, 2150, 2820, 1080, 2580])
+    #expect(report.timeline.map(\.scoreAfter) == [
+        TeamPair(home: 1, away: 0), nil, TeamPair(home: 1, away: 1), nil,
+        TeamPair(home: 2, away: 1), TeamPair(home: 2, away: 2)])
+    #expect(report.timeline.last?.scoreAfter == report.score)
+    #expect(report.periods.map(\.nominal) == [2700, 2700])
+    #expect(report.scoreBefore(period: 0) == TeamPair(home: 0, away: 0))
+    #expect(report.scoreBefore(period: 1) == TeamPair(home: 1, away: 1))
+}
+
+@Test func shootoutDoesNotChangeScoreAfter() {
+    let setup = MatchSetup(rules: RuleSet(penalties: true))
+    let commands: [(CommandKind, Double)] = [
+        (.startPeriod, 0), (.recordEvent(.goal(team: .home, number: 9, ownGoal: false)), 600), (.endPeriod, 2700),
+        (.startPeriod, 3600), (.recordEvent(.goal(team: .away, number: 11, ownGoal: false)), 5000), (.endPeriod, 6300),
+        (.setShootoutFirstTeam(.home), 6400),
+        (.recordEvent(.penaltyKick(team: .home, number: nil, scored: true)), 6410),
+        (.recordEvent(.penaltyKick(team: .away, number: nil, scored: false)), 6420)]
+    let report = MatchReport(bundle: MatchBundle(record: makeRecord(setup, commands), workout: nil))
+    #expect(report.timeline.map(\.kind) == [.goal, .goal])                 // 승부차기 킥은 timeline에 없다
+    #expect(report.timeline.last?.scoreAfter == TeamPair(home: 1, away: 1))
+    #expect(report.timeline.last?.scoreAfter == report.score)              // 승부차기 1:0은 score에 안 섞인다
+    #expect(report.shootout == TeamPair(home: 1, away: 0))
+}
+
+@Test func extraTimePeriodsIndexFrom2() {
+    let setup = MatchSetup(rules: RuleSet(extraTime: true))
+    let commands: [(CommandKind, Double)] = [
+        (.startPeriod, 0), (.endPeriod, 2700), (.startPeriod, 3600), (.endPeriod, 6300),
+        (.startPeriod, 6600), (.recordEvent(.card(team: .home, number: 3, kind: .yellow)), 6900), (.endPeriod, 7500),
+        (.startPeriod, 7800), (.endPeriod, 8700)]
+    let report = MatchReport(bundle: MatchBundle(record: makeRecord(setup, commands), workout: nil))
+    #expect(report.timeline.map(\.period) == [2])
+    #expect(report.periods.map(\.nominal) == [2700, 2700, 900, 900])
+}
 }
