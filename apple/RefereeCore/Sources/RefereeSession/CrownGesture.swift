@@ -1,7 +1,8 @@
 /// 크라운 제스처 판정 설정. 크라운 값은 한 바퀴 = 1.0 기준 (digitalCrownRotation 값 → 바퀴 환산은 호출자 몫).
 public struct CrownGestureConfig: Sendable, Equatable {
-    /// 입력 1·2로 치는 최소 회전 (바퀴). 처음 반 바퀴(0.5)는 SE 실기기에서 "너무 많이 돌려야 한다"고 해 약 1/3바퀴(126°)로 (2026-11-02 사용자)
-    public var commandTurn = 0.35
+    /// 입력 1·2로 치는 최소 회전 (바퀴). 처음 반 바퀴(0.5) → 1/3바퀴 → 1/4바퀴(90°): SE 실기기에서 "덜 돌려도 인식되게" (2026-11-02 사용자).
+    /// 손목 꺾임으로 크라운이 살짝 도는 것과 겹치지 않게 이 아래로는 내리지 않는다
+    public var commandTurn = 0.25
     /// 흔들기 한 번으로 셀 최소 회전 (바퀴). 0.08(29°)은 SE 실기기에서 작은 흔들기가 안 잡혀 0.03(11°)으로 (2026-11-02)
     public var wiggleStep = 0.03
     /// 방향 반전 3번이 들어와야 하는 시간(초)
@@ -31,7 +32,7 @@ public struct CrownGestureEvent: Sendable, Equatable {
     }
 }
 
-/// 크라운 회전 표본(delta, 시각)을 제스처로 바꾼다. 한 방향 1/3바퀴 이상 = primary/secondary(획이 끝나면, 3/4바퀴 넘으면 즉시), 흔들기 두 번 = undo.
+/// 크라운 회전 표본(delta, 시각)을 제스처로 바꾼다. 한 방향 1/4바퀴 이상 = primary/secondary(획이 끝나면, 3/4바퀴 넘으면 즉시), 흔들기 두 번 = undo.
 /// 시계에 의존하지 않는다. 시각은 호출자가 초 단위로 넘긴다. 기준을 넘긴 뒤 손이 멈춘 것은 표본 없이는 알 수 없으므로
 /// 호출자가 `strokeEnd` 뒤에 `flush(at:)`를 불러 준다.
 public struct CrownGestureDetector: Sendable {

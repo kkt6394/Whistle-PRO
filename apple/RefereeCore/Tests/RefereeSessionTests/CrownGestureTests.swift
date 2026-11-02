@@ -59,20 +59,21 @@ struct CrownGestureTests {
         #expect(fired.first?.input == .undo)
     }
 
-    /// 0.3바퀴(108°)는 기준(0.35) 미만 → 무시
+    /// 0.2바퀴(72°)는 기준(0.25) 미만 → 무시
     @Test func smallTurnIsIgnored() {
-        #expect(run(steps(0.1, count: 3)).allSatisfy { $0 == nil })
+        #expect(run(steps(0.1, count: 2)).allSatisfy { $0 == nil })
     }
 
-    /// 0.4바퀴(144°)는 기준을 넘겨 획이 끝난 뒤 실행 (2026-11-02 반 바퀴 → 1/3바퀴)
-    @Test func thirdTurnIsEnough() {
-        let events = run(steps(0.1, count: 4))
-        #expect(events.prefix(4).allSatisfy { $0 == nil })
-        #expect(events[4] == CrownGestureEvent(input: .primary, startedAt: 0))
+    /// 0.3바퀴(108°)는 기준을 넘겨 획이 끝난 뒤 실행 (2026-11-02 반 바퀴 → 1/4바퀴)
+    @Test func quarterTurnIsEnough() {
+        let events = run(steps(0.1, count: 3))
+        #expect(events.prefix(3).allSatisfy { $0 == nil })
+        #expect(events[3] == CrownGestureEvent(input: .primary, startedAt: 0))
     }
 
+    /// 0.2바퀴 돌리고 0.5초 쉬면 처음부터: 두 번 합쳐 0.4바퀴여도 실행되지 않는다
     @Test func pauseResetsTurn() {
-        let events = run([(0.1, 0), (0.1, 0.05), (0.1, 0.1), (0.1, 0.6), (0.1, 0.65), (0.1, 0.7)])
+        let events = run([(0.1, 0), (0.1, 0.05), (0.1, 0.6), (0.1, 0.65)])
         #expect(events.allSatisfy { $0 == nil })
     }
 
