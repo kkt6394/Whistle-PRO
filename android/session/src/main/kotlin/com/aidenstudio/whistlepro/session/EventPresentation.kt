@@ -30,6 +30,8 @@ data class EventRow(
     /** 승부차기 킥 성공 여부 (킥이 아니면 null) */
     val scored: Boolean?,
     val warnings: List<EventWarning>,
+    /** 기록 시점 (기간·경과 초 계산에 쓴다) */
+    val time: EventTime,
 )
 
 /** 이벤트를 기록한 직후 심판에게 보여줄 안내 */
@@ -75,6 +77,7 @@ private fun MatchState.rows(name: (Team, Long?) -> String?): List<EventRow> = re
         detail = detail,
         scored = scored,
         warnings = r.warnings,
+        time = r.event.time,
     )
 }
 

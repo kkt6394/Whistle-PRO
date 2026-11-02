@@ -54,7 +54,7 @@ class MatchReportTests {
         assertEquals(listOf(ResolvedEventKind.YELLOW, ResolvedEventKind.SECOND_YELLOW), report.discipline.map { it.kind })
         assertEquals(listOf("#7 → #14"), report.substitutions.map { it.detail })
         assertEquals(
-            listOf(PeriodSummary("1H", 2820, 90, 120), PeriodSummary("2H", 2700, 0, 0)),
+            listOf(PeriodSummary("1H", 2820, 90, 120, 2700), PeriodSummary("2H", 2700, 0, 0, 2700)),
             report.periods,
         )
         assertTrue(report.ruleDeviations.isEmpty())
@@ -96,5 +96,68 @@ class MatchReportTests {
         val report = MatchReport(MatchBundle(makeRecord(setup, commands), null))
         assertEquals(TeamPair(1, 0), report.shootout)
         assertEquals(listOf(RuleLine(RuleSet.Field.penalties, "true")), report.ruleDeviations)
+    }
+
+    /** 전후반 2–2, 하프타임 중 카드 1(엔진은 휴식 중 골을 거절한다), 자책골 1 */
+    private val flow = listOf(
+        CommandKind.StartPeriod to 0.0,
+        CommandKind.RecordEvent(EventPayload.Goal(Team.HOME, 9, false)) to 700.0,
+        CommandKind.RecordEvent(EventPayload.Card(Team.AWAY, 4, CardKind.YELLOW)) to 1350.0,
+        CommandKind.RecordEvent(EventPayload.Goal(Team.AWAY, 11, false)) to 2150.0,
+        CommandKind.EndPeriod to 2820.0,
+        CommandKind.RecordEvent(EventPayload.Card(Team.HOME, 10, CardKind.YELLOW)) to 3000.0,
+        CommandKind.StartPeriod to 3720.0,
+        CommandKind.RecordEvent(EventPayload.Goal(Team.AWAY, 5, true)) to 4800.0,
+        CommandKind.RecordEvent(EventPayload.Goal(Team.AWAY, 11, false)) to 6300.0,
+        CommandKind.EndPeriod to 6500.0,
+    )
+
+    @Test fun timelineCarriesPeriodSecondAndScore() {
+        val report = MatchReport(MatchBundle(makeRecord(flow), null))
+        assertEquals(listOf<Int?>(0, 0, 0, 0, 1, 1), report.timeline.map { it.period })
+        assertEquals(listOf<Long?>(700, 1350, 2150, 2820, 1080, 2580), report.timeline.map { it.second })
+        assertEquals(
+            listOf(TeamPair(1, 0), null, TeamPair(1, 1), null, TeamPair(2, 1), TeamPair(2, 2)),
+            report.timeline.map { it.scoreAfter },
+        )
+        assertEquals(report.score, report.timeline.last().scoreAfter)
+        assertEquals(listOf(2700L, 2700L), report.periods.map { it.nominal })
+        assertEquals(TeamPair(0, 0), report.scoreBefore(0))
+        assertEquals(TeamPair(1, 1), report.scoreBefore(1))
+    }
+
+    @Test fun shootoutDoesNotChangeScoreAfter() {
+        val setup = MatchSetup(rules = RuleSet(penalties = true))
+        val commands = listOf(
+            CommandKind.StartPeriod to 0.0,
+            CommandKind.RecordEvent(EventPayload.Goal(Team.HOME, 9, false)) to 600.0,
+            CommandKind.EndPeriod to 2700.0,
+            CommandKind.StartPeriod to 3600.0,
+            CommandKind.RecordEvent(EventPayload.Goal(Team.AWAY, 11, false)) to 5000.0,
+            CommandKind.EndPeriod to 6300.0,
+            CommandKind.SetShootoutFirstTeam(Team.HOME) to 6400.0,
+            CommandKind.RecordEvent(EventPayload.PenaltyKick(Team.HOME, null, true)) to 6410.0,
+            CommandKind.RecordEvent(EventPayload.PenaltyKick(Team.AWAY, null, false)) to 6420.0,
+        )
+        val report = MatchReport(MatchBundle(makeRecord(setup, commands), null))
+        assertEquals(listOf(ResolvedEventKind.GOAL, ResolvedEventKind.GOAL), report.timeline.map { it.kind })
+        assertEquals(TeamPair(1, 1), report.timeline.last().scoreAfter)
+        assertEquals(report.score, report.timeline.last().scoreAfter)
+        assertEquals(TeamPair(1, 0), report.shootout)
+    }
+
+    @Test fun extraTimePeriodsIndexFrom2() {
+        val setup = MatchSetup(rules = RuleSet(extraTime = true))
+        val commands = listOf(
+            CommandKind.StartPeriod to 0.0, CommandKind.EndPeriod to 2700.0,
+            CommandKind.StartPeriod to 3600.0, CommandKind.EndPeriod to 6300.0,
+            CommandKind.StartPeriod to 6600.0,
+            CommandKind.RecordEvent(EventPayload.Card(Team.HOME, 3, CardKind.YELLOW)) to 6900.0,
+            CommandKind.EndPeriod to 7500.0,
+            CommandKind.StartPeriod to 7800.0, CommandKind.EndPeriod to 8700.0,
+        )
+        val report = MatchReport(MatchBundle(makeRecord(setup, commands), null))
+        assertEquals(listOf<Int?>(2), report.timeline.map { it.period })
+        assertEquals(listOf(2700L, 2700L, 900L, 900L), report.periods.map { it.nominal })
     }
 }
