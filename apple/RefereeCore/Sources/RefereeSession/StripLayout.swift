@@ -46,7 +46,7 @@ public enum StripLayout {
     }
 
     /// 양 끝 + 경계 라벨. 0은 .regular(0). 경계·정상 종료 끝은 규정 누적 분.
-    /// completed == false면 끝 라벨은 마지막 기간이 멈춘 분.
+    /// completed == false면 끝 라벨은 마지막 기간이 멈춘 분 (규정 시간에 딱 멈췄으면 +0' 없이 정규 분).
     public static func labels(periods: [PeriodSummary], completed: Bool) -> [StripLabel] {
         let total = periods.reduce(0) { $0 + $1.played }
         guard total > 0, let lastPeriod = periods.last else { return [] }
@@ -60,7 +60,7 @@ public enum StripLayout {
         let end: EventMinute
         if completed {
             end = .regular((nominalSum + lastPeriod.nominal) / 60)
-        } else if lastPeriod.played < lastPeriod.nominal {
+        } else if lastPeriod.played <= lastPeriod.nominal {
             end = .regular((nominalSum + lastPeriod.played) / 60)
         } else {
             end = .added(base: (nominalSum + lastPeriod.nominal) / 60, extra: (lastPeriod.played - lastPeriod.nominal + 59) / 60)

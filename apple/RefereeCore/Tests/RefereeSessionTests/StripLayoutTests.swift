@@ -38,6 +38,11 @@ struct StripLayoutTests {
         let q = [PeriodSummary(label: "1H", played: 2880, stoppage: 0, added: 180, nominal: 2700)]
         #expect(StripLayout.labels(periods: q, completed: false).last == StripLabel(x: 1, minute: .added(base: 45, extra: 3)))
     }
+    @Test func abandonedExactlyAtNominalHasNoPlusZero() {
+        // 규정 시간에 딱 멈추면 "90+0'"이 아니라 정규 분
+        let p = [periods[0], PeriodSummary(label: "2H", played: 2700, stoppage: 0, added: 0, nominal: 2700)]
+        #expect(StripLayout.labels(periods: p, completed: false).last == StripLabel(x: 1, minute: .regular((2700 + 2700) / 60)))
+    }
     @Test func restGoalSitsAtPeriodEnd() {
         let marks = StripLayout.marks(periods: periods, lines: [line(.home, .goal, period: 0, second: 2820)], minGap: 0.05)
         #expect(marks.first?.x == 2820.0 / 5520)

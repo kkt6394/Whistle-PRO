@@ -61,6 +61,12 @@ class StripLayoutTests {
         assertEquals(StripLabel(1.0, EventMinute.Added(45, 3)), StripLayout.labels(q, false).last())
     }
 
+    @Test fun abandonedExactlyAtNominalHasNoPlusZero() {
+        // 규정 시간에 딱 멈추면 "90+0'"이 아니라 정규 분
+        val p = listOf(periods[0], PeriodSummary("2H", 2700, 0, 0, 2700))
+        assertEquals(StripLabel(1.0, EventMinute.Regular((2700L + 2700) / 60)), StripLayout.labels(p, false).last())
+    }
+
     @Test fun restGoalSitsAtPeriodEnd() {
         val marks = StripLayout.marks(periods, listOf(line(Team.HOME, ResolvedEventKind.GOAL, 0, 2820)), 0.05)
         assertEquals(2820.0 / 5520, marks.first().x, 1e-9)

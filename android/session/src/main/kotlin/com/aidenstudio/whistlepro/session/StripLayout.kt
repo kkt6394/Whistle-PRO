@@ -51,7 +51,7 @@ object StripLayout {
 
     /**
      * 양 끝 + 경계 라벨. 0은 Regular(0). 경계·정상 종료 끝은 규정 누적 분.
-     * completed == false면 끝 라벨은 마지막 기간이 멈춘 분.
+     * completed == false면 끝 라벨은 마지막 기간이 멈춘 분 (규정 시간에 딱 멈췄으면 정규 분).
      */
     fun labels(periods: List<PeriodSummary>, completed: Boolean): List<StripLabel> {
         val total = periods.sumOf { it.played }
@@ -65,7 +65,7 @@ object StripLayout {
         }
         val end = when {
             completed -> EventMinute.Regular((nominalSum + lastPeriod.nominal) / 60)
-            lastPeriod.played < lastPeriod.nominal -> EventMinute.Regular((nominalSum + lastPeriod.played) / 60)
+            lastPeriod.played <= lastPeriod.nominal -> EventMinute.Regular((nominalSum + lastPeriod.played) / 60)
             else -> EventMinute.Added((nominalSum + lastPeriod.nominal) / 60, (lastPeriod.played - lastPeriod.nominal + 59) / 60)
         }
         result += StripLabel(1.0, end)
