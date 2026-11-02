@@ -59,8 +59,16 @@ struct CrownGestureTests {
         #expect(fired.first?.input == .undo)
     }
 
+    /// 0.3바퀴(108°)는 기준(0.35) 미만 → 무시
     @Test func smallTurnIsIgnored() {
         #expect(run(steps(0.1, count: 3)).allSatisfy { $0 == nil })
+    }
+
+    /// 0.4바퀴(144°)는 기준을 넘겨 획이 끝난 뒤 실행 (2026-11-02 반 바퀴 → 1/3바퀴)
+    @Test func thirdTurnIsEnough() {
+        let events = run(steps(0.1, count: 4))
+        #expect(events.prefix(4).allSatisfy { $0 == nil })
+        #expect(events[4] == CrownGestureEvent(input: .primary, startedAt: 0))
     }
 
     @Test func pauseResetsTurn() {
