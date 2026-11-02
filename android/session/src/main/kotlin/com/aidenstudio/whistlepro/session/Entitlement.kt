@@ -96,8 +96,9 @@ data class Entitlement(
 /** 구독 상품 (폰 판매·워치 확인이 같은 목록을 쓴다) */
 object SubscriptionProducts {
     val ids = listOf(
-        "com.aidenstudio.whistlepro.pro.monthly",
+        // 연간 먼저: 결제 화면은 이 순서대로 보여 주고 첫 상품을 기본 선택한다 (Android 요금제 카드와 같게, 2026-11-03 critique)
         "com.aidenstudio.whistlepro.pro.yearly",
+        "com.aidenstudio.whistlepro.pro.monthly",
     )
 
     fun contains(productId: String) = productId in ids

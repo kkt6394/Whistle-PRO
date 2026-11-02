@@ -92,8 +92,9 @@ public struct Entitlement: Codable, Equatable, Sendable {
 /// 구독 상품 (iPhone 판매·워치 확인이 같은 목록을 쓴다)
 public enum SubscriptionProducts {
     public static let ids = [
-        "com.aidenstudio.whistlepro.pro.monthly",
+        // 연간 먼저: 결제 화면은 이 순서대로 보여 주고 첫 상품을 기본 선택한다 (Android 요금제 카드와 같게, 2026-11-03 critique)
         "com.aidenstudio.whistlepro.pro.yearly",
+        "com.aidenstudio.whistlepro.pro.monthly",
     ]
 
     public static func contains(_ productID: String) -> Bool {

@@ -152,7 +152,7 @@ struct BacklogSessionTests {
     }
 
     @Test func subscriptionProductsAreShared() {
-        #expect(SubscriptionProducts.ids == ["com.aidenstudio.whistlepro.pro.monthly", "com.aidenstudio.whistlepro.pro.yearly"])
+        #expect(SubscriptionProducts.ids == ["com.aidenstudio.whistlepro.pro.yearly", "com.aidenstudio.whistlepro.pro.monthly"])
         #expect(SubscriptionProducts.contains("com.aidenstudio.whistlepro.pro.yearly"))
         #expect(!SubscriptionProducts.contains("com.aidenstudio.whistlepro.pro.lifetime"))
     }

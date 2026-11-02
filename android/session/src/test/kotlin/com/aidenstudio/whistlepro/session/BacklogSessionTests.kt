@@ -78,7 +78,7 @@ class BacklogSessionTests {
     }
 
     @Test fun subscriptionProductsAreShared() {
-        assertEquals(listOf("com.aidenstudio.whistlepro.pro.monthly", "com.aidenstudio.whistlepro.pro.yearly"), SubscriptionProducts.ids)
+        assertEquals(listOf("com.aidenstudio.whistlepro.pro.yearly", "com.aidenstudio.whistlepro.pro.monthly"), SubscriptionProducts.ids)
         assertTrue(SubscriptionProducts.contains("com.aidenstudio.whistlepro.pro.yearly"))
         assertFalse(SubscriptionProducts.contains("com.aidenstudio.whistlepro.pro.lifetime"))
     }
