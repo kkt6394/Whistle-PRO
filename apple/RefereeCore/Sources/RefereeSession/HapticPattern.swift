@@ -10,6 +10,12 @@ public struct HapticPattern: Sendable, Hashable {
     public var repeats: Int
     /// 반복 사이 간격(초)
     public var interval: Double
+
+    public init(tone: HapticTone, repeats: Int, interval: Double) {
+        self.tone = tone
+        self.repeats = repeats
+        self.interval = interval
+    }
 }
 
 extension AlertKind {

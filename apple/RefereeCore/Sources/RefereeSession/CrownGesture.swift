@@ -2,7 +2,7 @@
 public struct CrownGestureConfig: Sendable, Equatable {
     /// 입력 1·2로 치는 최소 회전 (바퀴). 처음 반 바퀴(0.5) → 0.35 → 0.25 → 0.15(54°): SE 실기기에서 "덜 돌려도 인식되게" (2026-11-02 사용자).
     /// 흔들기(실행 취소)는 방향 반전으로 구분하므로 겹치지 않는다. 남은 위험은 뛸 때 손목 꺾임으로 크라운이 살짝 도는 오작동 → 점검표 65에서 확인
-    public var commandTurn = 0.15
+    public var commandTurn = Double(defaultCommandDegrees) / 360
     /// 흔들기 한 번으로 셀 최소 회전 (바퀴). 0.08(29°)은 SE 실기기에서 작은 흔들기가 안 잡혀 0.03(11°)으로 (2026-11-02)
     public var wiggleStep = 0.03
     /// 방향 반전 3번이 들어와야 하는 시간(초)
@@ -18,6 +18,23 @@ public struct CrownGestureConfig: Sendable, Equatable {
     public var fullStroke = 0.75
 
     public init() {}
+
+    // MARK: 사용자 설정 (워치 설정 "크라운 감도", 2026-11-02)
+
+    /// 기본 입력 1·2 기준 (도)
+    public static let defaultCommandDegrees = 54
+    /// 고를 수 있는 기준: 18°~180°, 6° 간격
+    public static let commandDegreeOptions: [Int] = Array(stride(from: 18, through: 180, by: 6))
+
+    /// 도 단위 기준으로 설정을 만든다 (범위 밖은 가까운 끝으로)
+    public init(commandDegrees: Int) {
+        self.init()
+        commandTurn = Double(Self.clampCommandDegrees(commandDegrees)) / 360
+    }
+
+    public static func clampCommandDegrees(_ degrees: Int) -> Int {
+        min(max(degrees, commandDegreeOptions.first!), commandDegreeOptions.last!)
+    }
 }
 
 /// 판정된 크라운 제스처

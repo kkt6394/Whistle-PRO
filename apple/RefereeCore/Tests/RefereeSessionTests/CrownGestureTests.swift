@@ -116,6 +116,38 @@ struct CrownGestureTests {
         #expect(fired.first?.input == .undo)
     }
 
+    // MARK: 사용자 설정 각도 (2026-11-02 워치 설정 "크라운 감도")
+
+    /// 도 단위 설정 → 바퀴. 기본 54°
+    @Test func configFromDegrees() {
+        #expect(CrownGestureConfig.defaultCommandDegrees == 54)
+        #expect(CrownGestureConfig(commandDegrees: 90).commandTurn == 0.25)
+        #expect(CrownGestureConfig(commandDegrees: 54).commandTurn == CrownGestureConfig().commandTurn)
+    }
+
+    /// 선택지는 18°~180° 6° 간격, 범위 밖은 가까운 끝으로
+    @Test func degreeOptionsAndClamp() {
+        #expect(CrownGestureConfig.commandDegreeOptions.first == 18)
+        #expect(CrownGestureConfig.commandDegreeOptions.last == 180)
+        #expect(CrownGestureConfig.commandDegreeOptions.contains(54))
+        #expect(CrownGestureConfig.commandDegreeOptions.allSatisfy { $0 % 6 == 0 })
+        #expect(CrownGestureConfig.clampCommandDegrees(0) == 18)
+        #expect(CrownGestureConfig.clampCommandDegrees(999) == 180)
+        #expect(CrownGestureConfig.clampCommandDegrees(60) == 60)
+    }
+
+    /// 90°로 두면 72°(0.2바퀴)는 무시하고 108°(0.3바퀴)는 실행
+    @Test func higherDegreesNeedMoreTurn() {
+        var detector = CrownGestureDetector(config: CrownGestureConfig(commandDegrees: 90))
+        for (d, t) in steps(0.1, count: 2) { _ = detector.feed(delta: d, at: t) }
+        #expect(detector.flush(at: 0.05 + 0.3) == nil)
+        _ = detector.feed(delta: 0.1, at: 0.6)
+        #expect(detector.flush(at: 0.6 + 0.3) == nil, "쉼 뒤 새 획 0.1은 아직 기준 미만")
+        var fresh = CrownGestureDetector(config: CrownGestureConfig(commandDegrees: 90))
+        for (d, t) in steps(0.1, count: 3) { _ = fresh.feed(delta: d, at: t) }
+        #expect(fresh.flush(at: 0.1 + 0.3) == CrownGestureEvent(input: .primary, startedAt: 0))
+    }
+
     @Test func jitterIsNotWiggle() {
         let samples = (0..<40).map { (($0 % 2 == 0 ? 0.02 : -0.02), Double($0) * 0.02) }
         #expect(run(samples).allSatisfy { $0 == nil })
