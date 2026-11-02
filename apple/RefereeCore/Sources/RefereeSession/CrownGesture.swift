@@ -19,7 +19,7 @@ public struct CrownGestureConfig: Sendable, Equatable {
 
     public init() {}
 
-    // MARK: 사용자 설정 (워치 설정 "크라운 감도", 2026-11-02)
+    // MARK: 사용자 설정 (워치 설정 "크라운 설정", 2026-11-02)
 
     /// 기본 입력 1·2 기준 (도)
     public static let defaultCommandDegrees = 54

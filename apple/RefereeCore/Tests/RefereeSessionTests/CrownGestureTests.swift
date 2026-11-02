@@ -116,7 +116,7 @@ struct CrownGestureTests {
         #expect(fired.first?.input == .undo)
     }
 
-    // MARK: 사용자 설정 각도 (2026-11-02 워치 설정 "크라운 감도")
+    // MARK: 사용자 설정 각도 (2026-11-02 워치 설정 "크라운 설정")
 
     /// 도 단위 설정 → 바퀴. 기본 54°
     @Test func configFromDegrees() {
