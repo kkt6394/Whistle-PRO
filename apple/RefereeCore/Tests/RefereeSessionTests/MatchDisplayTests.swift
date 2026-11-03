@@ -70,7 +70,29 @@ struct MatchDisplayTests {
         #expect(d.intervalClock == "14:00")
         #expect(d.nextPeriodLabel == "2H")
         #expect(d.kickoffTeam == .away)
-        #expect(MatchDisplay(state: s, now: 9999, clockDisplay: .elapsed).intervalClock == "00:00")
+        #expect(d.intervalKind == .halfTime)
+        #expect(d.intervalTone == .counting)
+        // 남은 1분부터 lastMinute
+        let last = MatchDisplay(state: s, now: 3540, clockDisplay: .elapsed)
+        #expect(last.intervalClock == "01:00")
+        #expect(last.intervalTone == .lastMinute)
+        // 휴식 길이(15분)를 넘기면 넘긴 시간을 위로 센다
+        let over = MatchDisplay(state: s, now: 3600 + 83, clockDisplay: .elapsed)
+        #expect(over.intervalClock == "+1:23")
+        #expect(over.intervalTone == .overrun)
+        #expect(MatchDisplay(state: s, now: 9999, clockDisplay: .elapsed).intervalClock == "+106:39")
+    }
+
+    @Test func intervalKindNamesTheBreak() {
+        let quarters = RuleSet(periodCount: 4, periodLength: 900, halfTimeLength: 600, quarterBreakLength: 120)
+        let q1 = makeState(quarters, [(.startPeriod, 0), (.endPeriod, 900)])
+        #expect(MatchDisplay(state: q1, now: 960, clockDisplay: .elapsed).intervalKind == .quarterBreak)
+        let q2 = makeState(quarters, [(.startPeriod, 0), (.endPeriod, 900), (.startPeriod, 1020), (.endPeriod, 1920)])
+        #expect(MatchDisplay(state: q2, now: 1980, clockDisplay: .elapsed).intervalKind == .halfTime)
+        let et = makeState(RuleSet(extraTime: true), [(.startPeriod, 0), (.endPeriod, 2700), (.startPeriod, 3600), (.endPeriod, 6300),
+                                                      (.startPeriod, 6600), (.endPeriod, 7500)])
+        #expect(MatchDisplay(state: et, now: 7520, clockDisplay: .elapsed).intervalKind == .extraTimeBreak)
+        #expect(MatchDisplay(state: makeState([]), now: 0, clockDisplay: .elapsed).intervalKind == nil)
     }
 
     @Test func longMatchesKeepThreeDigitMinutes() {

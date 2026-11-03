@@ -51,6 +51,21 @@ sealed interface SubClock {
     data class Overtime(val time: String) : SubClock
 }
 
+/** 휴식 화면 머리글에 쓸 휴식 종류 (2026-11-04 휴식 화면 critique, Swift IntervalKind) */
+enum class IntervalKind { HALF_TIME, QUARTER_BREAK, EXTRA_TIME_BREAK, PRE_EXTRA_TIME }
+
+/** 휴식 시계의 상태 (2026-11-04 휴식 화면 critique, Swift IntervalClockTone) */
+enum class IntervalClockTone {
+    /** 남은 휴식을 내려 센다 */
+    COUNTING,
+    /** 남은 휴식 1분 이하 */
+    LAST_MINUTE,
+    /** 휴식 길이를 넘겼다: "+1:23"으로 위로 센다 */
+    OVERRUN,
+    /** 연장 대기: 기다린 시간을 "+11:48"로 위로 센다 */
+    WAITING,
+}
+
 /** 링 표시용 진행값 (초) */
 data class ClockProgress(val elapsed: Long, val length: Long)
 
@@ -70,7 +85,7 @@ data class MatchDisplay(
     /** 이 기간 누적 중단 시간 "1:24" (중단이 있었거나 진행 중일 때만) */
     val stoppage: String?,
     val stoppageRunning: Boolean,
-    /** 휴식 중이면 남은 시간, 연장 대기 중이면 기다린 시간 */
+    /** 휴식 중이면 남은 시간 "09:50"(넘기면 "+1:23"), 연장 대기 중이면 기다린 시간 "+11:48" */
     val intervalClock: String?,
     val score: TeamPair<Int>,
     val kickoffTeam: Team?,
@@ -83,6 +98,10 @@ data class MatchDisplay(
     val periodProgress: ClockProgress?,
     /** 휴식 중일 때 경과·휴식 길이 */
     val intervalProgress: ClockProgress?,
+    /** 휴식·연장 대기 종류 (머리글) */
+    val intervalKind: IntervalKind? = null,
+    /** 휴식 시계 상태 (색·테두리) */
+    val intervalTone: IntervalClockTone? = null,
 ) {
     enum class Screen { NOT_STARTED, PERIOD, INTERVAL, PRE_EXTRA_TIME, PENALTIES, FINISHED }
 
@@ -108,7 +127,7 @@ data class MatchDisplay(
             } else {
                 null
             }
-            val preExtraEnd = state.periods.lastOrNull()?.endedAt
+            val interval = intervalClock(state, now)
             return MatchDisplay(
                 screen = when (phase) {
                     Phase.NotStarted -> Screen.NOT_STARTED
@@ -142,11 +161,7 @@ data class MatchDisplay(
                 },
                 stoppage = reading?.takeIf { it.stoppageTotal > 0 || it.stoppageRunning }?.let { formatShort(it.stoppageTotal) },
                 stoppageRunning = reading?.stoppageRunning ?: false,
-                intervalClock = if (phase == Phase.PreExtraTime && preExtraEnd != null) {
-                    format(max(0, wholeSeconds(now - preExtraEnd)))
-                } else {
-                    state.intervalRemaining(now)?.let(::format)
-                },
+                intervalClock = interval?.clock,
                 score = state.score,
                 kickoffTeam = state.kickoffTeam,
                 sinBins = state.activeSinBins(now).map { SinBinBadge(it.team, it.number, formatShort(it.remaining), it.remaining) },
@@ -163,7 +178,33 @@ data class MatchDisplay(
                         ClockProgress(max(0, total - remaining), total)
                     }
                 },
+                intervalKind = interval?.kind,
+                intervalTone = interval?.tone,
             )
+        }
+
+        private class IntervalClock(val clock: String, val kind: IntervalKind, val tone: IntervalClockTone)
+
+        /** 휴식 시계·종류·상태 (Swift MatchDisplay.init의 휴식 부분) */
+        private fun intervalClock(state: MatchState, now: Double): IntervalClock? {
+            val phase = state.phase
+            val end = state.periods.lastOrNull()?.endedAt ?: return null
+            if (phase == Phase.PreExtraTime) {
+                return IntervalClock("+" + formatShort(max(0, wholeSeconds(now - end))), IntervalKind.PRE_EXTRA_TIME, IntervalClockTone.WAITING)
+            }
+            if (phase !is Phase.Interval) return null
+            val remaining = state.intervalRemaining(now) ?: return null
+            val kind = when (phase.after.kind) {
+                PeriodRef.Kind.EXTRA -> IntervalKind.EXTRA_TIME_BREAK
+                PeriodRef.Kind.REGULAR ->
+                    if (state.rules.periodCount == 4L && phase.after.index != 2) IntervalKind.QUARTER_BREAK else IntervalKind.HALF_TIME
+            }
+            if (remaining > 0) {
+                return IntervalClock(format(remaining), kind, if (remaining <= 60) IntervalClockTone.LAST_MINUTE else IntervalClockTone.COUNTING)
+            }
+            // 휴식 길이를 넘긴 시간 (팀이 늦게 나왔을 때 얼마나 기다렸는지)
+            val over = wholeSeconds(now - end) - state.intervalLength(phase.after)
+            return IntervalClock("+" + formatShort(max(0, over)), kind, IntervalClockTone.OVERRUN)
         }
 
         // 기기 언어와 상관없이 아라비아 숫자로 쓴다 (Locale.ROOT)

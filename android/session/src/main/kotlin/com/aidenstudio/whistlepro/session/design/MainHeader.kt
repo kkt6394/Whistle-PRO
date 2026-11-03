@@ -3,7 +3,8 @@ package com.aidenstudio.whistlepro.session.design
 /** 워치 메인 상단 띠의 한 조각 (B1 스펙 §3.1) */
 sealed interface MainHeaderItem {
     data object Warning : MainHeaderItem
-    data class Period(val name: String) : MainHeaderItem
+    /** [short]: 띠에 [name]이 안 들어갈 때 대신 쓸 짧은 이름 (휴식 화면 "하프타임" → "휴식", 2026-11-04) */
+    data class Period(val name: String, val short: String? = null) : MainHeaderItem
 }
 
 /**
