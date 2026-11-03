@@ -82,4 +82,26 @@ import RefereeCore
         s.sinBins = 2
         #expect(SeasonStats.aggregate([s]).lines.map(\.kind) == [.goals, .yellows, .reds, .sinBins, .addedTime])
     }
+
+    // MARK: 7. 시즌 통계 critique (2026-11-03): 평균 심박 줄·경기당 열·기간 경기
+
+    @Test func heartRateLineHasOnlyPerMatch() {
+        var a = summary(1), b = summary(2), c = summary(3, outcome: .abandoned("비"))
+        a.averageHeartRate = 140; b.averageHeartRate = 151; c.averageHeartRate = 100
+        let lines = SeasonStats.aggregate([a, b, c]).lines
+        #expect(lines.last == StatLine(kind: .heartRate, total: nil, perMatch: 146))   // 완료 경기만, 반올림
+        #expect(!SeasonStats.aggregate([summary(1)]).lines.contains { $0.kind == .heartRate })
+    }
+
+    @Test func perMatchColumnOnlyWithTwoCompletedMatches() {
+        #expect(!SeasonStats.aggregate([summary(1)]).showsPerMatch)
+        #expect(!SeasonStats.aggregate([summary(1), summary(2, outcome: .abandoned("x"))]).showsPerMatch)
+        #expect(SeasonStats.aggregate([summary(1), summary(2)]).showsPerMatch)
+    }
+
+    @Test func matchesInRangeKeepsOrderAndBounds() {
+        let all = [summary(30), summary(20), summary(10)]
+        #expect(SeasonStats.matches(all, from: 10, to: 30).map(\.startedAt) == [20, 10])   // to는 빼고 from은 넣는다
+        #expect(SeasonStats.matches(all).count == 3)
+    }
 }

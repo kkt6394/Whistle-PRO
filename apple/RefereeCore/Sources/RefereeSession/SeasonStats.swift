@@ -66,12 +66,22 @@ public struct SeasonStats: Equatable, Sendable {
         count > 0 ? Double(total) / Double(count) : nil
     }
 
+    /// 경기당 열을 보일지: 완료 경기가 둘 이상일 때만 (하나면 합계와 같은 값을 두 번 보였다, 2026-11-03 critique)
+    public var showsPerMatch: Bool { completed.matches > 1 }
+
+    /// 첫 킥오프 시각이 from 이상, to 미만인 경기 (nil이면 그쪽 경계 없음). 순서는 받은 그대로
+    public static func matches(_ summaries: [MatchSummary], from: Double? = nil, to: Double? = nil) -> [MatchSummary] {
+        summaries.filter { summary in
+            if let from, summary.startedAt < from { return false }
+            if let to, summary.startedAt >= to { return false }
+            return true
+        }
+    }
+
     /// 첫 킥오프 시각이 from 이상, to 미만인 경기 (nil이면 그쪽 경계 없음)
     public static func aggregate(_ summaries: [MatchSummary], from: Double? = nil, to: Double? = nil) -> SeasonStats {
         var stats = SeasonStats()
-        for summary in summaries {
-            if let from, summary.startedAt < from { continue }
-            if let to, summary.startedAt >= to { continue }
+        for summary in matches(summaries, from: from, to: to) {
             stats.all.add(summary)
             switch summary.outcome {
             case .completed: stats.completed.add(summary)
@@ -92,6 +102,8 @@ public struct StatLine: Equatable, Sendable {
         /// 미터
         case distance
         case sprints
+        /// 평균 심박 (bpm). 합계가 없고 경기당 칸만 쓴다
+        case heartRate
     }
 
     public var kind: Kind
@@ -106,7 +118,7 @@ public struct StatLine: Equatable, Sendable {
 }
 
 extension SeasonStats {
-    /// 표 줄 순서. 일시 퇴장은 있을 때만, 거리·스프린트는 운동 기록이 있는 경기가 있을 때만.
+    /// 표 줄 순서. 일시 퇴장은 있을 때만, 거리·스프린트는 운동 기록이 있는 경기가 있을 때만, 평균 심박은 심박이 있는 경기가 있을 때만.
     /// 추가시간·이동 거리도 합계와 경기당을 둘 다 채운다 (예전에는 한쪽 칸이 비어 있었다)
     public var lines: [StatLine] {
         var lines = [
@@ -121,6 +133,10 @@ extension SeasonStats {
         if all.matchesWithWorkout > 0 {
             lines.append(StatLine(kind: .distance, total: all.distance, perMatch: distancePerMatch))
             lines.append(StatLine(kind: .sprints, total: Double(all.sprints), perMatch: sprintsPerMatch))
+        }
+        // 위쪽 라임 카드에서 내려온 줄 (2026-11-03 critique): 경기마다 같은 비중의 평균이라 합계 칸은 비운다
+        if let heartRate = averageHeartRate {
+            lines.append(StatLine(kind: .heartRate, total: nil, perMatch: Double(heartRate)))
         }
         return lines
     }

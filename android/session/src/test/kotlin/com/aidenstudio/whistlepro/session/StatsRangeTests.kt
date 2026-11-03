@@ -29,6 +29,21 @@ class StatsRangeTests {
         assertEquals(day(2026, 10, 6), b.second)
     }
 
+    /** 화면에 적는 기간 (2026-11-03 critique) */
+    @Test fun shownDays() {
+        val now = LocalDate.of(2026, 11, 3).atTime(17, 0).atZone(zone).toInstant()
+        val d = LocalDate.of(2026, 1, 1)
+        assertEquals(LocalDate.of(2026, 1, 1) to LocalDate.of(2026, 11, 3), StatsRange.THIS_YEAR.shownDays(d, d, emptyList(), now, zone))
+        assertEquals(LocalDate.of(2026, 10, 4) to LocalDate.of(2026, 11, 3), StatsRange.LAST_30_DAYS.shownDays(d, d, emptyList(), now, zone))
+        val starts = listOf(day(2026, 5, 2) + 36_000, day(2025, 9, 1) + 72_000)
+        assertEquals(LocalDate.of(2025, 9, 1) to LocalDate.of(2026, 5, 2), StatsRange.ALL.shownDays(d, d, starts, now, zone))
+        assertNull(StatsRange.ALL.shownDays(d, d, emptyList(), now, zone))
+        assertEquals(
+            LocalDate.of(2026, 10, 5) to LocalDate.of(2026, 10, 5),
+            StatsRange.CUSTOM.shownDays(LocalDate.of(2026, 10, 5), LocalDate.of(2026, 10, 3), emptyList(), now, zone),
+        )
+    }
+
     @Test fun thisYearStartsOnJanuaryFirst() {
         val now: Instant = LocalDate.of(2026, 10, 16).atStartOfDay(zone).plusHours(12).toInstant()
         val today = LocalDate.of(2026, 10, 16)

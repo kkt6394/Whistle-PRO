@@ -25,5 +25,32 @@ enum class StatsRange {
         }
     }
 
+    /**
+     * 화면에 적는 기간의 첫날·끝날 (2026-11-03 critique: 지금 보는 기간이 언제부터 언제까지인지 보이지 않았다).
+     * 올해·30일은 오늘까지, 전체는 첫 경기 날~마지막 경기 날(경기가 없으면 null), 직접은 고른 두 날(끝이 앞이면 시작 날 하루)
+     */
+    fun shownDays(
+        customFrom: LocalDate,
+        customTo: LocalDate,
+        matchStarts: List<Double>,
+        now: Instant = Instant.now(),
+        zone: ZoneId = ZoneId.systemDefault(),
+    ): Pair<LocalDate, LocalDate>? {
+        val today = now.atZone(zone).toLocalDate()
+        return when (this) {
+            THIS_YEAR -> today.withDayOfYear(1) to today
+            LAST_30_DAYS -> now.minusSeconds(30 * 86_400L).atZone(zone).toLocalDate() to today
+            ALL -> {
+                val first = matchStarts.minOrNull() ?: return null
+                val last = matchStarts.max()
+                first.day(zone) to last.day(zone)
+            }
+            CUSTOM -> customFrom to if (customTo.isBefore(customFrom)) customFrom else customTo
+        }
+    }
+
+    private fun Double.day(zone: ZoneId): LocalDate =
+        Instant.ofEpochMilli(Math.round(this * 1000)).atZone(zone).toLocalDate()
+
     private fun LocalDate.epoch(zone: ZoneId): Double = atStartOfDay(zone).toEpochSecond().toDouble()
 }

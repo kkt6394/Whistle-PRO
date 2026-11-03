@@ -21,4 +21,24 @@ public enum StatsRange: CaseIterable, Hashable, Sendable {
             return (from.timeIntervalSince1970, to.timeIntervalSince1970)
         }
     }
+
+    /// 화면에 적는 기간의 첫날·끝날 (2026-11-03 critique: 지금 보는 기간이 언제부터 언제까지인지 보이지 않았다).
+    /// 올해·30일은 오늘까지, 전체는 첫 경기 날~마지막 경기 날(경기가 없으면 nil), 직접은 고른 두 날(끝이 앞이면 시작 날 하루)
+    public func shownDays(customFrom: Date, customTo: Date, matchStarts: [Double], now: Date = Date(),
+                          calendar: Calendar = .current) -> (first: Date, last: Date)? {
+        let today = calendar.startOfDay(for: now)
+        switch self {
+        case .thisYear:
+            return (calendar.dateInterval(of: .year, for: now)?.start ?? today, today)
+        case .last30Days:
+            return (calendar.startOfDay(for: now.addingTimeInterval(-30 * 86_400)), today)
+        case .all:
+            guard let first = matchStarts.min(), let last = matchStarts.max() else { return nil }
+            return (calendar.startOfDay(for: Date(timeIntervalSince1970: first)),
+                    calendar.startOfDay(for: Date(timeIntervalSince1970: last)))
+        case .custom:
+            let first = calendar.startOfDay(for: customFrom)
+            return (first, max(first, calendar.startOfDay(for: customTo)))
+        }
+    }
 }

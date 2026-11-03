@@ -90,4 +90,30 @@ class RedesignMinorTests {
             SeasonStats.aggregate(listOf(s)).lines.map { it.kind },
         )
     }
+
+    // 7. 시즌 통계 critique (2026-11-03): 평균 심박 줄·경기당 열·기간 경기
+
+    @Test fun heartRateLineHasOnlyPerMatch() {
+        val lines = SeasonStats.aggregate(
+            listOf(
+                summary(1.0).copy(averageHeartRate = 140),
+                summary(2.0).copy(averageHeartRate = 151),
+                summary(3.0, outcome = ReportOutcome.Abandoned("비")).copy(averageHeartRate = 100),
+            ),
+        ).lines
+        assertEquals(StatLine(StatLine.Kind.HEART_RATE, null, 146.0), lines.last())
+        assertTrue(SeasonStats.aggregate(listOf(summary(1.0))).lines.none { it.kind == StatLine.Kind.HEART_RATE })
+    }
+
+    @Test fun perMatchColumnOnlyWithTwoCompletedMatches() {
+        assertFalse(SeasonStats.aggregate(listOf(summary(1.0))).showsPerMatch)
+        assertFalse(SeasonStats.aggregate(listOf(summary(1.0), summary(2.0, outcome = ReportOutcome.Abandoned("x")))).showsPerMatch)
+        assertTrue(SeasonStats.aggregate(listOf(summary(1.0), summary(2.0))).showsPerMatch)
+    }
+
+    @Test fun matchesInRangeKeepsOrderAndBounds() {
+        val all = listOf(summary(30.0), summary(20.0), summary(10.0))
+        assertEquals(listOf(20.0, 10.0), SeasonStats.matches(all, 10.0, 30.0).map { it.startedAt })
+        assertEquals(3, SeasonStats.matches(all).size)
+    }
 }
