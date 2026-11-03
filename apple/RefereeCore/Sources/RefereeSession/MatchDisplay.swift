@@ -32,6 +32,23 @@ public enum SubClock: Equatable, Sendable {
     case overtime(String)
 }
 
+/// 휴식 화면 머리글에 쓸 휴식 종류 (2026-11-04 휴식 화면 critique)
+public enum IntervalKind: Equatable, Sendable {
+    case halfTime, quarterBreak, extraTimeBreak, preExtraTime
+}
+
+/// 휴식 시계의 상태 (2026-11-04 휴식 화면 critique)
+public enum IntervalClockTone: Equatable, Sendable {
+    /// 남은 휴식을 내려 센다
+    case counting
+    /// 남은 휴식 1분 이하
+    case lastMinute
+    /// 휴식 길이를 넘겼다: "+1:23"으로 위로 센다
+    case overrun
+    /// 연장 대기: 기다린 시간을 "+11:48"로 위로 센다
+    case waiting
+}
+
 /// 링 표시용 진행값 (초)
 public struct ClockProgress: Equatable, Sendable {
     public var elapsed: Int
@@ -63,8 +80,12 @@ public struct MatchDisplay: Equatable, Sendable {
     /// 이 기간 누적 중단 시간 "1:24" (중단이 있었거나 진행 중일 때만)
     public var stoppage: String?
     public var stoppageRunning: Bool
-    /// 휴식 중이면 남은 시간, 연장 대기 중이면 기다린 시간
+    /// 휴식 중이면 남은 시간 "09:50"(넘기면 "+1:23"), 연장 대기 중이면 기다린 시간 "+11:48"
     public var intervalClock: String?
+    /// 휴식·연장 대기 종류 (머리글)
+    public var intervalKind: IntervalKind?
+    /// 휴식 시계 상태 (색·테두리)
+    public var intervalTone: IntervalClockTone?
     public var score: TeamPair<Int>
     public var kickoffTeam: Team?
     public var sinBins: [SinBinBadge]
@@ -122,9 +143,28 @@ public struct MatchDisplay: Equatable, Sendable {
             subClock = nil
         }
         if state.phase == .preExtraTime, let end = state.periods.last?.endedAt {
-            intervalClock = Self.format(max(0, wholeSeconds(now - end)))
+            intervalClock = "+" + Self.formatShort(max(0, wholeSeconds(now - end)))
+            intervalKind = .preExtraTime
+            intervalTone = .waiting
+        } else if case .interval(let after) = state.phase, let remaining = state.intervalRemaining(at: now),
+                  let end = state.periods.last?.endedAt {
+            intervalKind = switch after.kind {
+            case .extra: .extraTimeBreak
+            case .regular: state.rules.periodCount == 4 && after.index != 2 ? .quarterBreak : .halfTime
+            }
+            if remaining > 0 {
+                intervalClock = Self.format(remaining)
+                intervalTone = remaining <= 60 ? .lastMinute : .counting
+            } else {
+                // 휴식 길이를 넘긴 시간 (팀이 늦게 나왔을 때 얼마나 기다렸는지)
+                let over = wholeSeconds(now - end) - state.intervalLength(after: after)
+                intervalClock = "+" + Self.formatShort(max(0, over))
+                intervalTone = .overrun
+            }
         } else {
-            intervalClock = state.intervalRemaining(at: now).map(Self.format)
+            intervalClock = nil
+            intervalKind = nil
+            intervalTone = nil
         }
         if case .interval(let after) = state.phase, let remaining = state.intervalRemaining(at: now) {
             let total = state.intervalLength(after: after)

@@ -117,7 +117,9 @@ class EventPresentationTests {
         val s = makeState(RuleSet(extraTime = true), listOf(start to 0.0, end to 2700.0, start to 3600.0, end to 6300.0))
         val d = MatchDisplay(s, 6390.0, ClockDisplay.ELAPSED)
         assertEquals(MatchDisplay.Screen.PRE_EXTRA_TIME, d.screen)
-        assertEquals("01:30", d.intervalClock)
+        assertEquals("+1:30", d.intervalClock)
+        assertEquals(IntervalKind.PRE_EXTRA_TIME, d.intervalKind)
+        assertEquals(IntervalClockTone.WAITING, d.intervalTone)
         assertEquals("ET1", d.nextPeriodLabel)
     }
 }

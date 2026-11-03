@@ -79,7 +79,9 @@ struct EventPresentationTests {
         let s = makeState(RuleSet(extraTime: true), [(.startPeriod, 0), (.endPeriod, 2700), (.startPeriod, 3600), (.endPeriod, 6300)])
         let d = MatchDisplay(state: s, now: 6390, clockDisplay: .elapsed)
         #expect(d.screen == .preExtraTime)
-        #expect(d.intervalClock == "01:30")
+        #expect(d.intervalClock == "+1:30")
+        #expect(d.intervalKind == .preExtraTime)
+        #expect(d.intervalTone == .waiting)
         #expect(d.nextPeriodLabel == "ET1")
     }
 }

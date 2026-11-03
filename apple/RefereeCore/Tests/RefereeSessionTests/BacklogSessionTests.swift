@@ -169,6 +169,6 @@ struct HugeTimestampSessionTests {
     @Test func preExtraTimeClockSurvivesHugeNow() {
         let s = makeState(RuleSet(extraTime: true), [(.startPeriod, 0), (.endPeriod, 2700), (.startPeriod, 3600), (.endPeriod, 6300)])
         #expect(MatchDisplay(state: s, now: 1e300, clockDisplay: .elapsed).screen == .preExtraTime)
-        #expect(MatchDisplay(state: s, now: .infinity, clockDisplay: .elapsed).intervalClock == "00:00")
+        #expect(MatchDisplay(state: s, now: .infinity, clockDisplay: .elapsed).intervalClock == "+0:00")
     }
 }

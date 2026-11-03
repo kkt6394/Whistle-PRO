@@ -84,7 +84,31 @@ class MatchDisplayTests {
         assertEquals("14:00", d.intervalClock)
         assertEquals("2H", d.nextPeriodLabel)
         assertEquals(Team.AWAY, d.kickoffTeam)
-        assertEquals("00:00", MatchDisplay(s, 9999.0, E).intervalClock)
+        assertEquals(IntervalKind.HALF_TIME, d.intervalKind)
+        assertEquals(IntervalClockTone.COUNTING, d.intervalTone)
+        // 남은 1분부터 LAST_MINUTE
+        val last = MatchDisplay(s, 3540.0, E)
+        assertEquals("01:00", last.intervalClock)
+        assertEquals(IntervalClockTone.LAST_MINUTE, last.intervalTone)
+        // 휴식 길이(15분)를 넘기면 넘긴 시간을 위로 센다
+        val over = MatchDisplay(s, 3600.0 + 83, E)
+        assertEquals("+1:23", over.intervalClock)
+        assertEquals(IntervalClockTone.OVERRUN, over.intervalTone)
+        assertEquals("+106:39", MatchDisplay(s, 9999.0, E).intervalClock)
+    }
+
+    @Test fun intervalKindNamesTheBreak() {
+        val quarters = RuleSet(periodCount = 4, periodLength = 900, halfTimeLength = 600, quarterBreakLength = 120)
+        val q1 = makeState(quarters, listOf(start to 0.0, end to 900.0))
+        assertEquals(IntervalKind.QUARTER_BREAK, MatchDisplay(q1, 960.0, E).intervalKind)
+        val q2 = makeState(quarters, listOf(start to 0.0, end to 900.0, start to 1020.0, end to 1920.0))
+        assertEquals(IntervalKind.HALF_TIME, MatchDisplay(q2, 1980.0, E).intervalKind)
+        val et = makeState(
+            RuleSet(extraTime = true),
+            listOf(start to 0.0, end to 2700.0, start to 3600.0, end to 6300.0, start to 6600.0, end to 7500.0),
+        )
+        assertEquals(IntervalKind.EXTRA_TIME_BREAK, MatchDisplay(et, 7520.0, E).intervalKind)
+        assertNull(MatchDisplay(makeState(emptyList()), 0.0, E).intervalKind)
     }
 
     @Test fun longMatchesKeepThreeDigitMinutes() {

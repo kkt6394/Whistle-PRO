@@ -91,6 +91,6 @@ class HugeTimestampSessionTests {
             CommandKind.StartPeriod to 0.0, CommandKind.EndPeriod to 2700.0, CommandKind.StartPeriod to 3600.0, CommandKind.EndPeriod to 6300.0,
         ))
         assertEquals(MatchDisplay.Screen.PRE_EXTRA_TIME, MatchDisplay(s, 1e300, ClockDisplay.ELAPSED).screen)
-        assertEquals("00:00", MatchDisplay(s, Double.POSITIVE_INFINITY, ClockDisplay.ELAPSED).intervalClock)
+        assertEquals("+0:00", MatchDisplay(s, Double.POSITIVE_INFINITY, ClockDisplay.ELAPSED).intervalClock)
     }
 }
