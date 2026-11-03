@@ -53,4 +53,24 @@ class OnPitchTests {
         val s = state(sub(1, 12))
         assertEquals(setOf(2L, 3, 12), s.onPitchNumbers(Team.HOME, setup(listOf(1, 2, 3))))
     }
+
+    /** 경고 1장 선수 (명단 칩의 노란 카드, 2026-11-04 critique): 두 번째 경고·레드로 퇴장하면 빠진다 */
+    @Test fun cautionedNumbersAreSingleYellowsStillPlaying() {
+        fun card(team: Team, n: Long?, kind: CardKind) = EventPayload.Card(team, n, kind)
+        val s = state(
+            card(Team.HOME, 4, CardKind.YELLOW),
+            card(Team.HOME, 9, CardKind.YELLOW), card(Team.HOME, 9, CardKind.YELLOW),
+            card(Team.HOME, 10, CardKind.YELLOW), card(Team.HOME, 10, CardKind.RED),
+            card(Team.AWAY, 7, CardKind.YELLOW),
+            card(Team.HOME, 5, CardKind.SIN_BIN),
+            card(Team.HOME, null, CardKind.YELLOW),
+        )
+        assertEquals(setOf(4L), s.cautionedNumbers(Team.HOME))
+        assertEquals(setOf(7L), s.cautionedNumbers(Team.AWAY))
+    }
+
+    @Test fun cautionedNumbersSkipTheEditedCard() {
+        val s = state(EventPayload.Card(Team.HOME, 4, CardKind.YELLOW))
+        assertTrue(s.cautionedNumbers(Team.HOME, s.events[0].id).isEmpty())
+    }
 }

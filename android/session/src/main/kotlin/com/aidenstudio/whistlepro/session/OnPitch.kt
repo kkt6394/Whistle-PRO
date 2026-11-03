@@ -22,6 +22,16 @@ fun MatchState.sentOffNumbers(team: Team, excludingEventID: String? = null): Set
         .mapNotNull { it.event.payload.primaryNumber }
         .toSet()
 
+/**
+ * 경고 1장을 받고 아직 뛰는 선수의 등번호 (명단 칩의 작은 노란 카드, 2026-11-04 critique, Swift cautionedNumbers).
+ * 두 번째 경고·레드로 퇴장했으면 빠진다. 고치는 중인 이벤트 자신은 빼고 센다.
+ */
+fun MatchState.cautionedNumbers(team: Team, excludingEventID: String? = null): Set<Long> =
+    resolvedEvents
+        .filter { it.kind == ResolvedEventKind.YELLOW && it.event.payload.team == team && it.event.id != excludingEventID }
+        .mapNotNull { it.event.payload.primaryNumber }
+        .toSet() - sentOffNumbers(team, excludingEventID)
+
 /** 지금 뛰는 선수의 등번호. 선발 표시가 없으면 null. 선발에서 시작해 교체를 따라가고 퇴장은 뺀다 (일시 퇴장은 그대로). */
 fun MatchState.onPitchNumbers(team: Team, setup: MatchSetup, excludingEventID: String? = null): Set<Long>? {
     if (!setup.hasStarters(team)) return null
