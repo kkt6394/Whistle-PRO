@@ -35,6 +35,20 @@ public struct CrownGestureConfig: Sendable, Equatable {
     public static func clampCommandDegrees(_ degrees: Int) -> Int {
         min(max(degrees, commandDegreeOptions.first!), commandDegreeOptions.last!)
     }
+
+    /// 기준 각도가 기본보다 어떤지: 설정 줄에 "54° · 기본"처럼 붙인다 (2026-11-04 A1 critique)
+    public enum CommandFeel: Sendable, Equatable {
+        /// 기본 각도
+        case standard
+        /// 기본보다 작다: 덜 돌려도 입력된다
+        case sensitive
+        /// 기본보다 크다: 더 돌려야 입력된다
+        case dull
+    }
+
+    public static func commandFeel(degrees: Int) -> CommandFeel {
+        degrees == defaultCommandDegrees ? .standard : degrees < defaultCommandDegrees ? .sensitive : .dull
+    }
 }
 
 /// 판정된 크라운 제스처
