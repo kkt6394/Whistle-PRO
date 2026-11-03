@@ -84,7 +84,7 @@ class EventPresentationTests {
         val s = MatchEngine.reduce(RuleSet.FIFA_STANDARD, commands)
         assertEquals(RecordFeedback.None, s.feedback(forEvent = "y1"))
         assertEquals(RecordFeedback.SecondYellow("y2"), s.feedback(forEvent = "y2"))
-        assertEquals(RecordFeedback.Warning(EventWarning.PLAYER_ALREADY_SENT_OFF), s.feedback(forEvent = "r"))
+        assertEquals(RecordFeedback.Warning(EventWarning.PLAYER_ALREADY_SENT_OFF, "r"), s.feedback(forEvent = "r"))
         assertEquals(RecordFeedback.None, s.feedback(forEvent = "missing"))
     }
 

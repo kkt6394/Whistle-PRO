@@ -39,7 +39,8 @@ sealed interface RecordFeedback {
     data object None : RecordFeedback
     /** 경고 누적 퇴장 확인 (등번호를 바로 고칠 수 있어야 한다) */
     data class SecondYellow(val eventId: String) : RecordFeedback
-    data class Warning(val warning: EventWarning) : RecordFeedback
+    /** 경고 문구 + 그 이벤트 (안내에 팀·번호를 함께 보인다, 2026-11-04 B1 critique) */
+    data class Warning(val warning: EventWarning, val eventId: String) : RecordFeedback
 }
 
 /** 이벤트 로그 화면용. 최근 것이 먼저. */
@@ -96,6 +97,6 @@ fun MatchState.feedback(forEvent: String): RecordFeedback {
     if (r.kind == ResolvedEventKind.SECOND_YELLOW && EventWarning.PLAYER_ALREADY_SENT_OFF !in r.warnings) {
         return RecordFeedback.SecondYellow(forEvent)
     }
-    r.warnings.firstOrNull()?.let { return RecordFeedback.Warning(it) }
+    r.warnings.firstOrNull()?.let { return RecordFeedback.Warning(it, forEvent) }
     return RecordFeedback.None
 }
