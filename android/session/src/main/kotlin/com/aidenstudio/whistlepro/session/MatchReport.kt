@@ -22,6 +22,12 @@ data class ReportLine(
     val team: Team,
     val kind: ResolvedEventKind,
     val detail: String,
+    /** periods 인덱스 (승부차기는 null). 휴식 중 기록은 직전 기간. */
+    val period: Int? = null,
+    /** 기간 안 경과 초. 휴식 중이면 그 기간 played. */
+    val second: Long? = null,
+    /** 골·자책골만: 이 줄 직후 점수 (승부차기 제외) */
+    val scoreAfter: TeamPair<Int>? = null,
 ) {
     /** 이 줄이 속하는 열. `team`은 기록한 팀이라 자책골은 자책한 팀이다 → 득점한 팀(상대)의 열. */
     val columnTeam: Team get() = if (kind == ResolvedEventKind.OWN_GOAL) team.opponent else team
@@ -35,6 +41,8 @@ data class PeriodSummary(
     val stoppage: Long,
     /** 규정 시간을 넘겨 진행한 시간(초) */
     val added: Long,
+    /** 규정 길이(초) */
+    val nominal: Long = 0,
 )
 
 data class RuleLine(
@@ -108,24 +116,41 @@ class MatchReport(bundle: MatchBundle, note: MatchNote? = null, referee: String?
         shootout = if (shootoutStatus.kicks.home + shootoutStatus.kicks.away > 0) shootoutStatus.goals else null
 
         val rows = state.eventRows(setup).reversed()
-        fun lines(kinds: Set<ResolvedEventKind>): List<ReportLine> =
-            rows.filter { it.kind in kinds }.map { ReportLine(it.minute, it.team, it.kind, it.detail) }
+        val stoppages = state.stoppageTotals(end)
+        val playedSeconds = state.periods.map { max(0L, wholeSeconds((it.endedAt ?: end) - it.startedAt)) }
+        val timelineKinds = setOf(
+            ResolvedEventKind.GOAL, ResolvedEventKind.OWN_GOAL, ResolvedEventKind.YELLOW, ResolvedEventKind.SECOND_YELLOW,
+            ResolvedEventKind.RED, ResolvedEventKind.SIN_BIN, ResolvedEventKind.SUBSTITUTION)
+        var running = TeamPair(0, 0)
+        val all = rows.filter { it.kind in timelineKinds }.map { row ->
+            var line = ReportLine(row.minute, row.team, row.kind, row.detail)
+            val index = state.periods.indexOfFirst { it.ref == row.time.period }
+            if (index >= 0) {
+                val second = if (row.time.duringPlay) row.time.matchSecond - state.periods[index].offset else playedSeconds[index]
+                line = line.copy(period = index, second = second)
+            }
+            if (row.kind == ResolvedEventKind.GOAL || row.kind == ResolvedEventKind.OWN_GOAL) {
+                val scorer = line.columnTeam
+                running = running.with(scorer, running[scorer] + 1)
+                line = line.copy(scoreAfter = running)
+            }
+            line
+        }
+        fun lines(kinds: Set<ResolvedEventKind>): List<ReportLine> = all.filter { it.kind in kinds }
         goals = lines(setOf(ResolvedEventKind.GOAL, ResolvedEventKind.OWN_GOAL))
         discipline = lines(setOf(
             ResolvedEventKind.YELLOW, ResolvedEventKind.SECOND_YELLOW, ResolvedEventKind.RED, ResolvedEventKind.SIN_BIN))
         substitutions = lines(setOf(ResolvedEventKind.SUBSTITUTION))
-        timeline = lines(setOf(
-            ResolvedEventKind.GOAL, ResolvedEventKind.OWN_GOAL, ResolvedEventKind.YELLOW, ResolvedEventKind.SECOND_YELLOW,
-            ResolvedEventKind.RED, ResolvedEventKind.SIN_BIN, ResolvedEventKind.SUBSTITUTION))
+        timeline = all
 
-        val stoppages = state.stoppageTotals(end)
         periods = state.periods.mapIndexed { index, p ->
-            val played = max(0L, wholeSeconds((p.endedAt ?: end) - p.startedAt))
+            val played = playedSeconds[index]
             PeriodSummary(
                 label = p.ref.label(setup.rules.periodCount),
                 played = played,
                 stoppage = stoppages[index],
                 added = max(0L, played - p.nominalLength),
+                nominal = p.nominalLength,
             )
         }
         val scores = MutableList(state.periods.size) { TeamPair(0, 0) }
@@ -167,6 +192,10 @@ class MatchReport(bundle: MatchBundle, note: MatchNote? = null, referee: String?
         fun clean(name: String) = name.map { if (it in "/\\:?%*|\"<>") '-' else it }.joinToString("").trim()
         return "WhistlePRO $date ${clean(homeName)} vs ${clean(awayName)}"
     }
+
+    /** index번째 기간 시작 때의 점수 (앞 기간 골 합) */
+    fun scoreBefore(period: Int): TeamPair<Int> =
+        TeamPair(periodScores.take(period).sumOf { it.home }, periodScores.take(period).sumOf { it.away })
 
     fun color2(team: Team): TeamColor? = if (team == Team.HOME) homeColor2 else awayColor2
 
