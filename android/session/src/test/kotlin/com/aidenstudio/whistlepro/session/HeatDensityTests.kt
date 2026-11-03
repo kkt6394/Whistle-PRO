@@ -79,4 +79,15 @@ class HeatDensityTests {
     @Test fun heatOutsideMarginIsDropped() {
         assertNull(PitchHeat.density(pitchCell(0.0, 32.0 + 30.0), pitch))
     }
+
+    /** 격자 끝은 0으로 줄어 네모로 잘려 보이지 않고, 경기장 안쪽 값은 그대로다 (critique 11-04) */
+    @Test fun pitchHeatFadesToZeroAtGridEdge() {
+        // 터치라인 바로 밖 (오른쪽 32 m = 터치라인, 여백 8 m 안)
+        val d = assertNotNull(PitchHeat.density(pitchCell(0.0, 34.0), pitch))
+        assertTrue(d.value(d.width - 1, d.height / 2) < 0.05)
+        assertEquals(1.0, d.values.max())
+        assertEquals(0.0, PitchHeat.edgeFade(0.0))
+        assertEquals(1.0, PitchHeat.edgeFade(PitchHeat.MARGIN))
+        assertEquals(1.0, PitchHeat.edgeFade(PitchHeat.MARGIN + 20))
+    }
 }

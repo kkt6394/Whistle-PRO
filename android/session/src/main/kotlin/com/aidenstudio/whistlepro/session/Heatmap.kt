@@ -208,6 +208,12 @@ fun Heatmap.density(
 object PitchHeat {
     const val MARGIN = 8.0
 
+    /** 격자 끝에서 떨어진 거리(m)에 따른 배율: 끝에서 0, MARGIN 안쪽(터치라인·골라인)부터 1 (부드러운 계단) */
+    internal fun edgeFade(meters: Double): Double {
+        val t = (meters / MARGIN).coerceIn(0.0, 1.0)
+        return t * t * (3 - 2 * t)
+    }
+
     fun density(
         cells: List<HeatCell>,
         pitch: Pitch,
@@ -243,6 +249,14 @@ object PitchHeat {
                     val dx = (px + 0.5 - cx) * step
                     values[py * width + px] += weight * kotlin.math.exp(-(dx * dx + dy * dy) / twoSigmaSquared)
                 }
+            }
+        }
+        // 격자 끝에서 번짐이 네모로 잘려 보였다(critique 11-04): 바깥 여백 안에서만 가장자리로 갈수록 0으로 줄인다
+        for (py in 0 until height) {
+            val fromTop = kotlin.math.min(py + 0.5, height - py - 0.5) * step
+            for (px in 0 until width) {
+                val fromSide = kotlin.math.min(px + 0.5, width - px - 0.5) * step
+                values[py * width + px] *= edgeFade(kotlin.math.min(fromTop, fromSide))
             }
         }
         val peak = values.maxOrNull() ?: return null
