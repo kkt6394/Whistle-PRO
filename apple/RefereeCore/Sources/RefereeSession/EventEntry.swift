@@ -9,6 +9,11 @@ public enum EventKindChoice: String, CaseIterable, Sendable {
         allCases.filter { $0 != .sinBin || rules.sinBin }
     }
 
+    /// 워치 종류 타일 순서: 자주 쓰는 순 (골·옐로 / 레드·교체 / 일시 퇴장·자책골, 2026-11-03 critique)
+    public static func tileOrder(for rules: RuleSet) -> [EventKindChoice] {
+        [.goal, .yellow, .red, .substitution, .sinBin, .ownGoal].filter { $0 != .sinBin || rules.sinBin }
+    }
+
     /// 교체는 나가는 번호와 들어오는 번호를 차례로 받는다.
     public var needsSecondNumber: Bool { self == .substitution }
 
