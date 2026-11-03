@@ -32,4 +32,17 @@ struct KickMarksTests {
             #expect(rows.home.isEmpty && rows.away.isEmpty)
         }
     }
+
+    @Test func hiddenCountOnlyWhenLongerThanLimit() {
+        #expect(KickMarks.hiddenCount(home: [true, false], away: [true], perTeam: 5, limit: 5) == 0)
+        let eight = Array(repeating: true, count: 8)
+        #expect(KickMarks.hiddenCount(home: eight, away: Array(eight.dropLast()), perTeam: 5, limit: 6) == 2)
+    }
+
+    /// 40mm(폭 134, 점 14)는 6칸, 49mm(폭 177)는 상한 7칸, 아주 좁아도 1칸
+    @Test func fittingFollowsWidth() {
+        #expect(KickMarks.fitting(width: 134, mark: 14, cap: 7) == 6)
+        #expect(KickMarks.fitting(width: 177, mark: 14, cap: 7) == 7)
+        #expect(KickMarks.fitting(width: 10, mark: 14, cap: 7) == 1)
+    }
 }
