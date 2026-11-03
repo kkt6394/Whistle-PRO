@@ -47,4 +47,12 @@ struct StripLayoutTests {
         let marks = StripLayout.marks(periods: periods, lines: [line(.home, .goal, period: 0, second: 2820)], minGap: 0.05)
         #expect(marks.first?.x == 2820.0 / 5520)
     }
+    @Test func visibleLabelsDropOnlyTheCrowdedBoundary() {
+        // 연장: 0' 45' 90' 105' 120' — 105'만 끝 라벨과 붙는다
+        let xs: [Double] = [0, 0.375, 0.75, 0.875, 1]
+        let labels = xs.map { StripLabel(x: $0, minute: .regular(Int($0 * 120))) }
+        #expect(StripLayout.visibleLabelIndices(labels, gap: 0.2) == [0, 1, 2, 4])
+        #expect(StripLayout.visibleLabelIndices(labels, gap: 0.1) == [0, 1, 2, 3, 4])
+        #expect(StripLayout.visibleLabelIndices(Array(labels.prefix(2)), gap: 0.9) == [0, 1])
+    }
 }

@@ -68,4 +68,19 @@ public enum StripLayout {
         result.append(StripLabel(x: 1, minute: end))
         return result
     }
+
+    /// 보일 라벨 번호: 양 끝은 늘 남기고, 가운데 라벨은 앞에 남긴 라벨·끝 라벨과 `gap`(0…1 폭 비율) 이상 떨어질 때만.
+    /// (연장 경기의 `105'`·`120'`처럼 끝에 붙는 경계 라벨만 빠지고 `45'`·`90'`은 남는다)
+    public static func visibleLabelIndices(_ labels: [StripLabel], gap: Double) -> [Int] {
+        guard labels.count > 2 else { return Array(labels.indices) }
+        let last = labels.count - 1
+        var kept = [0]
+        for i in 1..<last {
+            if labels[i].x - labels[kept.last!].x >= gap, labels[last].x - labels[i].x >= gap {
+                kept.append(i)
+            }
+        }
+        kept.append(last)
+        return kept
+    }
 }

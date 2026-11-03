@@ -71,4 +71,12 @@ class StripLayoutTests {
         val marks = StripLayout.marks(periods, listOf(line(Team.HOME, ResolvedEventKind.GOAL, 0, 2820)), 0.05)
         assertEquals(2820.0 / 5520, marks.first().x, 1e-9)
     }
+
+    @Test fun visibleLabelsDropOnlyTheCrowdedBoundary() {
+        // 연장: 0' 45' 90' 105' 120' — 105'만 끝 라벨과 붙는다
+        val labels = listOf(0.0, 0.375, 0.75, 0.875, 1.0).map { StripLabel(it, EventMinute.Regular((it * 120).toLong())) }
+        assertEquals(listOf(0, 1, 2, 4), StripLayout.visibleLabelIndices(labels, 0.2))
+        assertEquals(listOf(0, 1, 2, 3, 4), StripLayout.visibleLabelIndices(labels, 0.1))
+        assertEquals(listOf(0, 1), StripLayout.visibleLabelIndices(labels.take(2), 0.9))
+    }
 }

@@ -71,4 +71,19 @@ object StripLayout {
         result += StripLabel(1.0, end)
         return result
     }
+
+    /**
+     * 보일 라벨 번호: 양 끝은 늘 남기고, 가운데 라벨은 앞에 남긴 라벨·끝 라벨과 [gap](0…1 폭 비율) 이상 떨어질 때만.
+     * (연장 경기의 `105'`·`120'`처럼 끝에 붙는 경계 라벨만 빠지고 `45'`·`90'`은 남는다)
+     */
+    fun visibleLabelIndices(labels: List<StripLabel>, gap: Double): List<Int> {
+        if (labels.size <= 2) return labels.indices.toList()
+        val last = labels.lastIndex
+        val kept = mutableListOf(0)
+        for (i in 1 until last) {
+            if (labels[i].x - labels[kept.last()].x >= gap && labels[last].x - labels[i].x >= gap) kept += i
+        }
+        kept += last
+        return kept
+    }
 }
