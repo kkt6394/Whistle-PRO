@@ -77,4 +77,16 @@ struct HeatDensityTests {
     @Test func heatOutsideMarginIsDropped() {
         #expect(PitchHeat.density(cells: pitchCell(forward: 0, right: 32 + 30), pitch: Self.pitch) == nil)
     }
+
+    /// 격자 끝은 0으로 줄어 네모로 잘려 보이지 않고, 경기장 안쪽 값은 그대로다 (critique 11-04)
+    @Test func pitchHeatFadesToZeroAtGridEdge() throws {
+        // 터치라인 바로 밖 (오른쪽 32 m = 터치라인, 여백 8 m 안)
+        let d = try #require(PitchHeat.density(cells: pitchCell(forward: 0, right: 34), pitch: Self.pitch))
+        let row = d.height / 2
+        #expect(d.value(x: d.width - 1, y: row) < 0.05)
+        #expect(d.values.max() == 1)
+        #expect(PitchHeat.edgeFade(0) == 0)
+        #expect(PitchHeat.edgeFade(PitchHeat.margin) == 1)
+        #expect(PitchHeat.edgeFade(PitchHeat.margin + 20) == 1)
+    }
 }

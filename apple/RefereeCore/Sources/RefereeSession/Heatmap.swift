@@ -198,6 +198,12 @@ extension Heatmap {
 public enum PitchHeat {
     public static let margin = 8.0
 
+    /// 격자 끝에서 떨어진 거리(m)에 따른 배율: 끝에서 0, margin 안쪽(터치라인·골라인)부터 1 (부드러운 계단)
+    static func edgeFade(_ meters: Double) -> Double {
+        let t = min(max(meters / margin, 0), 1)
+        return t * t * (3 - 2 * t)
+    }
+
     public static func density(cells: [HeatCell], pitch: Pitch, radiusMeters: Double = 5,
                                metersPerPixel: Double = 0.5, maximumSide: Int = 256) -> HeatDensity? {
         guard radiusMeters > 0, metersPerPixel > 0, maximumSide > 1 else { return nil }
@@ -229,6 +235,14 @@ public enum PitchHeat {
                     let dx = (Double(x) + 0.5 - cx) * step
                     values[y * width + x] += spot.weight * exp(-(dx * dx + dy * dy) / twoSigmaSquared)
                 }
+            }
+        }
+        // 격자 끝에서 번짐이 네모로 잘려 보였다(critique 11-04): 바깥 여백 안에서만 가장자리로 갈수록 0으로 줄인다
+        for y in 0..<height {
+            let fromTop = min(Double(y) + 0.5, Double(height) - Double(y) - 0.5) * step
+            for x in 0..<width {
+                let fromSide = min(Double(x) + 0.5, Double(width) - Double(x) - 0.5) * step
+                values[y * width + x] *= edgeFade(min(fromTop, fromSide))
             }
         }
         guard let peak = values.max(), peak > 0 else { return nil }
