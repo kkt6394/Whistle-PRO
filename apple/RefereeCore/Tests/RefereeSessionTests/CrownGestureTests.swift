@@ -152,4 +152,13 @@ struct CrownGestureTests {
         let samples = (0..<40).map { (($0 % 2 == 0 ? 0.02 : -0.02), Double($0) * 0.02) }
         #expect(run(samples).allSatisfy { $0 == nil })
     }
+
+    /// 설정 줄 글자: 기본(54°)은 "기본", 작으면(덜 돌려도 됨) "예민하게", 크면 "둔하게" (2026-11-04 A1 critique)
+    @Test func commandFeelComparedToDefault() {
+        #expect(CrownGestureConfig.commandFeel(degrees: 54) == .standard)
+        #expect(CrownGestureConfig.commandFeel(degrees: 48) == .sensitive)
+        #expect(CrownGestureConfig.commandFeel(degrees: 18) == .sensitive)
+        #expect(CrownGestureConfig.commandFeel(degrees: 60) == .dull)
+        #expect(CrownGestureConfig.commandFeel(degrees: 180) == .dull)
+    }
 }
