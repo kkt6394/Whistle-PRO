@@ -319,4 +319,16 @@ public struct MatchLibrary: Sendable {
             try writeNotes(notes)
         }
     }
+
+    /// 지운 경기를 되돌린다 (목록의 [되돌리기], 안드로이드 `MatchLibrary.restore`와 같다).
+    /// 지움 표시(<id>.deleted)를 지우고 다시 저장한다. 노트는 delete가 지우므로 note를 주면 함께 되살린다.
+    /// 예전 형식 목록(deleted.json)은 읽기만 하므로 새로 지운 경기는 거기에 없다
+    public func restore(_ bundle: MatchBundle, note: MatchNote? = nil) throws {
+        let marker = deletedMarkerURL(for: bundle.id)
+        if FileManager.default.fileExists(atPath: marker.path) {
+            try FileManager.default.removeItem(at: marker)
+        }
+        try upsert(bundle)
+        if let note { try saveNote(note, id: bundle.id) }
+    }
 }
