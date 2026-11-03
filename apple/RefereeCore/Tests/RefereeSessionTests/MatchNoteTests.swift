@@ -147,4 +147,12 @@ struct MatchNoteColorsTests {
         #expect(MatchReport(bundle: bundle, note: note).homeColor2 == nil)
         #expect(MatchSummary(record: bundle.record).applying(note).homeColor2 == nil)
     }
+
+    /// 모르는 카드 사유 값은 그 항목만 버리고 나머지 노트는 읽는다 (Kotlin unknownReasonKeyIgnored와 같다)
+    @Test func unknownReasonKeyIgnored() throws {
+        let json = #"{"competition":"Cup","cardReasons":{"c1":"caution.zzz","c2":"sendOff.violent"}}"#
+        let note = try JSONDecoder().decode(MatchNote.self, from: Data(json.utf8))
+        #expect(note.cardReasons == ["c2": .sendOffViolent])
+        #expect(note.competition == "Cup")
+    }
 }

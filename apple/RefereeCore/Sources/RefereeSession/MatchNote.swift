@@ -35,7 +35,9 @@ public struct MatchNote: Codable, Equatable, Sendable {
             venue: try c.decodeIfPresent(String.self, forKey: .venue),
             colors: try c.decodeIfPresent(TeamColors.self, forKey: .colors),
             reportSections: try c.decodeIfPresent(ReportSections.self, forKey: .reportSections),
-            cardReasons: try c.decodeIfPresent([String: CardReason].self, forKey: .cardReasons) ?? [:])
+            // 모르는 사유 값은 그 항목만 버린다 (Kotlin MatchNote.fromJson과 같다)
+            cardReasons: (try c.decodeIfPresent([String: String].self, forKey: .cardReasons) ?? [:])
+                .compactMapValues { CardReason(rawValue: $0) })
     }
 
     public func encode(to encoder: Encoder) throws {
