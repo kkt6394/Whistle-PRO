@@ -3,8 +3,11 @@ package com.aidenstudio.whistlepro.session.design
 /** 워치 메인 상단 띠의 한 조각 (B1 스펙 §3.1) */
 sealed interface MainHeaderItem {
     data object Warning : MainHeaderItem
-    /** [short]: 띠에 [name]이 안 들어갈 때 대신 쓸 짧은 이름 (휴식 화면 "하프타임" → "휴식", 2026-11-04) */
-    data class Period(val name: String, val short: String? = null) : MainHeaderItem
+    /**
+     * [short]: 띠에 [name]이 안 들어갈 때 대신 쓸 짧은 이름 (휴식 화면 "하프타임" → "휴식", 2026-11-04)
+     * [isRest]: 휴식 이름(하프타임·연장 대기)이면 true — 경기 중 기간 이름만 라임, 휴식 이름은 회색 (애플 nameIsPeriod와 맞춤, 2026-11-04)
+     */
+    data class Period(val name: String, val short: String? = null, val isRest: Boolean = false) : MainHeaderItem
 }
 
 /**
