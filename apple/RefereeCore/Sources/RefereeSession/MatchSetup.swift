@@ -111,6 +111,8 @@ public struct MatchSetup: Codable, Equatable, Sendable {
     /// 팀 보조 색 (두 색 유니폼). 없으면 nil — JSON에서도 키를 생략한다
     public var homeColor2: TeamColor?
     public var awayColor2: TeamColor?
+    /// 보고서에 넣을 것 (정하지 않았으면 nil = 전부) — JSON에서도 키를 생략한다
+    public var reportSections: ReportSections?
 
     public init(
         rules: RuleSet = .fifaStandard,
@@ -126,7 +128,8 @@ public struct MatchSetup: Codable, Equatable, Sendable {
         awayRoster: [Player] = [],
         competition: String? = nil,
         homeColor2: TeamColor? = nil,
-        awayColor2: TeamColor? = nil
+        awayColor2: TeamColor? = nil,
+        reportSections: ReportSections? = nil
     ) {
         self.rules = rules
         self.homeName = homeName
@@ -142,11 +145,12 @@ public struct MatchSetup: Codable, Equatable, Sendable {
         self.competition = competition
         self.homeColor2 = homeColor2
         self.awayColor2 = awayColor2
+        self.reportSections = reportSections
     }
 
     private enum CodingKeys: String, CodingKey {
         case rules, homeName, awayName, homeColor, awayColor, clockDisplay, warningBeforeEnd, breakWarningBeforeEnd, recordsRoute
-        case homeRoster, awayRoster, competition, homeColor2, awayColor2
+        case homeRoster, awayRoster, competition, homeColor2, awayColor2, reportSections
     }
 
     /// 나중에 추가된 필드는 없으면 기본값을 쓴다 (이전 버전 기록 호환).
@@ -166,7 +170,8 @@ public struct MatchSetup: Codable, Equatable, Sendable {
             awayRoster: try c.decodeIfPresent([Player].self, forKey: .awayRoster) ?? [],
             competition: try c.decodeIfPresent(String.self, forKey: .competition),
             homeColor2: try c.decodeIfPresent(TeamColor.self, forKey: .homeColor2),
-            awayColor2: try c.decodeIfPresent(TeamColor.self, forKey: .awayColor2))
+            awayColor2: try c.decodeIfPresent(TeamColor.self, forKey: .awayColor2),
+            reportSections: try c.decodeIfPresent(ReportSections.self, forKey: .reportSections))
     }
 
     public func color2(of team: Team) -> TeamColor? {

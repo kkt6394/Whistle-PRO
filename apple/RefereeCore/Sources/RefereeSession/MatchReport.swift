@@ -12,6 +12,8 @@ public struct ReportLine: Equatable, Sendable {
     public var second: Int? = nil
     /// 골·자책골만: 이 줄 직후 점수 (승부차기 제외)
     public var scoreAfter: TeamPair<Int>? = nil
+    /// 이 줄을 만든 이벤트 ID (카드 사유를 이 값으로 찾는다)
+    public var eventID: String = ""
 }
 
 public struct PeriodSummary: Equatable, Sendable {
@@ -72,10 +74,21 @@ public struct MatchReport: Equatable, Sendable {
     public var ruleDeviations: [RuleLine]
     public var workoutPeriods: [WorkoutStats]
     public var workoutOverall: WorkoutStats?
+    /// 제출용 보고서에 넣을 것: 경기 메모 → 기록 설정 → 기본(전부)
+    public var sections: ReportSections
+    /// 메모에 따로 정한 값이 있으면 true (화면의 "이 경기만")
+    public var sectionsFromMatch: Bool
+    /// 이벤트 ID → 카드 사유 (경기 메모)
+    public var cardReasons: [String: CardReason]
+    /// 기간 순서대로: 그 기간 이벤트 → 끝난 기간의 끝 점수, 승부차기는 맨 끝
+    public var timelineRows: [TimelineRow]
 
     public init(bundle: MatchBundle, note: MatchNote? = nil, referee: String? = nil) {
         // 노트에 바꾼 팀 색이 있으면 그 색을 쓴다
         let setup = note?.colors?.applied(to: bundle.record.setup) ?? bundle.record.setup
+        sections = note?.reportSections ?? setup.reportSections ?? .standard
+        sectionsFromMatch = note?.reportSections != nil
+        cardReasons = note?.cardReasons ?? [:]
         let state = MatchEngine.reduce(rules: setup.rules, commands: bundle.record.commands)
         let end = state.periods.last.map { $0.endedAt ?? $0.startedAt } ?? bundle.record.createdAt
 
@@ -110,7 +123,7 @@ public struct MatchReport: Equatable, Sendable {
         var running = TeamPair(home: 0, away: 0)
         let all: [ReportLine] = rows.compactMap { row in
             guard timelineKinds.contains(row.kind) else { return nil }
-            var line = ReportLine(minute: row.minute, team: row.team, kind: row.kind, detail: row.detail)
+            var line = ReportLine(minute: row.minute, team: row.team, kind: row.kind, detail: row.detail, eventID: row.id)
             if let index = state.periods.firstIndex(where: { $0.ref == row.time.period }) {
                 line.period = index
                 line.second = row.time.duringPlay ? row.time.matchSecond - state.periods[index].offset : playedSeconds[index]
@@ -150,6 +163,18 @@ public struct MatchReport: Equatable, Sendable {
         rules = setup.rules
         ruleDeviations = setup.rules.deviations().map { RuleLine(field: $0, value: setup.rules.value(of: $0)) }
 
+        var rowsInOrder: [TimelineRow] = []
+        for (index, period) in state.periods.enumerated() {
+            rowsInOrder += all.filter { $0.period == index }.map(TimelineRow.event)
+            if period.endedAt != nil {
+                var sum = TeamPair(home: 0, away: 0)
+                for s in scores.prefix(index + 1) { sum.home += s.home; sum.away += s.away }
+                rowsInOrder.append(.periodEnd(label: periods[index].label, score: sum))
+            }
+        }
+        if let shootout { rowsInOrder.append(.shootout(shootout)) }
+        timelineRows = rowsInOrder
+
         if let workout = bundle.workout {
             workoutPeriods = WorkoutAnalysis.perPeriod(workout, state: state, now: end)
             workoutOverall = WorkoutAnalysis.overall(workout, state: state, now: end)
@@ -177,6 +202,48 @@ public struct MatchReport: Equatable, Sendable {
         var sum = TeamPair(home: 0, away: 0)
         for s in periodScores.prefix(index) { sum.home += s.home; sum.away += s.away }
         return sum
+    }
+
+    public var cautions: [ReportLine] { discipline.filter { $0.kind == .yellow || $0.kind == .secondYellow } }
+    public var sendOffs: [ReportLine] { discipline.filter { $0.kind == .red || $0.kind == .secondYellow } }
+    public var sinBins: [ReportLine] { discipline.filter { $0.kind == .sinBin } }
+    /// 일시 퇴장 표는 규칙을 켰거나 기록이 있을 때 보인다
+    public var showsSinBinTable: Bool { rules.sinBin || !sinBins.isEmpty }
+
+    public func cautionReason(_ line: ReportLine) -> CardReason? { cardReasons[line.eventID] }
+
+    /// 경고 누적 퇴장은 사유가 정해져 있고, 레드는 메모 값을 쓴다
+    public func sendOffReason(_ line: ReportLine) -> CardReason? {
+        switch line.kind {
+        case .secondYellow: .sendOffSecondCaution
+        case .red: cardReasons[line.eventID]
+        default: nil
+        }
+    }
+
+    public func sinBinReason(_ line: ReportLine) -> CardReason? { cardReasons[line.eventID] }
+
+    /// 사유가 없는 카드 (시간 순)
+    public var missingReasons: [ReportLine] {
+        discipline.filter { cardReasons[$0.eventID] == nil }
+    }
+
+    /// 머리에서 빈 항목 (심판 → 대회 → 장소)
+    public var missingInfo: [ReportMissing] {
+        var missing: [ReportMissing] = []
+        if referee == nil { missing.append(.referee) }
+        if competition == nil { missing.append(.competition) }
+        if venue == nil { missing.append(.venue) }
+        return missing
+    }
+
+    public var result: ReportResult {
+        guard outcome == .completed else { return .unfinished(outcome) }
+        if score.home != score.away { return .win(score.home > score.away ? .home : .away, shootout: nil) }
+        if let shootout, shootout.home != shootout.away {
+            return .win(shootout.home > shootout.away ? .home : .away, shootout: shootout)
+        }
+        return .draw
     }
 
     public func color2(of team: Team) -> TeamColor? {
