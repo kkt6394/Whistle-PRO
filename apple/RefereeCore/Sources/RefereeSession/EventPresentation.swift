@@ -31,7 +31,8 @@ public enum RecordFeedback: Equatable, Sendable {
     case none
     /// 경고 누적 퇴장 확인 (등번호를 바로 고칠 수 있어야 한다)
     case secondYellow(eventID: String)
-    case warning(EventWarning)
+    /// 경고 문구 + 그 이벤트 (안내에 팀·번호를 함께 보인다, 2026-11-04 B1 critique)
+    case warning(EventWarning, eventID: String)
 }
 
 extension MatchState {
@@ -97,7 +98,7 @@ extension MatchState {
     public func feedback(forEvent id: String) -> RecordFeedback {
         guard let r = resolvedEvents.first(where: { $0.event.id == id }) else { return .none }
         if r.kind == .secondYellow && !r.warnings.contains(.playerAlreadySentOff) { return .secondYellow(eventID: id) }
-        if let warning = r.warnings.first { return .warning(warning) }
+        if let warning = r.warnings.first { return .warning(warning, eventID: id) }
         return .none
     }
 }

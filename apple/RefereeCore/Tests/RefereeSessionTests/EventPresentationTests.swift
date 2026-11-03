@@ -46,7 +46,7 @@ struct EventPresentationTests {
         let s = MatchEngine.reduce(rules: .fifaStandard, commands: commands)
         #expect(s.feedback(forEvent: "y1") == .none)
         #expect(s.feedback(forEvent: "y2") == .secondYellow(eventID: "y2"))
-        #expect(s.feedback(forEvent: "r") == .warning(.playerAlreadySentOff))
+        #expect(s.feedback(forEvent: "r") == .warning(.playerAlreadySentOff, eventID: "r"))
         #expect(s.feedback(forEvent: "missing") == .none)
     }
 
