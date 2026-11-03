@@ -53,4 +53,32 @@ struct PagePackerTests {
         #expect(placed.map(\.page) == [0, 1, 2])
         #expect(PagePacker.pageCount([]) == 1)
     }
+
+    @Test func laterPagesReserveTop() {
+        let pieces = (0..<6).map { _ in PagePiece(height: 40, spacingBefore: 0) }
+        let placed = PagePacker.pack(pieces, contentHeight: 100, laterPageTop: 30)
+        #expect(placed.map(\.page) == [0, 0, 1, 2, 3, 4])
+        #expect(placed.filter { $0.page == 1 }.first?.y == 30)
+        #expect(placed.first?.y == 0)
+    }
+
+    @Test func repeatsTableHeaderOnNewPage() {
+        var pieces = [PagePiece(height: 20, spacingBefore: 0, keepWithNext: true),
+                      PagePiece(height: 10, spacingBefore: 0, keepWithNext: true)]
+        pieces += (0..<5).map { _ in PagePiece(height: 20, spacingBefore: 0, repeatsHeader: 1) }
+        let placed = PagePacker.pack(pieces, contentHeight: 100, laterPageTop: 30)
+        // 첫 쪽: 20+10+20+20+20 = 90, 다음 줄 20은 넘침 → 둘째 쪽
+        #expect(placed[2...4].allSatisfy { $0.page == 0 && $0.header == nil && $0.headerY == nil })
+        #expect(placed[5].page == 1)
+        #expect(placed[5].header == 1)
+        #expect(placed[5].headerY == 30)
+        #expect(placed[5].y == 40)
+        #expect(placed[6].page == 1 && placed[6].header == nil && placed[6].y == 60)
+    }
+
+    @Test func headerNotRepeatedForNonTablePiece() {
+        let pieces = (0..<4).map { _ in PagePiece(height: 40, spacingBefore: 0) }
+        let placed = PagePacker.pack(pieces, contentHeight: 100, laterPageTop: 30)
+        #expect(placed.allSatisfy { $0.header == nil && $0.headerY == nil })
+    }
 }

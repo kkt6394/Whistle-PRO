@@ -53,4 +53,30 @@ class PagePackerTests {
         assertEquals(listOf(0, 1, 2), placed.map { it.page })
         assertEquals(1, PagePacker.pageCount(emptyList()))
     }
+
+    @Test fun laterPagesReserveTop() {
+        val pieces = (0 until 6).map { PagePiece(40.0, 0.0) }
+        val placed = PagePacker.pack(pieces, 100.0, laterPageTop = 30.0)
+        assertEquals(listOf(0, 0, 1, 2, 3, 4), placed.map { it.page })
+        assertEquals(30.0, placed.first { it.page == 1 }.y)
+        assertEquals(0.0, placed.first().y)
+    }
+
+    @Test fun repeatsTableHeaderOnNewPage() {
+        val pieces = listOf(PagePiece(20.0, 0.0, keepWithNext = true), PagePiece(10.0, 0.0, keepWithNext = true)) +
+            (0 until 5).map { PagePiece(20.0, 0.0, repeatsHeader = 1) }
+        val placed = PagePacker.pack(pieces, 100.0, laterPageTop = 30.0)
+        assertTrue(placed.subList(2, 5).all { it.page == 0 && it.header == null && it.headerY == null })
+        assertEquals(1, placed[5].page)
+        assertEquals(1, placed[5].header)
+        assertEquals(30.0, placed[5].headerY)
+        assertEquals(40.0, placed[5].y)
+        assertTrue(placed[6].page == 1 && placed[6].header == null && placed[6].y == 60.0)
+    }
+
+    @Test fun headerNotRepeatedForNonTablePiece() {
+        val pieces = (0 until 4).map { PagePiece(40.0, 0.0) }
+        val placed = PagePacker.pack(pieces, 100.0, laterPageTop = 30.0)
+        assertTrue(placed.all { it.header == null && it.headerY == null })
+    }
 }

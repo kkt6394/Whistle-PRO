@@ -7,6 +7,8 @@ data class PagePiece(
     val spacingBefore: Double,
     /** 다음 조각과 같은 쪽에 둔다 (제목이 쪽 맨 아래에 혼자 남지 않게) */
     val keepWithNext: Boolean = false,
+    /** 이 조각이 새 쪽 맨 위에 오면 먼저 다시 그릴 표 머리 조각의 인덱스 */
+    val repeatsHeader: Int? = null,
 )
 
 data class PlacedPiece(
@@ -14,6 +16,10 @@ data class PlacedPiece(
     val page: Int,
     /** 쪽 내용 영역 위에서부터 */
     val y: Double,
+    /** 이 조각 바로 위에 다시 그린 표 머리 조각 인덱스 (그렸을 때만) */
+    val header: Int? = null,
+    /** 다시 그린 표 머리의 y (조각의 y는 머리 높이만큼 아래) */
+    val headerY: Double? = null,
 )
 
 /**
@@ -21,7 +27,7 @@ data class PlacedPiece(
  * 한 쪽보다 큰 조각은 새 쪽에 혼자 둔다.
  */
 object PagePacker {
-    fun pack(pieces: List<PagePiece>, contentHeight: Double): List<PlacedPiece> {
+    fun pack(pieces: List<PagePiece>, contentHeight: Double, laterPageTop: Double = 0.0): List<PlacedPiece> {
         val placed = mutableListOf<PlacedPiece>()
         var page = 0
         var bottom = 0.0
@@ -41,11 +47,25 @@ object PagePacker {
             val need = (if (empty) 0.0 else piece.spacingBefore) + chain
             if (!empty && bottom + need > contentHeight) {
                 page += 1
-                bottom = 0.0
+                bottom = laterPageTop
                 empty = true
             }
-            val top = if (empty) 0.0 else bottom + piece.spacingBefore
-            placed += PlacedPiece(index, page, top)
+            // 새 쪽 맨 위(첫 쪽 제외)에 표 줄이 오면 머리를 먼저 다시 그린다
+            var header: Int? = null
+            var headerY: Double? = null
+            var top: Double
+            if (empty) {
+                top = if (page == 0) 0.0 else laterPageTop
+                val h = piece.repeatsHeader
+                if (page > 0 && h != null && h in pieces.indices) {
+                    header = h
+                    headerY = top
+                    top += pieces[h].height
+                }
+            } else {
+                top = bottom + piece.spacingBefore
+            }
+            placed += PlacedPiece(index, page, top, header, headerY)
             bottom = top + piece.height
             empty = false
         }
