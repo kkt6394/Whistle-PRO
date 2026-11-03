@@ -59,4 +59,17 @@ class KickMarksTests {
             assertTrue(rows.home.isEmpty() && rows.away.isEmpty())
         }
     }
+
+    @Test fun hiddenCountOnlyWhenLongerThanLimit() {
+        assertEquals(0, KickMarks.hiddenCount(listOf(true, false), listOf(true), 5, 5))
+        val eight = List(8) { true }
+        assertEquals(2, KickMarks.hiddenCount(eight, eight.dropLast(1), 5, 6))
+    }
+
+    /** 40mm(폭 134, 점 14)는 6칸, 넓으면 상한 7칸, 아주 좁아도 1칸 (Swift와 같은 값) */
+    @Test fun fittingFollowsWidth() {
+        assertEquals(6, KickMarks.fitting(134.0, 14.0, 7))
+        assertEquals(7, KickMarks.fitting(177.0, 14.0, 7))
+        assertEquals(1, KickMarks.fitting(10.0, 14.0, 7))
+    }
 }
