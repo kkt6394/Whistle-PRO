@@ -16,28 +16,48 @@ data class MatchNote(
     val venue: String? = null,
     /** 이 경기에서 바꾼 팀 색 (없으면 기록의 색). 예전 notes.json에는 이 키가 없다 */
     val colors: TeamColors? = null,
+    /** 이 경기만 보고서에 넣을 것 (없으면 설정의 기본값) */
+    val reportSections: ReportSections? = null,
+    /** 이벤트 ID → 카드 사유. 비면 JSON에서 키를 생략한다 */
+    val cardReasons: Map<String, CardReason> = emptyMap(),
 ) {
-    val isEmpty: Boolean get() = competition == null && venue == null && colors == null
+    val isEmpty: Boolean
+        get() = competition == null && venue == null && colors == null && reportSections == null && cardReasons.isEmpty()
 
     fun toJson(): JsonObject = buildJsonObject {
         competition?.let { put("competition", JsonPrimitive(it)) }
         venue?.let { put("venue", JsonPrimitive(it)) }
         colors?.let { put("colors", it.toJson()) }
+        reportSections?.let { put("reportSections", it.toJson()) }
+        if (cardReasons.isNotEmpty()) {
+            put("cardReasons", buildJsonObject { cardReasons.forEach { (id, reason) -> put(id, JsonPrimitive(reason.key)) } })
+        }
     }
 
     companion object {
         /**
          * 경기 정보 편집기에서 고른 값으로 만든 노트. 고른 네 색이 기록의 색과 같으면 덮어쓰지 않는다 (colors null).
-         * 두 번째 색이 주 색과 같으면 없는 것으로 정리한 뒤 비교한다 (Swift `MatchNote.edited`)
+         * 두 번째 색이 주 색과 같으면 없는 것으로 정리한 뒤 비교한다 (Swift `MatchNote.edited`).
+         * `keeping`을 주면 그 노트의 카드 사유·넣을 것은 그대로 가져온다
          */
-        fun edited(competition: String?, venue: String?, colors: TeamColors, recorded: TeamColors): MatchNote {
+        fun edited(
+            competition: String?, venue: String?, colors: TeamColors, recorded: TeamColors, keeping: MatchNote? = null,
+        ): MatchNote {
             val picked = colors.normalized()
-            return MatchNote(competition, venue, picked.takeIf { it != recorded.normalized() })
+            return MatchNote(
+                competition, venue, picked.takeIf { it != recorded.normalized() },
+                keeping?.reportSections, keeping?.cardReasons ?: emptyMap())
         }
 
         fun fromJson(json: JsonObject) = MatchNote(
             json.optionalString("competition"), json.optionalString("venue"),
             (json["colors"] as? JsonObject)?.let(TeamColors::fromJson),
+            (json["reportSections"] as? JsonObject)?.let(ReportSections::fromJson),
+            // 알 수 없는 사유는 그 항목만 버린다
+            ((json["cardReasons"] as? JsonObject) ?: JsonObject(emptyMap())).mapNotNull { (id, value) ->
+                val reason = (value as? JsonPrimitive)?.takeIf { it.isString }?.content?.let(CardReason::fromKey)
+                reason?.let { id to it }
+            }.toMap(),
         )
     }
 }

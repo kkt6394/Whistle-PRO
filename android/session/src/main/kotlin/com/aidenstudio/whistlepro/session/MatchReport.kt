@@ -28,6 +28,8 @@ data class ReportLine(
     val second: Long? = null,
     /** 골·자책골만: 이 줄 직후 점수 (승부차기 제외) */
     val scoreAfter: TeamPair<Int>? = null,
+    /** 이 줄을 만든 이벤트 ID (카드 사유를 이 값으로 찾는다) */
+    val eventId: String = "",
 ) {
     /** 이 줄이 속하는 열. `team`은 기록한 팀이라 자책골은 자책한 팀이다 → 득점한 팀(상대)의 열. */
     val columnTeam: Team get() = if (kind == ResolvedEventKind.OWN_GOAL) team.opponent else team
@@ -85,10 +87,21 @@ class MatchReport(bundle: MatchBundle, note: MatchNote? = null, referee: String?
     val ruleDeviations: List<RuleLine>
     val workoutPeriods: List<WorkoutStats>
     val workoutOverall: WorkoutStats?
+    /** 제출용 보고서에 넣을 것: 경기 메모 → 기록 설정 → 기본(전부) */
+    val sections: ReportSections
+    /** 메모에 따로 정한 값이 있으면 true (화면의 "이 경기만") */
+    val sectionsFromMatch: Boolean
+    /** 이벤트 ID → 카드 사유 (경기 메모) */
+    val cardReasons: Map<String, CardReason>
+    /** 기간 순서대로: 그 기간 이벤트 → 끝난 기간의 끝 점수, 승부차기는 맨 끝 */
+    val timelineRows: List<TimelineRow>
 
     init {
         // 노트에 바꾼 팀 색이 있으면 그 색을 쓴다
         val setup = note?.colors?.applied(bundle.record.setup) ?: bundle.record.setup
+        sections = note?.reportSections ?: setup.reportSections ?: ReportSections.STANDARD
+        sectionsFromMatch = note?.reportSections != null
+        cardReasons = note?.cardReasons ?: emptyMap()
         val state = MatchEngine.reduce(setup.rules, bundle.record.commands)
         val end = state.periods.lastOrNull()?.let { it.endedAt ?: it.startedAt } ?: bundle.record.createdAt
 
@@ -123,7 +136,7 @@ class MatchReport(bundle: MatchBundle, note: MatchNote? = null, referee: String?
             ResolvedEventKind.RED, ResolvedEventKind.SIN_BIN, ResolvedEventKind.SUBSTITUTION)
         var running = TeamPair(0, 0)
         val all = rows.filter { it.kind in timelineKinds }.map { row ->
-            var line = ReportLine(row.minute, row.team, row.kind, row.detail)
+            var line = ReportLine(row.minute, row.team, row.kind, row.detail, eventId = row.id)
             val index = state.periods.indexOfFirst { it.ref == row.time.period }
             if (index >= 0) {
                 val second = if (row.time.duringPlay) row.time.matchSecond - state.periods[index].offset else playedSeconds[index]
@@ -169,6 +182,17 @@ class MatchReport(bundle: MatchBundle, note: MatchNote? = null, referee: String?
             away = ReportTotals.of(timeline.filter { it.columnTeam == Team.AWAY }),
         )
 
+        val rowsInOrder = mutableListOf<TimelineRow>()
+        state.periods.forEachIndexed { index, period ->
+            all.filter { it.period == index }.forEach { rowsInOrder += TimelineRow.Event(it) }
+            if (period.endedAt != null) {
+                val upTo = scores.take(index + 1)
+                rowsInOrder += TimelineRow.PeriodEnd(periods[index].label, TeamPair(upTo.sumOf { it.home }, upTo.sumOf { it.away }))
+            }
+        }
+        shootout?.let { rowsInOrder += TimelineRow.Shootout(it) }
+        timelineRows = rowsInOrder
+
         rules = setup.rules
         ruleDeviations = setup.rules.deviations().map { RuleLine(it, setup.rules.value(it)) }
 
@@ -196,6 +220,46 @@ class MatchReport(bundle: MatchBundle, note: MatchNote? = null, referee: String?
     /** index번째 기간 시작 때의 점수 (앞 기간 골 합) */
     fun scoreBefore(period: Int): TeamPair<Int> =
         TeamPair(periodScores.take(period).sumOf { it.home }, periodScores.take(period).sumOf { it.away })
+
+    val cautions: List<ReportLine>
+        get() = discipline.filter { it.kind == ResolvedEventKind.YELLOW || it.kind == ResolvedEventKind.SECOND_YELLOW }
+    val sendOffs: List<ReportLine>
+        get() = discipline.filter { it.kind == ResolvedEventKind.RED || it.kind == ResolvedEventKind.SECOND_YELLOW }
+    val sinBins: List<ReportLine> get() = discipline.filter { it.kind == ResolvedEventKind.SIN_BIN }
+    /** 일시 퇴장 표는 규칙을 켰거나 기록이 있을 때 보인다 */
+    val showsSinBinTable: Boolean get() = rules.sinBin || sinBins.isNotEmpty()
+
+    fun cautionReason(line: ReportLine): CardReason? = cardReasons[line.eventId]
+
+    /** 경고 누적 퇴장은 사유가 정해져 있고, 레드는 메모 값을 쓴다 */
+    fun sendOffReason(line: ReportLine): CardReason? = when (line.kind) {
+        ResolvedEventKind.SECOND_YELLOW -> CardReason.SEND_OFF_SECOND_CAUTION
+        ResolvedEventKind.RED -> cardReasons[line.eventId]
+        else -> null
+    }
+
+    fun sinBinReason(line: ReportLine): CardReason? = cardReasons[line.eventId]
+
+    /** 사유가 없는 카드 (시간 순) */
+    val missingReasons: List<ReportLine> get() = discipline.filter { cardReasons[it.eventId] == null }
+
+    /** 머리에서 빈 항목 (심판 → 대회 → 장소) */
+    val missingInfo: List<ReportMissing>
+        get() = listOfNotNull(
+            ReportMissing.REFEREE.takeIf { referee == null },
+            ReportMissing.COMPETITION.takeIf { competition == null },
+            ReportMissing.VENUE.takeIf { venue == null })
+
+    val result: ReportResult
+        get() {
+            if (outcome != ReportOutcome.Completed) return ReportResult.Unfinished(outcome)
+            if (score.home != score.away) return ReportResult.Win(if (score.home > score.away) Team.HOME else Team.AWAY)
+            val kicks = shootout
+            if (kicks != null && kicks.home != kicks.away) {
+                return ReportResult.Win(if (kicks.home > kicks.away) Team.HOME else Team.AWAY, kicks)
+            }
+            return ReportResult.Draw
+        }
 
     fun color2(team: Team): TeamColor? = if (team == Team.HOME) homeColor2 else awayColor2
 

@@ -175,6 +175,8 @@ data class MatchSetup(
     /** 팀 보조 색 (두 색 유니폼, 선택). 없으면 null — JSON에서도 키를 생략한다 */
     val homeColor2: TeamColor? = null,
     val awayColor2: TeamColor? = null,
+    /** 보고서에 넣을 것 (정하지 않았으면 null = 전부) — JSON에서도 키를 생략한다 */
+    val reportSections: ReportSections? = null,
 ) {
     fun color2(team: Team): TeamColor? = if (team == Team.HOME) homeColor2 else awayColor2
 
@@ -222,6 +224,7 @@ data class MatchSetup(
         competition?.let { put("competition", JsonPrimitive(it)) }
         homeColor2?.let { put("homeColor2", JsonPrimitive(it.hex)) }
         awayColor2?.let { put("awayColor2", JsonPrimitive(it.hex)) }
+        reportSections?.let { put("reportSections", it.toJson()) }
     }
 
     companion object {
@@ -242,6 +245,7 @@ data class MatchSetup(
             competition = json.optionalString("competition"),
             homeColor2 = json.optionalString("homeColor2")?.let(TeamColor::fromCode),
             awayColor2 = json.optionalString("awayColor2")?.let(TeamColor::fromCode),
+            reportSections = (json["reportSections"] as? JsonObject)?.let(ReportSections::fromJson),
         )
 
         private fun JsonObject.roster(key: String): List<Player> =
