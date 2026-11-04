@@ -46,6 +46,11 @@ public struct MatchReport: Equatable, Sendable {
     public var competition: String?
     public var venue: String?
     public var referee: String?
+    /// 경기 메모의 경기번호·부심(1·2 순서, 빈 칸 뺌)·대기심·기타 보고 사항 (비면 nil / 빈 목록)
+    public var matchNumber: String?
+    public var assistants: [String]
+    public var fourthOfficial: String?
+    public var otherReport: String?
     public var homeName: String
     public var awayName: String
     public var homeColor: TeamColor
@@ -77,7 +82,7 @@ public struct MatchReport: Equatable, Sendable {
     public var ruleDeviations: [RuleLine]
     public var workoutPeriods: [WorkoutStats]
     public var workoutOverall: WorkoutStats?
-    /// 제출용 보고서에 넣을 것: 경기 메모 → 기록 설정 → 기본(전부)
+    /// 보고서 구성: 경기 메모 → 기록 설정 → 기본
     public var sections: ReportSections
     /// 메모에 따로 정한 값이 있으면 true (화면의 "이 경기만")
     public var sectionsFromMatch: Bool
@@ -103,6 +108,10 @@ public struct MatchReport: Equatable, Sendable {
         competition = trimmed(note?.competition) ?? trimmed(setup.competition)
         venue = trimmed(note?.venue)
         self.referee = trimmed(referee)
+        matchNumber = trimmed(note?.matchNumber)
+        assistants = [note?.assistant1, note?.assistant2].compactMap(trimmed)
+        fourthOfficial = trimmed(note?.fourthOfficial)
+        otherReport = trimmed(note?.otherReport)
         homeName = setup.homeName
         awayName = setup.awayName
         homeColor = setup.homeColor

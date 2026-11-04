@@ -41,7 +41,7 @@ class ReportOptionsTests {
         val setup = MatchSetup.fromJson(JsonObject(MatchSetup().toJson().filterKeys { it != "reportSections" }))
         assertNull(setup.reportSections)
         assertEquals(
-            ReportSections(signatures = false),
+            ReportSections(hidden = setOf(ReportBlock.TIMELINE, ReportBlock.SIGNATURES)),
             ReportSections.fromJson(parseJson("""{"signatures":false}""".toByteArray()) as JsonObject))
     }
 
@@ -54,7 +54,7 @@ class ReportOptionsTests {
     @Test fun noteRoundTrips() {
         val note = MatchNote(
             competition = "A", cardReasons = mapOf("c1" to CardReason.CAUTION_DISSENT),
-            reportSections = ReportSections(signatures = false))
+            reportSections = ReportSections(hidden = setOf(ReportBlock.SIGNATURES)))
         assertEquals(note, MatchNote.fromJson(note.toJson()))
         assertEquals(JsonPrimitive("caution.dissent"), (note.toJson()["cardReasons"] as JsonObject)["c1"])
         assertEquals(JsonPrimitive(false), (note.toJson()["reportSections"] as JsonObject)["signatures"])
@@ -63,7 +63,7 @@ class ReportOptionsTests {
     }
 
     @Test fun setupRoundTripsSections() {
-        val setup = MatchSetup(reportSections = ReportSections(totals = false))
+        val setup = MatchSetup(reportSections = ReportSections(hidden = setOf(ReportBlock.TOTALS)))
         assertEquals(setup.reportSections, MatchSetup.fromJson(setup.toJson()).reportSections)
     }
 
@@ -80,7 +80,7 @@ class ReportOptionsTests {
     @Test fun editedKeepsReasonsAndSections() {
         val old = MatchNote(
             competition = "A", cardReasons = mapOf("e1" to CardReason.CAUTION_DISSENT),
-            reportSections = ReportSections(signatures = false))
+            reportSections = ReportSections(hidden = setOf(ReportBlock.SIGNATURES)))
         val recorded = TeamColors.from(MatchSetup())
         val new = MatchNote.edited("B", null, recorded, recorded, keeping = old)
         assertTrue(new.competition == "B" && new.cardReasons == old.cardReasons && new.reportSections == old.reportSections)
@@ -88,8 +88,8 @@ class ReportOptionsTests {
     }
 
     @Test fun sectionsPrecedence() {
-        val fromSetup = ReportSections(totals = false)
-        val fromNote = ReportSections(timeline = false)
+        val fromSetup = ReportSections(hidden = setOf(ReportBlock.TOTALS))
+        val fromNote = ReportSections(hidden = emptySet())
         val commands = listOf(CommandKind.StartPeriod to 0.0)
         val none = report(commands)
         assertTrue(none.sections == ReportSections.STANDARD && !none.sectionsFromMatch)
