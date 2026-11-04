@@ -32,8 +32,7 @@ struct ReportOptionsTests {
         let setup = try JSONDecoder().decode(MatchSetup.self, from: Data(Self.oldSetupJSON.utf8))
         #expect(setup.reportSections == nil)
         #expect(try JSONDecoder().decode(ReportSections.self, from: Data(#"{"signatures":false}"#.utf8))
-                == ReportSections(substitutions: true, totals: true, periodTimes: true, format: true,
-                                  timeline: true, signatures: false, teamSignatures: true))
+                == ReportSections(hidden: [.timeline, .signatures]))
     }
 
     @Test func emptyFieldsOmitted() throws {
@@ -45,7 +44,7 @@ struct ReportOptionsTests {
     @Test func noteRoundTrips() throws {
         var note = MatchNote(competition: "A")
         note.cardReasons = ["c1": .cautionDissent]
-        note.reportSections = ReportSections(signatures: false)
+        note.reportSections = ReportSections(hidden: [.signatures])
         let back = try JSONDecoder().decode(MatchNote.self, from: JSONEncoder().encode(note))
         #expect(back == note)
         #expect(!note.isEmpty)
@@ -55,7 +54,7 @@ struct ReportOptionsTests {
     @Test func editedKeepsReasonsAndSections() {
         var old = MatchNote(competition: "A")
         old.cardReasons = ["e1": .cautionDissent]
-        old.reportSections = ReportSections(signatures: false)
+        old.reportSections = ReportSections(hidden: [.signatures])
         let recorded = TeamColors(setup: MatchSetup())
         let new = MatchNote.edited(competition: "B", venue: nil, colors: recorded, recorded: recorded, keeping: old)
         #expect(new.competition == "B" && new.cardReasons == old.cardReasons && new.reportSections == old.reportSections)
@@ -63,8 +62,8 @@ struct ReportOptionsTests {
     }
 
     @Test func sectionsPrecedence() {
-        let fromSetup = ReportSections(totals: false)
-        let fromNote = ReportSections(timeline: false)
+        let fromSetup = ReportSections(hidden: [.totals])
+        let fromNote = ReportSections(hidden: [])
         let commands: [(CommandKind, Double)] = [(.startPeriod, 0)]
         let none = report(commands)
         #expect(none.sections == .standard && !none.sectionsFromMatch)

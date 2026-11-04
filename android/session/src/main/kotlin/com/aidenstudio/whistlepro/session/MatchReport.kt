@@ -59,6 +59,11 @@ class MatchReport(bundle: MatchBundle, note: MatchNote? = null, referee: String?
     val competition: String?
     val venue: String?
     val referee: String?
+    /** 경기 메모의 경기번호·부심(1·2 순서, 빈 칸 뺌)·대기심·기타 보고 사항 (비면 null / 빈 목록) */
+    val matchNumber: String?
+    val assistants: List<String>
+    val fourthOfficial: String?
+    val otherReport: String?
     val homeName: String
     val awayName: String
     val homeColor: TeamColor
@@ -92,7 +97,7 @@ class MatchReport(bundle: MatchBundle, note: MatchNote? = null, referee: String?
     val ruleDeviations: List<RuleLine>
     val workoutPeriods: List<WorkoutStats>
     val workoutOverall: WorkoutStats?
-    /** 제출용 보고서에 넣을 것: 경기 메모 → 기록 설정 → 기본(전부) */
+    /** 보고서 구성: 경기 메모 → 기록 설정 → 기본 */
     val sections: ReportSections
     /** 메모에 따로 정한 값이 있으면 true (화면의 "이 경기만") */
     val sectionsFromMatch: Boolean
@@ -115,6 +120,10 @@ class MatchReport(bundle: MatchBundle, note: MatchNote? = null, referee: String?
         competition = trimmed(note?.competition) ?: trimmed(setup.competition)
         venue = trimmed(note?.venue)
         this.referee = trimmed(referee)
+        matchNumber = trimmed(note?.matchNumber)
+        assistants = listOfNotNull(trimmed(note?.assistant1), trimmed(note?.assistant2))
+        fourthOfficial = trimmed(note?.fourthOfficial)
+        otherReport = trimmed(note?.otherReport)
         homeName = setup.homeName
         awayName = setup.awayName
         homeColor = setup.homeColor
