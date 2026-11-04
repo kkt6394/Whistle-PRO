@@ -9,9 +9,15 @@ public enum EventKindChoice: String, CaseIterable, Sendable {
         allCases.filter { $0 != .sinBin || rules.sinBin }
     }
 
-    /// 워치 종류 타일 순서: 자주 쓰는 순 (골·옐로 / 레드·교체 / 일시 퇴장·자책골, 2026-11-03 critique)
+    /// 워치 종류 타일 줄: 골 한 줄 크게 / 옐로·레드(·일시 퇴장) / 교체·자책골 (2026-11-04 실기기 뒤 사용자 결정 시안 A)
+    public static func tileRows(for rules: RuleSet) -> [[EventKindChoice]] {
+        [[.goal], [.yellow, .red, .sinBin], [.substitution, .ownGoal]]
+            .map { $0.filter { $0 != .sinBin || rules.sinBin } }
+    }
+
+    /// 워치 종류 타일 순서 (위 줄을 읽는 순서대로 편 것)
     public static func tileOrder(for rules: RuleSet) -> [EventKindChoice] {
-        [.goal, .yellow, .red, .substitution, .sinBin, .ownGoal].filter { $0 != .sinBin || rules.sinBin }
+        tileRows(for: rules).flatMap { $0 }
     }
 
     /// 교체는 나가는 번호와 들어오는 번호를 차례로 받는다.

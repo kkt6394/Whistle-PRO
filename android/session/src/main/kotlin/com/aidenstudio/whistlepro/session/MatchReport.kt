@@ -73,6 +73,11 @@ class MatchReport(bundle: MatchBundle, note: MatchNote? = null, referee: String?
     val goals: List<ReportLine>
     /** 옐로·경고 누적 퇴장·레드·일시 퇴장 */
     val discipline: List<ReportLine>
+    /**
+     * 앞서 경고 1장을 받은 선수에게 준 레드카드의 이벤트 ID. 심판이 두 번째 경고를 [옐로카드] 대신 [레드카드]로 기록했을 수 있어
+     * 폰의 퇴장 사유 목록 맨 위에 "같은 경기 두 번째 경고"를 보여 바로잡게 한다 (Swift `redsAfterCaution`, 2026-11-04 사용자 결정)
+     */
+    val redsAfterCaution: Set<String>
     val substitutions: List<ReportLine>
     /** 골·징계·교체를 기록한 순서대로 (상세 [기록] 탭) */
     val timeline: List<ReportLine>
@@ -155,6 +160,18 @@ class MatchReport(bundle: MatchBundle, note: MatchNote? = null, referee: String?
             ResolvedEventKind.YELLOW, ResolvedEventKind.SECOND_YELLOW, ResolvedEventKind.RED, ResolvedEventKind.SIN_BIN))
         substitutions = lines(setOf(ResolvedEventKind.SUBSTITUTION))
         timeline = all
+        val cautioned = mutableSetOf<Pair<Team, Long>>()
+        val reds = mutableSetOf<String>()
+        for (resolved in state.resolvedEvents) {
+            val number = resolved.event.payload.primaryNumber ?: continue
+            val key = resolved.event.payload.team to number
+            when (resolved.kind) {
+                ResolvedEventKind.YELLOW -> cautioned += key
+                ResolvedEventKind.RED -> if (key in cautioned) reds += resolved.event.id
+                else -> {}
+            }
+        }
+        redsAfterCaution = reds
 
         periods = state.periods.mapIndexed { index, p ->
             val played = playedSeconds[index]

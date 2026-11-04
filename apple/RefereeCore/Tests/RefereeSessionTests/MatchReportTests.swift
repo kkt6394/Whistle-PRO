@@ -50,6 +50,23 @@ struct MatchReportTests {
         #expect(report.ruleDeviations.isEmpty)
     }
 
+    /// 경고 1장 있던 선수에게 준 레드만 표시한다 (두 번째 경고를 레드로 기록했을 수 있어 폰 사유 맨 위에 "두 번째 경고", 2026-11-04)
+    @Test func redAfterCautionIsMarked() {
+        let commands: [(CommandKind, Double)] = [
+            (.startPeriod, 0),
+            (.recordEvent(.card(team: .home, number: 4, kind: .yellow)), 100),
+            (.recordEvent(.card(team: .home, number: 4, kind: .red)), 200),   // 경고 뒤 레드 → 표시
+            (.recordEvent(.card(team: .away, number: 4, kind: .red)), 300),   // 다른 팀 같은 번호 → 아님
+            (.recordEvent(.card(team: .home, number: 8, kind: .red)), 400),   // 경고 없던 선수 → 아님
+            (.recordEvent(.card(team: .home, number: nil, kind: .red)), 500),              // 번호 없음 → 아님
+        ]
+        let record = makeRecord(commands)
+        let report = MatchReport(bundle: MatchBundle(record: record, workout: nil))
+        let reds = report.discipline.filter { $0.kind == .red }
+        #expect(reds.count == 4)
+        #expect(report.redsAfterCaution == [reds[0].eventID])
+    }
+
     @Test func reportWithoutWorkout() {
         let report = MatchReport(bundle: MatchBundle(record: makeRecord(match), workout: nil))
         #expect(report.workoutOverall == nil)

@@ -26,9 +26,13 @@ enum class EventKindChoice {
         /** 일시 퇴장은 규칙에서 켰을 때만 보인다. */
         fun available(rules: RuleSet): List<EventKindChoice> = entries.filter { it != SIN_BIN || rules.sinBin }
 
-        /** 워치 종류 타일 순서: 자주 쓰는 순 (골·옐로 / 레드·교체 / 일시 퇴장·자책골, Swift `tileOrder`, 2026-11-03 critique) */
-        fun tileOrder(rules: RuleSet): List<EventKindChoice> =
-            listOf(GOAL, YELLOW, RED, SUBSTITUTION, SIN_BIN, OWN_GOAL).filter { it != SIN_BIN || rules.sinBin }
+        /** 워치 종류 타일 줄: 골 한 줄 크게 / 옐로·레드(·일시 퇴장) / 교체·자책골 (Swift `tileRows`, 2026-11-04 사용자 결정 시안 A) */
+        fun tileRows(rules: RuleSet): List<List<EventKindChoice>> =
+            listOf(listOf(GOAL), listOf(YELLOW, RED, SIN_BIN), listOf(SUBSTITUTION, OWN_GOAL))
+                .map { row -> row.filter { it != SIN_BIN || rules.sinBin } }
+
+        /** 워치 종류 타일 순서 (위 줄을 읽는 순서대로 편 것, Swift `tileOrder`) */
+        fun tileOrder(rules: RuleSet): List<EventKindChoice> = tileRows(rules).flatten()
     }
 }
 

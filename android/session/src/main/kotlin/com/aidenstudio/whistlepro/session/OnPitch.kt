@@ -7,7 +7,7 @@ import com.aidenstudio.whistlepro.core.Team
 import com.aidenstudio.whistlepro.core.resolvedEvents
 
 /** Swift payload.number(in: .primary): 교체는 나가는 번호 */
-private val EventPayload.primaryNumber: Long?
+internal val EventPayload.primaryNumber: Long?
     get() = when (this) {
         is EventPayload.Goal -> number
         is EventPayload.Card -> number
