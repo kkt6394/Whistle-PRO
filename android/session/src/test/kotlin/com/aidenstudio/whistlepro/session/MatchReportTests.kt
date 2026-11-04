@@ -37,6 +37,22 @@ class MatchReportTests {
     }
 
     /** 제출용 보고서의 "경기 방식" 줄은 기간 수·길이·연장·승부차기를 규칙에서 읽는다 */
+    /** 경고 1장 있던 선수에게 준 레드만 표시한다 (Swift redAfterCautionIsMarked, 2026-11-04) */
+    @Test fun redAfterCautionIsMarked() {
+        val commands = listOf(
+            CommandKind.StartPeriod to 0.0,
+            CommandKind.RecordEvent(EventPayload.Card(Team.HOME, 4, CardKind.YELLOW)) to 100.0,
+            CommandKind.RecordEvent(EventPayload.Card(Team.HOME, 4, CardKind.RED)) to 200.0,   // 경고 뒤 레드 → 표시
+            CommandKind.RecordEvent(EventPayload.Card(Team.AWAY, 4, CardKind.RED)) to 300.0,   // 다른 팀 같은 번호 → 아님
+            CommandKind.RecordEvent(EventPayload.Card(Team.HOME, 8, CardKind.RED)) to 400.0,   // 경고 없던 선수 → 아님
+            CommandKind.RecordEvent(EventPayload.Card(Team.HOME, null, CardKind.RED)) to 500.0, // 번호 없음 → 아님
+        )
+        val report = MatchReport(MatchBundle(makeRecord(MatchSetup(), commands), null))
+        val reds = report.discipline.filter { it.kind == ResolvedEventKind.RED }
+        assertEquals(4, reds.size)
+        assertEquals(setOf(reds[0].eventId), report.redsAfterCaution)
+    }
+
     @Test fun reportCarriesRules() {
         val rules = RuleSet(periodCount = 4, periodLength = 1500, extraTime = true, penalties = true)
         val report = MatchReport(MatchBundle(makeRecord(MatchSetup(rules = rules), listOf(CommandKind.StartPeriod to 0.0)), null))

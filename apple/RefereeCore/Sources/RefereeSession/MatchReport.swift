@@ -60,6 +60,9 @@ public struct MatchReport: Equatable, Sendable {
     public var goals: [ReportLine]
     /// 옐로·경고 누적 퇴장·레드·일시 퇴장
     public var discipline: [ReportLine]
+    /// 앞서 경고 1장을 받은 선수에게 준 레드카드의 이벤트 ID. 심판이 두 번째 경고를 [옐로카드] 대신 [레드카드]로 기록했을 수 있어
+    /// 폰의 퇴장 사유 목록 맨 위에 "같은 경기 두 번째 경고"를 보여 바로잡게 한다 (2026-11-04 사용자 결정)
+    public var redsAfterCaution: Set<String> = []
     public var substitutions: [ReportLine]
     /// 골·징계·교체를 기록한 순서대로 (상세 [기록] 탭)
     public var timeline: [ReportLine]
@@ -137,6 +140,16 @@ public struct MatchReport: Equatable, Sendable {
         func lines(_ kinds: Set<ResolvedEventKind>) -> [ReportLine] { all.filter { kinds.contains($0.kind) } }
         goals = lines([.goal, .ownGoal])
         discipline = lines([.yellow, .secondYellow, .red, .sinBin])
+        var cautioned: Set<String> = []
+        for resolved in state.resolvedEvents {
+            guard let number = resolved.event.payload.number(in: .primary) else { continue }
+            let key = "\(resolved.event.payload.team)-\(number)"
+            switch resolved.kind {
+            case .yellow: cautioned.insert(key)
+            case .red where cautioned.contains(key): redsAfterCaution.insert(resolved.event.id)
+            default: break
+            }
+        }
         substitutions = lines([.substitution])
         timeline = all
 
