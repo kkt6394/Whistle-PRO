@@ -30,6 +30,8 @@ data class ReportLine(
     val scoreAfter: TeamPair<Int>? = null,
     /** 이 줄을 만든 이벤트 ID (카드 사유를 이 값으로 찾는다) */
     val eventId: String = "",
+    /** 두 번째 일시 퇴장 (끝나면 출전 금지) */
+    val secondSinBin: Boolean = false,
 ) {
     /** 이 줄이 속하는 열. `team`은 기록한 팀이라 자책골은 자책한 팀이다 → 득점한 팀(상대)의 열. */
     val columnTeam: Team get() = if (kind == ResolvedEventKind.OWN_GOAL) team.opponent else team
@@ -149,8 +151,9 @@ class MatchReport(bundle: MatchBundle, note: MatchNote? = null, referee: String?
             ResolvedEventKind.GOAL, ResolvedEventKind.OWN_GOAL, ResolvedEventKind.YELLOW, ResolvedEventKind.SECOND_YELLOW,
             ResolvedEventKind.RED, ResolvedEventKind.SIN_BIN, ResolvedEventKind.SUBSTITUTION)
         var running = TeamPair(0, 0)
+        val secondSinBinIds = state.resolvedEvents.filter { it.isSecondSinBin }.map { it.event.id }.toSet()
         val all = rows.filter { it.kind in timelineKinds }.map { row ->
-            var line = ReportLine(row.minute, row.team, row.kind, row.detail, eventId = row.id)
+            var line = ReportLine(row.minute, row.team, row.kind, row.detail, eventId = row.id, secondSinBin = row.id in secondSinBinIds)
             val index = state.periods.indexOfFirst { it.ref == row.time.period }
             if (index >= 0) {
                 val second = if (row.time.duringPlay) row.time.matchSecond - state.periods[index].offset else playedSeconds[index]

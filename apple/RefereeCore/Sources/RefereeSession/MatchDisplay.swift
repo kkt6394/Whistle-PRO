@@ -8,6 +8,8 @@ public struct SinBinBadge: Equatable, Sendable {
     public var remaining: String
     /// 남은 시간(초). 가장 먼저 끝나는 일시 퇴장을 고를 때 쓴다.
     public var seconds: Int
+    /// 두 번째 일시 퇴장 (끝나면 출전 금지)
+    public var second: Bool = false
 }
 
 public struct ShootoutDisplay: Equatable, Sendable {
@@ -175,7 +177,7 @@ public struct MatchDisplay: Equatable, Sendable {
         score = state.score
         kickoffTeam = state.kickoffTeam
         sinBins = state.activeSinBins(at: now).map {
-            SinBinBadge(team: $0.team, number: $0.number, remaining: Self.formatShort($0.remaining), seconds: $0.remaining)
+            SinBinBadge(team: $0.team, number: $0.number, remaining: Self.formatShort($0.remaining), seconds: $0.remaining, second: $0.isSecond)
         }
         shortHandedTeams = state.matchWarnings(at: now).map {
             switch $0 {

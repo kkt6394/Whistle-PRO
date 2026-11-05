@@ -27,6 +27,8 @@ data class SinBinBadge(
     val remaining: String,
     /** 남은 시간(초). 가장 먼저 끝나는 일시 퇴장을 고를 때 쓴다. */
     val seconds: Long,
+    /** 두 번째 일시 퇴장 (끝나면 출전 금지) */
+    val second: Boolean = false,
 )
 
 data class ShootoutDisplay(
@@ -164,7 +166,7 @@ data class MatchDisplay(
                 intervalClock = interval?.clock,
                 score = state.score,
                 kickoffTeam = state.kickoffTeam,
-                sinBins = state.activeSinBins(now).map { SinBinBadge(it.team, it.number, formatShort(it.remaining), it.remaining) },
+                sinBins = state.activeSinBins(now).map { SinBinBadge(it.team, it.number, formatShort(it.remaining), it.remaining, it.isSecond) },
                 shortHandedTeams = state.matchWarnings(now).map { (it as MatchWarning.BelowMinimumPlayers).team },
                 shootout = shootout,
                 periodProgress = if (reading != null && phase is Phase.Period) {

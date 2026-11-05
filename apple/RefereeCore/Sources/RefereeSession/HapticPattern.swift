@@ -27,8 +27,9 @@ extension AlertKind {
         case .periodEnd: HapticPattern(tone: .notification, repeats: 3, interval: 0.8)
         case .breakEndingSoon: HapticPattern(tone: .retry, repeats: 1, interval: 0)
         case .breakEnd: HapticPattern(tone: .notification, repeats: 2, interval: 0.8)
-        // 두 번째 일시 퇴장 끝 진동은 아직 일반 끝과 같다 (따로 정하는 일은 세션 작업)
-        case .sinBinEnd, .secondSinBinEnd: HapticPattern(tone: .retry, repeats: 2, interval: 0.6)
+        case .sinBinEnd: HapticPattern(tone: .retry, repeats: 2, interval: 0.6)
+        // 두 번째 일시 퇴장 끝(출전 금지 시작): 같은 계열로 한 번 더 길게
+        case .secondSinBinEnd: HapticPattern(tone: .retry, repeats: 3, interval: 0.6)
         }
     }
 }

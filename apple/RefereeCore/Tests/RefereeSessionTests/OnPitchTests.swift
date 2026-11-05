@@ -15,12 +15,12 @@ struct OnPitchTests {
 
     @Test func onPitchIsNilWithoutStarters() {
         let s = Self.state([])
-        #expect(s.onPitchNumbers(team: .home, setup: Self.setup(starters: []), excluding: nil) == nil)
+        #expect(s.onPitchNumbers(team: .home, setup: Self.setup(starters: []), now: 200, excluding: nil) == nil)
     }
 
     @Test func onPitchStartsWithStartersAndFollowsSubstitutions() {
         let s = Self.state([.recordEvent(.substitution(team: .home, numberOut: 7, numberIn: 17))])
-        #expect(s.onPitchNumbers(team: .home, setup: Self.setup()) == [1, 4, 5, 9, 10, 17])
+        #expect(s.onPitchNumbers(team: .home, setup: Self.setup(), now: 200) == [1, 4, 5, 9, 10, 17])
     }
 
     @Test func sendOffWinsOverSubstitutionBack() {
@@ -28,31 +28,31 @@ struct OnPitchTests {
             .recordEvent(.card(team: .home, number: 5, kind: .red)),
             .recordEvent(.substitution(team: .home, numberOut: 17, numberIn: 5)),
         ])
-        let pitch = s.onPitchNumbers(team: .home, setup: Self.setup())
+        let pitch = s.onPitchNumbers(team: .home, setup: Self.setup(), now: 200)
         #expect(pitch?.contains(5) == false)
     }
 
     @Test func sinBinStaysOnPitch() {
         let s = Self.state([.recordEvent(.card(team: .home, number: 4, kind: .sinBin))])
-        #expect(s.onPitchNumbers(team: .home, setup: Self.setup())?.contains(4) == true)
+        #expect(s.onPitchNumbers(team: .home, setup: Self.setup(), now: 200)?.contains(4) == true)
     }
 
     @Test func numberOutsideRosterMovesInAndOut() {
         let s = Self.state([.recordEvent(.substitution(team: .home, numberOut: 7, numberIn: 23))])
-        let pitch = s.onPitchNumbers(team: .home, setup: Self.setup())
+        let pitch = s.onPitchNumbers(team: .home, setup: Self.setup(), now: 200)
         #expect(pitch?.contains(23) == true && pitch?.contains(7) == false)
     }
 
     @Test func excludingTheEditedSubstitution() {
         let s = Self.state([.recordEvent(.substitution(team: .home, numberOut: 7, numberIn: 17))])
         let id = s.events[0].id
-        let pitch = s.onPitchNumbers(team: .home, setup: Self.setup(), excluding: id)
+        let pitch = s.onPitchNumbers(team: .home, setup: Self.setup(), now: 200, excluding: id)
         #expect(pitch?.contains(7) == true && pitch?.contains(17) == false)
     }
 
     @Test func threeStartersStillWork() {
         let s = Self.state([.recordEvent(.substitution(team: .home, numberOut: 1, numberIn: 12))])
-        #expect(s.onPitchNumbers(team: .home, setup: Self.setup(starters: [1, 2, 3])) == [2, 3, 12])
+        #expect(s.onPitchNumbers(team: .home, setup: Self.setup(starters: [1, 2, 3]), now: 200) == [2, 3, 12])
     }
 
     /// 경고 1장 선수 (명단 칩의 노란 카드, 2026-11-04 critique): 두 번째 경고·레드로 퇴장하면 빠진다

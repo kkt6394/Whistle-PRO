@@ -21,37 +21,37 @@ class OnPitchTests {
     private fun sub(out: Long, into: Long) = EventPayload.Substitution(Team.HOME, out, into)
 
     @Test fun onPitchIsNilWithoutStarters() {
-        assertNull(state().onPitchNumbers(Team.HOME, setup(emptyList())))
+        assertNull(state().onPitchNumbers(Team.HOME, setup(emptyList()), 200.0))
     }
 
     @Test fun onPitchStartsWithStartersAndFollowsSubstitutions() {
-        assertEquals(setOf(1L, 4, 5, 9, 10, 17), state(sub(7, 17)).onPitchNumbers(Team.HOME, setup()))
+        assertEquals(setOf(1L, 4, 5, 9, 10, 17), state(sub(7, 17)).onPitchNumbers(Team.HOME, setup(), 200.0))
     }
 
     @Test fun sendOffWinsOverSubstitutionBack() {
         val s = state(EventPayload.Card(Team.HOME, 5, CardKind.RED), sub(17, 5))
-        assertTrue(s.onPitchNumbers(Team.HOME, setup())?.contains(5) == false)
+        assertTrue(s.onPitchNumbers(Team.HOME, setup(), 200.0)?.contains(5) == false)
     }
 
     @Test fun sinBinStaysOnPitch() {
         val s = state(EventPayload.Card(Team.HOME, 4, CardKind.SIN_BIN))
-        assertTrue(s.onPitchNumbers(Team.HOME, setup())?.contains(4) == true)
+        assertTrue(s.onPitchNumbers(Team.HOME, setup(), 200.0)?.contains(4) == true)
     }
 
     @Test fun numberOutsideRosterMovesInAndOut() {
-        val pitch = state(sub(7, 23)).onPitchNumbers(Team.HOME, setup())
+        val pitch = state(sub(7, 23)).onPitchNumbers(Team.HOME, setup(), 200.0)
         assertTrue(pitch?.contains(23) == true && pitch.contains(7) == false)
     }
 
     @Test fun excludingTheEditedSubstitution() {
         val s = state(sub(7, 17))
-        val pitch = s.onPitchNumbers(Team.HOME, setup(), s.events[0].id)
+        val pitch = s.onPitchNumbers(Team.HOME, setup(), 200.0, s.events[0].id)
         assertTrue(pitch?.contains(7) == true && pitch.contains(17) == false)
     }
 
     @Test fun threeStartersStillWork() {
         val s = state(sub(1, 12))
-        assertEquals(setOf(2L, 3, 12), s.onPitchNumbers(Team.HOME, setup(listOf(1, 2, 3))))
+        assertEquals(setOf(2L, 3, 12), s.onPitchNumbers(Team.HOME, setup(listOf(1, 2, 3)), 200.0))
     }
 
     /** 경고 1장 선수 (명단 칩의 노란 카드, 2026-11-04 critique): 두 번째 경고·레드로 퇴장하면 빠진다 */
