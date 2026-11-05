@@ -130,6 +130,14 @@ class RotaryGestureDetector(private val config: RotaryGestureConfig = RotaryGest
         return event
     }
 
+    /**
+     * 기다리던 입력과 지금 획을 버린다 (입력이 꺼질 때: 페이지 이동·시트 열림). 실행 뒤 쿨다운은 남긴다 —
+     * 킥오프에 이어진 회전은 그대로 흡수돼야 한다. 획 길이도 비워야 이어 돌린 표본이 버린 획을 되살리지 않는다 (2026-11-06 검토)
+     */
+    fun discardPending() {
+        resetTracking()
+    }
+
     private fun resetTracking() {
         direction = 0.0
         segmentSize = 0.0

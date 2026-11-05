@@ -157,4 +157,24 @@ class RotaryGestureTests {
         assertEquals(CommandFeel.DULL, RotaryGestureConfig.commandFeel(60))
         assertEquals(CommandFeel.DULL, RotaryGestureConfig.commandFeel(180))
     }
+
+    /** 기다리던 입력만 버린다: flush·이어진 표본이 그 획을 실행하지 않고, 실행 뒤 쿨다운은 남는다 (2026-11-06 검토) */
+    @Test fun discardPendingDropsStrokeButKeepsCooldown() {
+        val d = RotaryGestureDetector()
+        for ((x, t) in steps(0.1, 2)) d.feed(x, t)
+        assertTrue(d.hasPending)
+        d.discardPending()
+        assertFalse(d.hasPending)
+        assertNull(d.flush(1.0))
+        // 같은 방향으로 이어 돌려도 버린 획이 되살아나지 않는다 (작은 표본 하나)
+        assertNull(d.feed(0.05, 0.1))
+        assertNull(d.flush(0.5))
+        // 실행 뒤(쿨다운 중) 버려도 쿨다운은 그대로
+        val e = RotaryGestureDetector()
+        for ((x, t) in steps(0.1, 2)) e.feed(x, t)
+        assertEquals(RotaryGestureEvent(PhysicalInput.PRIMARY, 0.0), e.flush(0.3))
+        e.discardPending()
+        for ((x, t) in steps(0.1, 3, from = 0.35)) assertNull(e.feed(x, t))
+        assertNull(e.flush(0.7))
+    }
 }
