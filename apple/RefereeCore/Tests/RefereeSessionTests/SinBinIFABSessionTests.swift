@@ -67,4 +67,25 @@ struct SinBinIFABSessionTests {
         let report = MatchReport(bundle: MatchBundle(record: record, workout: nil))
         #expect(report.discipline.map(\.secondSinBin) == [false, true])
     }
+
+    /// 워치 끝 안내: 두 번째 일시 퇴장이 끝난 틱에 한 번만, 다음 틱엔 없음. 처음 보는 경기·채운 뒤엔 알리지 않음
+    @Test func secondSinBinEndedAppearsOnceThenClears() {
+        let id = UUID()
+        let s = Self.state()
+        var watcher = SecondSinBinEndWatcher()
+        #expect(watcher.update(s, matchID: id, at: 1390) == nil)
+        #expect(watcher.update(s, matchID: id, at: 1399) == nil)
+        let ended = watcher.update(s, matchID: id, at: 1401)
+        #expect(ended?.team == .home && ended?.number == 7 && ended?.filled == false)
+        #expect(watcher.update(s, matchID: id, at: 1402) == nil)
+        // 앱을 다시 실행하면(새 감시) 이미 끝난 것은 알리지 않는다
+        var restarted = SecondSinBinEndWatcher()
+        #expect(restarted.update(s, matchID: id, at: 1500) == nil)
+        #expect(restarted.update(s, matchID: id, at: 1501) == nil)
+        // 교체로 채운 출전 금지는 끝나도 알리지 않는다 (끝나기 전에 채운 경우)
+        let filled = Self.state([(.recordEvent(.substitution(team: .home, numberOut: 7, numberIn: 12)), 1000)])
+        var w2 = SecondSinBinEndWatcher()
+        _ = w2.update(filled, matchID: id, at: 1390)
+        #expect(w2.update(filled, matchID: id, at: 1401) == nil)
+    }
 }
