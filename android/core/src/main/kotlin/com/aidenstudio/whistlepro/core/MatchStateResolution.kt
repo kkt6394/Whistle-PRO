@@ -9,9 +9,9 @@ enum class EventWarning(val code: String) {
     SUBSTITUTION_LIMIT_EXCEEDED("substitutionLimitExceeded"),
     REPEAT_PENALTY_KICKER("repeatPenaltyKicker"),
     PLAYER_ALREADY_SENT_OFF("playerAlreadySentOff"),
-    /** 같은 선수의 일시 퇴장이 아직 진행 중일 때 또 기록된 일시 퇴장. 인원·남은 시간·두 번째 판정 어디에도 안 센다. */
+    /** 같은 선수의 일시 퇴장이 아직 진행 중이거나 그 선수가 출전 금지일 때 또 기록된 일시 퇴장. 인원·남은 시간·두 번째 판정 어디에도 안 센다. */
     OVERLAPPING_SIN_BIN("overlappingSinBin"),
-    /** 교체로 이미 경기장 밖에 있는 선수의 퇴장. 기록은 남지만 인원은 줄지 않는다. */
+    /** 교체로 이미 경기장 밖에 있는 선수의 퇴장·일시 퇴장. 기록은 남지만 인원은 줄지 않는다. */
     PLAYER_OFF_PITCH("playerOffPitch"),
     /** 출전 금지(두 번째 일시 퇴장을 마친) 선수를 다시 들여보낸 교체 */
     BARRED_PLAYER_RETURNED("barredPlayerReturned"),
@@ -92,7 +92,14 @@ val MatchState.resolvedEvents: List<ResolvedEvent>
                         }
                         if (kind == ResolvedEventKind.SIN_BIN && player != null) {
                             val last = lastSinBinAt[player]
-                            if (last != null && playedSeconds(last, e.timestamp) < sinBinLength) {
+                            val second = secondSinBinAt[player]
+                            if (second != null && playedSeconds(second, e.timestamp) >= sinBinLength) {
+                                // 출전 금지 선수(두 번째 일시 퇴장을 마침)에게 또 일시 퇴장: 이미 빠진 사람이라 겹친 것으로 본다
+                                warnings += EventWarning.OVERLAPPING_SIN_BIN
+                            } else if (player in offPitch) {
+                                // 교체로 나간 선수의 일시 퇴장: 경기장 인원은 그대로
+                                warnings += EventWarning.PLAYER_OFF_PITCH
+                            } else if (last != null && playedSeconds(last, e.timestamp) < sinBinLength) {
                                 // 일시 퇴장 중에 또 일시 퇴장: 한 사람은 한 번만 빠진다 (IFAB 지침에는 겹치는 일시 퇴장이 없다)
                                 warnings += EventWarning.OVERLAPPING_SIN_BIN
                             } else {

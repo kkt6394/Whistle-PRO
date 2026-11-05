@@ -79,4 +79,31 @@ struct SinBinIFABTests {
         #expect(s.ignoredCommandIDs.isEmpty)
         #expect(s.resolvedEvents.first { $0.event.id == "h6" }?.warnings == [])
     }
+
+    @Test func sinBinOnSentOffPlayerDoesNotReduce() {
+        let s = play(sinBinRules, [cmd(.startPeriod, at: 0), card(.home, 5, .red, at: 100), card(.home, 5, .sinBin, at: 200, id: "x")])
+        #expect(s.resolvedEvents.first { $0.event.id == "x" }?.warnings == [.playerAlreadySentOff])
+        #expect(s.activeSinBins(at: 300).isEmpty)
+        #expect(s.playersOnField(at: 300) == TeamPair(home: 10, away: 11))
+    }
+
+    @Test func sinBinOnBarredPlayerDoesNotReduce() {
+        let s = play(sinBinRules, secondSinBinHome7() + [card(.home, 7, .sinBin, at: 1500, id: "x")])
+        let x = s.resolvedEvents.first { $0.event.id == "x" }
+        #expect(x?.warnings == [.overlappingSinBin])
+        #expect(x?.isSecondSinBin == false)
+        #expect(s.activeSinBins(at: 1600).isEmpty)
+        #expect(s.barredPlayers(at: 1600).map(\.number) == [7])
+        #expect(s.playersOnField(at: 1600) == TeamPair(home: 10, away: 11))
+    }
+
+    @Test func sinBinOnSubstitutedOffPlayerDoesNotReduce() {
+        let s = play(sinBinRules, [cmd(.startPeriod, at: 0), subst(.home, out: 5, into: 12, at: 100), card(.home, 5, .sinBin, at: 200, id: "x"),
+                                   card(.home, 5, .sinBin, at: 1000, id: "y")])
+        #expect(s.resolvedEvents.first { $0.event.id == "x" }?.warnings == [.playerOffPitch])
+        // 교체로 나간 뒤의 일시 퇴장은 첫 번째로도 세지 않는다
+        #expect(s.resolvedEvents.first { $0.event.id == "y" }?.isSecondSinBin == false)
+        #expect(s.activeSinBins(at: 300).isEmpty)
+        #expect(s.playersOnField(at: 300) == TeamPair(home: 11, away: 11))
+    }
 }

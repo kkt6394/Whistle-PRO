@@ -30,13 +30,16 @@ internal fun MatchState.playedSeconds(start: Double, now: Double): Double = peri
     total + swiftMax(0.0, to - from)
 }
 
+private val notCounted = setOf(EventWarning.OVERLAPPING_SIN_BIN, EventWarning.PLAYER_OFF_PITCH, EventWarning.PLAYER_ALREADY_SENT_OFF)
+
 fun MatchState.activeSinBins(now: Double): List<ActiveSinBin> {
     // 승부차기·종료 후에는 일시 퇴장이 이어지지 않는다 (Law 10.3: 일시 퇴장 중인 선수도 키커 자격)
     if (phase == Phase.Penalties || phase is Phase.Finished) return emptyList()
     val resolved = resolvedEvents
     return resolved.mapIndexedNotNull { index, r ->
         val card = r.event.payload as? EventPayload.Card
-        if (r.kind != ResolvedEventKind.SIN_BIN || card == null || EventWarning.OVERLAPPING_SIN_BIN in r.warnings) {
+        // 이미 퇴장·출전 금지·교체로 나간 선수의 일시 퇴장은 인원에 다시 반영하지 않는다 (한 사람은 한 번만 빠진다)
+        if (r.kind != ResolvedEventKind.SIN_BIN || card == null || r.warnings.any { it in notCounted }) {
             return@mapIndexedNotNull null
         }
         // 일시 퇴장 중 퇴장당하면 일시 퇴장은 끝나고 퇴장 인원으로만 센다

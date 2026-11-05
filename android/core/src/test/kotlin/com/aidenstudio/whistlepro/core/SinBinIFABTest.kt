@@ -78,4 +78,31 @@ class SinBinIFABTest {
         assertTrue(s.ignoredCommandIds.isEmpty())
         assertEquals(emptyList(), s.resolvedEvents.first { it.event.id == "h6" }.warnings)
     }
+
+    @Test fun sinBinOnSentOffPlayerDoesNotReduce() {
+        val s = play(sinBinRules, listOf(cmd(start, 0.0), card(Team.HOME, 5, CardKind.RED, 100.0), card(Team.HOME, 5, CardKind.SIN_BIN, 200.0, id = "x")))
+        assertEquals(listOf(EventWarning.PLAYER_ALREADY_SENT_OFF), s.resolvedEvents.first { it.event.id == "x" }.warnings)
+        assertTrue(s.activeSinBins(300.0).isEmpty())
+        assertEquals(TeamPair(10L, 11L), s.playersOnField(300.0))
+    }
+
+    @Test fun sinBinOnBarredPlayerDoesNotReduce() {
+        val s = play(sinBinRules, secondSinBinHome7() + card(Team.HOME, 7, CardKind.SIN_BIN, 1500.0, id = "x"))
+        val x = s.resolvedEvents.first { it.event.id == "x" }
+        assertEquals(listOf(EventWarning.OVERLAPPING_SIN_BIN), x.warnings)
+        assertEquals(false, x.isSecondSinBin)
+        assertTrue(s.activeSinBins(1600.0).isEmpty())
+        assertEquals(listOf(7L), s.barredPlayers(1600.0).map { it.number })
+        assertEquals(TeamPair(10L, 11L), s.playersOnField(1600.0))
+    }
+
+    @Test fun sinBinOnSubstitutedOffPlayerDoesNotReduce() {
+        val s = play(sinBinRules, listOf(cmd(start, 0.0), subst(Team.HOME, 5, 12, 100.0), card(Team.HOME, 5, CardKind.SIN_BIN, 200.0, id = "x"),
+            card(Team.HOME, 5, CardKind.SIN_BIN, 1000.0, id = "y")))
+        assertEquals(listOf(EventWarning.PLAYER_OFF_PITCH), s.resolvedEvents.first { it.event.id == "x" }.warnings)
+        // 교체로 나간 뒤의 일시 퇴장은 첫 번째로도 세지 않는다
+        assertEquals(false, s.resolvedEvents.first { it.event.id == "y" }.isSecondSinBin)
+        assertTrue(s.activeSinBins(300.0).isEmpty())
+        assertEquals(TeamPair(11L, 11L), s.playersOnField(300.0))
+    }
 }

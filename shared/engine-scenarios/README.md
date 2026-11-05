@@ -113,16 +113,17 @@ cd android && ./gradlew :core:test               # Kotlin
 - 경고 누적: `secondYellowSendOff`가 켜져 있고 등번호가 있을 때, 같은 팀·같은 번호의 두 번째 yellow는 `secondYellow`.
 - 이미 퇴장한(`red` 또는 `secondYellow`) 선수에게 다시 기록된 카드는 원래 종류(`yellow`·`red`·`sinBin`)로 두고 `playerAlreadySentOff` 경고를 붙이며, 퇴장 인원에 다시 세지 않는다.
 - 일시 퇴장 중인 선수가 이후 퇴장당하면 그 일시 퇴장은 즉시 끝난다(`sinBins`·알림에서 빠짐).
+- 교체 한도 = `substitutionLimit` + (연장에 들어간 뒤 기록된 교체라면 `extraTimeExtraSubs`). `returnSubstitutions`이거나 한도가 null이면 검사하지 않는다.
 
 ### 일시 퇴장 IFAB 지침 (시나리오 11)
 - 이벤트를 기록 순서대로 한 번 훑으며 판정한다. 아래 "진행 시간"은 휴식을 뺀 경기 시간(기간이 진행된 시간)이다.
 - **겹침**: 같은 팀·번호의 이전(겹치지 않은) `sinBin` 뒤 진행 시간이 `sinBinLength` 미만일 때 기록된 `sinBin`은 `overlappingSinBin`. 인원·`sinBins`·알림·두 번째 판정 어디에도 안 센다.
 - **두 번째**: 같은 팀·번호의 겹치지 않은 `sinBin`이 앞서 있었던 `sinBin`(`secondSinBin`). 등번호가 없으면 언제나 첫 번째. 그 일시 퇴장이 진행 중이면 알림은 `secondSinBinEnd`.
 - **출전 금지**(`barred`): 두 번째 일시 퇴장 시간이 끝난(승부차기·종료 상태면 시간과 상관없이 끝난 것으로) 선수 중 그 뒤 퇴장당하지 않은 선수. 같은 선수는 한 번만(첫 두 번째 일시 퇴장 기준).
-- **교체로 경기장 밖**: 교체의 `numberOut`이면 경기장 밖, 그 뒤 `numberIn`으로 다시 기록되면 경기장 안. 경기장 밖 선수의 `red`·`secondYellow`는 `playerOffPitch` 경고를 붙이고 인원을 줄이지 않는다(그 선수는 퇴장한 것으로 보아 이후 카드는 `playerAlreadySentOff`).
+- **교체로 경기장 밖**: 교체의 `numberOut`이면 경기장 밖, 그 뒤 `numberIn`으로 다시 기록되면 경기장 안. 경기장 밖 선수의 `red`·`secondYellow`는 `playerOffPitch` 경고를 붙이고 인원을 줄이지 않는다(그 선수는 퇴장한 것으로 보아 이후 카드는 `playerAlreadySentOff`). 경기장 밖 선수의 `sinBin`도 `playerOffPitch`이고 `sinBins`·첫 번째/두 번째 판정에 안 센다.
+- **한 사람은 한 번만 빠진다**: 출전 금지 선수에게 기록된 `sinBin`은 `overlappingSinBin`, 이미 퇴장한 선수의 `sinBin`(`playerAlreadySentOff`)도 `sinBins`·인원에 안 센다.
 - **복귀 교체**: `numberIn`이 그 교체 시점에 출전 금지인 선수면 `barredPlayerReturned`.
 - **승부차기 키커 자격 인원** = `playersPerTeam` − 인원을 줄인 퇴장 − 그 시점 교체로 채우지 않은 출전 금지 선수.
-- 교체 한도 = `substitutionLimit` + (연장에 들어간 뒤 기록된 교체라면 `extraTimeExtraSubs`). `returnSubstitutions`이거나 한도가 null이면 검사하지 않는다.
 
 ### 초 변환
 - 경과·중단·남은 시간 등 초를 정수로 바꿀 때 값이 유한하지 않으면 0, ±1조 초 범위로 자른 뒤 반올림 규칙(경과는 내림, 남은 시간은 올림)을 적용한다.

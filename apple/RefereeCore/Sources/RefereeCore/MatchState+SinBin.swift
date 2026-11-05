@@ -46,7 +46,8 @@ extension MatchState {
         }
         let resolved = resolvedEvents
         return resolved.enumerated().compactMap { index, r in
-            guard r.kind == .sinBin, !r.warnings.contains(.overlappingSinBin),
+            // 이미 퇴장·출전 금지·교체로 나간 선수의 일시 퇴장은 인원에 다시 반영하지 않는다 (한 사람은 한 번만 빠진다)
+            guard r.kind == .sinBin, !r.warnings.contains(where: { [.overlappingSinBin, .playerOffPitch, .playerAlreadySentOff].contains($0) }),
                   case .card(let team, let number, _) = r.event.payload else { return nil }
             // 일시 퇴장 중 퇴장당하면 일시 퇴장은 끝나고 퇴장 인원으로만 센다
             if let number, resolved[(index + 1)...].contains(where: {

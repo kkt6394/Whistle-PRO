@@ -4,9 +4,9 @@ public enum ResolvedEventKind: String, Sendable {
 
 public enum EventWarning: String, Sendable {
     case substitutionLimitExceeded, repeatPenaltyKicker, playerAlreadySentOff
-    /// 같은 선수의 일시 퇴장이 아직 진행 중일 때 또 기록된 일시 퇴장. 인원·남은 시간·두 번째 판정 어디에도 안 센다.
+    /// 같은 선수의 일시 퇴장이 아직 진행 중이거나 그 선수가 출전 금지일 때 또 기록된 일시 퇴장. 인원·남은 시간·두 번째 판정 어디에도 안 센다.
     case overlappingSinBin
-    /// 교체로 이미 경기장 밖에 있는 선수의 퇴장. 기록은 남지만 인원은 줄지 않는다.
+    /// 교체로 이미 경기장 밖에 있는 선수의 퇴장·일시 퇴장. 기록은 남지만 인원은 줄지 않는다.
     case playerOffPitch
     /// 출전 금지(두 번째 일시 퇴장을 마친) 선수를 다시 들여보낸 교체
     case barredPlayerReturned
@@ -93,7 +93,13 @@ extension MatchState {
                         }
                     }
                     if kind == .sinBin, let player {
-                        if let last = lastSinBinAt[player], playedSeconds(from: last, to: e.timestamp) < sinBinLength {
+                        if let second = secondSinBinAt[player], playedSeconds(from: second, to: e.timestamp) >= sinBinLength {
+                            // 출전 금지 선수(두 번째 일시 퇴장을 마침)에게 또 일시 퇴장: 이미 빠진 사람이라 겹친 것으로 본다
+                            warnings.append(.overlappingSinBin)
+                        } else if offPitch.contains(player) {
+                            // 교체로 나간 선수의 일시 퇴장: 경기장 인원은 그대로
+                            warnings.append(.playerOffPitch)
+                        } else if let last = lastSinBinAt[player], playedSeconds(from: last, to: e.timestamp) < sinBinLength {
                             // 일시 퇴장 중에 또 일시 퇴장: 한 사람은 한 번만 빠진다 (IFAB 지침에는 겹치는 일시 퇴장이 없다)
                             warnings.append(.overlappingSinBin)
                         } else {
