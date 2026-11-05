@@ -68,6 +68,21 @@ struct SinBinIFABSessionTests {
         #expect(report.discipline.map(\.secondSinBin) == [false, true])
     }
 
+    @Test func reportLineBarredOnlyWhenSecondSinBinFinishedWithoutSendOff() {
+        let sinBin = CommandKind.recordEvent(.card(team: .home, number: 7, kind: .sinBin))
+        // 두 번째가 1400에 끝난 뒤 1500에 기간 종료 → 출전 금지
+        let served = MatchReport(bundle: MatchBundle(record: makeRecord(MatchSetup(rules: Self.rules),
+            [(.startPeriod, 0), (sinBin, 100), (sinBin, 800), (.endPeriod, 1500)]), workout: nil))
+        #expect(served.discipline.map(\.secondSinBin) == [false, true])
+        #expect(served.discipline.map(\.barred) == [false, true])
+        // 두 번째 중(1000) 퇴장 → "2번째"만, 출전 금지 아님
+        let sentOff = MatchReport(bundle: MatchBundle(record: makeRecord(MatchSetup(rules: Self.rules),
+            [(.startPeriod, 0), (sinBin, 100), (sinBin, 800),
+             (.recordEvent(.card(team: .home, number: 7, kind: .red)), 1000), (.endPeriod, 1500)]), workout: nil))
+        #expect(sentOff.discipline.filter(\.secondSinBin).map(\.barred) == [false])
+        #expect(sentOff.discipline.allSatisfy { !$0.barred })
+    }
+
     /// 워치 끝 안내: 두 번째 일시 퇴장이 끝난 틱에 한 번만, 다음 틱엔 없음. 처음 보는 경기·채운 뒤엔 알리지 않음
     @Test func secondSinBinEndedAppearsOnceThenClears() {
         let id = UUID()

@@ -14,8 +14,10 @@ public struct ReportLine: Equatable, Sendable {
     public var scoreAfter: TeamPair<Int>? = nil
     /// 이 줄을 만든 이벤트 ID (카드 사유를 이 값으로 찾는다)
     public var eventID: String = ""
-    /// 두 번째 일시 퇴장 (끝나면 출전 금지)
+    /// 두 번째 일시 퇴장
     public var secondSinBin: Bool = false
+    /// 두 번째 일시 퇴장을 마쳐 실제로 출전 금지가 된 선수 (두 번째 중 퇴장당했으면 false)
+    public var barred: Bool = false
 }
 
 public struct PeriodSummary: Equatable, Sendable {
@@ -136,10 +138,12 @@ public struct MatchReport: Equatable, Sendable {
         let timelineKinds: Set<ResolvedEventKind> = [.goal, .ownGoal, .yellow, .secondYellow, .red, .sinBin, .substitution]
         var running = TeamPair(home: 0, away: 0)
         let secondSinBinIDs = Set(state.resolvedEvents.filter(\.isSecondSinBin).map(\.event.id))
+        let barredIDs = Set(state.barredPlayers(at: end).map(\.eventId))
         let all: [ReportLine] = rows.compactMap { row in
             guard timelineKinds.contains(row.kind) else { return nil }
             var line = ReportLine(minute: row.minute, team: row.team, kind: row.kind, detail: row.detail, eventID: row.id)
             line.secondSinBin = secondSinBinIDs.contains(row.id)
+            line.barred = barredIDs.contains(row.id)
             if let index = state.periods.firstIndex(where: { $0.ref == row.time.period }) {
                 line.period = index
                 line.second = row.time.duringPlay ? row.time.matchSecond - state.periods[index].offset : playedSeconds[index]

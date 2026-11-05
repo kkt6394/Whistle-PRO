@@ -66,4 +66,18 @@ class SinBinIFABSessionTest {
         val report = MatchReport(MatchBundle(record, null))
         assertEquals(listOf(false, true), report.discipline.map { it.secondSinBin })
     }
+
+    @Test fun reportLineBarredOnlyWhenSecondSinBinFinishedWithoutSendOff() {
+        // 두 번째가 1400에 끝난 뒤 1500에 기간 종료 -> 출전 금지
+        val served = MatchReport(MatchBundle(makeRecord(MatchSetup(rules = rules),
+            listOf(CommandKind.StartPeriod to 0.0, sinBin(100.0), sinBin(800.0), CommandKind.EndPeriod to 1500.0)), null))
+        assertEquals(listOf(false, true), served.discipline.map { it.secondSinBin })
+        assertEquals(listOf(false, true), served.discipline.map { it.barred })
+        // 두 번째 중(1000) 퇴장 -> "2번째"만, 출전 금지 아님
+        val red = CommandKind.RecordEvent(EventPayload.Card(Team.HOME, 7, CardKind.RED)) to 1000.0
+        val sentOff = MatchReport(MatchBundle(makeRecord(MatchSetup(rules = rules),
+            listOf(CommandKind.StartPeriod to 0.0, sinBin(100.0), sinBin(800.0), red, CommandKind.EndPeriod to 1500.0)), null))
+        assertEquals(listOf(false), sentOff.discipline.filter { it.secondSinBin }.map { it.barred })
+        assertTrue(sentOff.discipline.none { it.barred })
+    }
 }

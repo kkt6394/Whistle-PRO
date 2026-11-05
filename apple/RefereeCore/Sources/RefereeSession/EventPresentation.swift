@@ -36,11 +36,11 @@ public enum RecordFeedback: Equatable, Sendable {
 }
 
 extension EventWarning {
-    /// 심판 화면(기록 목록·기록 직후 안내)에 보이는 경고. 일시 퇴장 IFAB 경고는 아직 문구가 없어 숨긴다.
+    /// 심판 화면(기록 목록·기록 직후 안내)에 보이는 경고. 일시 퇴장 겹침·경기장 밖 선수 경고는 문구가 없어 숨긴다.
     var isShown: Bool {
         switch self {
-        case .substitutionLimitExceeded, .repeatPenaltyKicker, .playerAlreadySentOff: true
-        case .overlappingSinBin, .playerOffPitch, .barredPlayerReturned: false
+        case .substitutionLimitExceeded, .repeatPenaltyKicker, .playerAlreadySentOff, .barredPlayerReturned: true
+        case .overlappingSinBin, .playerOffPitch: false
         }
     }
 }
