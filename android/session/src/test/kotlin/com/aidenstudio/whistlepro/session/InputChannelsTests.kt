@@ -71,6 +71,17 @@ class InputChannelsTests {
         assertFalse(isPhysicalBezel(null))
     }
 
+    /** 회전 통로 이름: 물리 베젤 장치이거나 실제 제조사가 삼성(터치 베젤)이면 베젤, 그 밖은 크라운 (2026-11-06 Task 5 검토) */
+    @Test
+    fun rotaryIsBezelByDeviceOrMaker() {
+        val base = DeviceInputFacts(isSamsung = true, backKeyShortPress = 1, touchBezelOn = null, hasRotaryDevice = true, hasStemKey = false)
+        assertTrue(rotaryIsBezel(base.copy(rotaryDeviceName = "detent_bezel")))
+        assertTrue(rotaryIsBezel(base.copy(rotaryDeviceName = "sec_touch_bezel", samsungMaker = true)))
+        // 디버그 빌드의 isSamsung(늘 참)은 보지 않는다: 에뮬레이터 회전 장치는 크라운
+        assertFalse(rotaryIsBezel(base.copy(rotaryDeviceName = "virtio_input_rotary")))
+        assertFalse(rotaryIsBezel(base.copy(isSamsung = false, rotaryDeviceName = "pixel_crown")))
+    }
+
     @Test
     fun firstConfirmedIsAutoSelectedUntilUserPicks() {
         assertEquals(ChoiceState(PhysicalInputChoice.ROTARY, false),

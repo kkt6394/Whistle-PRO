@@ -24,13 +24,19 @@ sealed interface ChannelStatus {
     data class UnavailableNow(val reason: UnavailableReason) : ChannelStatus
 }
 
-/** 기기에서 읽은 사실. 설정값은 읽기 실패면 null. */
+/**
+ * 기기에서 읽은 사실. 설정값은 읽기 실패면 null.
+ * [isSamsung]은 뒤로가기 버튼 통로용(디버그 빌드는 늘 참), [samsungMaker]는 실제 제조사가 삼성인지(디버그 강제 없음, 회전 이름용),
+ * [rotaryDeviceName]은 회전 장치 이름(물리 베젤이 있으면 그것, 없으면 null) — 확인 전에도 통로 이름을 정하려고 (2026-11-06 Task 5 검토)
+ */
 data class DeviceInputFacts(
     val isSamsung: Boolean,
     val backKeyShortPress: Int?,
     val touchBezelOn: Int?,
     val hasRotaryDevice: Boolean,
     val hasStemKey: Boolean,
+    val rotaryDeviceName: String? = null,
+    val samsungMaker: Boolean = false,
 )
 
 /** 사용자가 세 동작 확인을 끝낸 통로들 */
@@ -45,6 +51,12 @@ fun detectableChannels(facts: DeviceInputFacts): List<InputChannel> = buildList 
 
 /** 진짜 물리 베젤(딸깍 베젤)의 입력 장치 이름 */
 fun isPhysicalBezel(deviceName: String?): Boolean = deviceName == "detent_bezel"
+
+/**
+ * 회전 통로를 "베젤"로 부를지(아니면 "크라운"): 물리 베젤 장치이거나, 실제 제조사가 삼성(갤럭시 비클래식의 터치 베젤)이면 베젤.
+ * 확인 화면 통로 이름·대기 화면 안내("베젤을 돌려 킥오프"/"크라운을 돌려 킥오프")가 함께 쓴다
+ */
+fun rotaryIsBezel(facts: DeviceInputFacts): Boolean = isPhysicalBezel(facts.rotaryDeviceName) || facts.samsungMaker
 
 fun channelStatus(
     channel: InputChannel,
