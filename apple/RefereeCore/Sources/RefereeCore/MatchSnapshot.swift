@@ -10,6 +10,8 @@ public struct MatchSnapshot: Encodable, Equatable, Sendable {
         public var numberIn: Int?
         public var matchSecond: Int
         public var warnings: [String]
+        /// 두 번째 일시 퇴장일 때만 true (아니면 키 없음)
+        public var secondSinBin: Bool?
     }
 
     public struct SinBin: Encodable, Equatable, Sendable {
@@ -17,6 +19,14 @@ public struct MatchSnapshot: Encodable, Equatable, Sendable {
         public var team: Team
         public var number: Int?
         public var remaining: Int
+        /// 두 번째 일시 퇴장일 때만 true (아니면 키 없음)
+        public var second: Bool?
+    }
+
+    public struct Barred: Encodable, Equatable, Sendable {
+        public var team: Team
+        public var number: Int
+        public var filled: Bool
     }
 
     public struct Alert: Encodable, Equatable, Sendable {
@@ -43,6 +53,7 @@ public struct MatchSnapshot: Encodable, Equatable, Sendable {
     public var substitutions: TeamPair<Int>
     public var events: [Event]
     public var sinBins: [SinBin]
+    public var barred: [Barred]
     public var warnings: [String]
     public var nextAlert: Alert?
     public var ignored: [String]
@@ -81,7 +92,8 @@ extension MatchSnapshot.Event {
             numberOut: numberOut,
             numberIn: numberIn,
             matchSecond: resolved.event.time.matchSecond,
-            warnings: resolved.warnings.map(\.rawValue))
+            warnings: resolved.warnings.map(\.rawValue),
+            secondSinBin: resolved.isSecondSinBin ? true : nil)
     }
 }
 
@@ -120,8 +132,10 @@ extension MatchState {
             substitutions: substitutionCounts,
             events: resolvedEvents.map { MatchSnapshot.Event($0) },
             sinBins: activeSinBins(at: now).map {
-                MatchSnapshot.SinBin(eventId: $0.eventId, team: $0.team, number: $0.number, remaining: $0.remaining)
+                MatchSnapshot.SinBin(eventId: $0.eventId, team: $0.team, number: $0.number, remaining: $0.remaining,
+                                     second: $0.isSecond ? true : nil)
             },
+            barred: barredPlayers(at: now).map { MatchSnapshot.Barred(team: $0.team, number: $0.number, filled: $0.filled) },
             warnings: matchWarnings(at: now).map(\.code),
             nextAlert: nextAlert(after: now, warningBeforeEnd: warningBeforeEnd, breakWarningBeforeEnd: breakWarningBeforeEnd).map {
                 MatchSnapshot.Alert(kind: $0.kind.rawValue, at: $0.at)

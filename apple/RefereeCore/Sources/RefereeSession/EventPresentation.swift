@@ -35,6 +35,16 @@ public enum RecordFeedback: Equatable, Sendable {
     case warning(EventWarning, eventID: String)
 }
 
+extension EventWarning {
+    /// 심판 화면(기록 목록·기록 직후 안내)에 보이는 경고. 일시 퇴장 IFAB 경고는 아직 문구가 없어 숨긴다.
+    var isShown: Bool {
+        switch self {
+        case .substitutionLimitExceeded, .repeatPenaltyKicker, .playerAlreadySentOff: true
+        case .overlappingSinBin, .playerOffPitch, .barredPlayerReturned: false
+        }
+    }
+}
+
 extension MatchState {
     /// 이벤트 로그 화면용. 최근 것이 먼저.
     public var eventRows: [EventRow] {
@@ -78,7 +88,7 @@ extension MatchState {
                 team: r.event.payload.team,
                 detail: detail,
                 scored: scored,
-                warnings: r.warnings,
+                warnings: r.warnings.filter(\.isShown),
                 time: r.event.time)
         }
     }
@@ -98,7 +108,7 @@ extension MatchState {
     public func feedback(forEvent id: String) -> RecordFeedback {
         guard let r = resolvedEvents.first(where: { $0.event.id == id }) else { return .none }
         if r.kind == .secondYellow && !r.warnings.contains(.playerAlreadySentOff) { return .secondYellow(eventID: id) }
-        if let warning = r.warnings.first { return .warning(warning, eventID: id) }
+        if let warning = r.warnings.first(where: \.isShown) { return .warning(warning, eventID: id) }
         return .none
     }
 }

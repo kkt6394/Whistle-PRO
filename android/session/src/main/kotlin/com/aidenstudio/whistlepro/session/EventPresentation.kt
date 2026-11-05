@@ -43,6 +43,13 @@ sealed interface RecordFeedback {
     data class Warning(val warning: EventWarning, val eventId: String) : RecordFeedback
 }
 
+/** 심판 화면(기록 목록·기록 직후 안내)에 보이는 경고. 일시 퇴장 IFAB 경고는 아직 문구가 없어 숨긴다. Swift `isShown`과 같음. */
+internal val EventWarning.isShown: Boolean
+    get() = when (this) {
+        EventWarning.SUBSTITUTION_LIMIT_EXCEEDED, EventWarning.REPEAT_PENALTY_KICKER, EventWarning.PLAYER_ALREADY_SENT_OFF -> true
+        EventWarning.OVERLAPPING_SIN_BIN, EventWarning.PLAYER_OFF_PITCH, EventWarning.BARRED_PLAYER_RETURNED -> false
+    }
+
 /** 이벤트 로그 화면용. 최근 것이 먼저. */
 val MatchState.eventRows: List<EventRow>
     get() = rows { _, _ -> null }
@@ -77,7 +84,7 @@ private fun MatchState.rows(name: (Team, Long?) -> String?): List<EventRow> = re
         team = team,
         detail = detail,
         scored = scored,
-        warnings = r.warnings,
+        warnings = r.warnings.filter { it.isShown },
         time = r.event.time,
     )
 }
@@ -97,6 +104,6 @@ fun MatchState.feedback(forEvent: String): RecordFeedback {
     if (r.kind == ResolvedEventKind.SECOND_YELLOW && EventWarning.PLAYER_ALREADY_SENT_OFF !in r.warnings) {
         return RecordFeedback.SecondYellow(forEvent)
     }
-    r.warnings.firstOrNull()?.let { return RecordFeedback.Warning(it, forEvent) }
+    r.warnings.firstOrNull { it.isShown }?.let { return RecordFeedback.Warning(it, forEvent) }
     return RecordFeedback.None
 }
