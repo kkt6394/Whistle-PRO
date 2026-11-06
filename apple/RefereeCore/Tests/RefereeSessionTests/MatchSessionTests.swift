@@ -196,4 +196,26 @@ struct KickoffUndoTests {
         q.send(.startPeriod)
         #expect(!q.canCancelKickoff, "2쿼터")
     }
+
+    /// Ruling 11·12: 취소하면 버린 경기 setup 전체(이름·규칙·기간)가 설정(draft)으로, 팀 색은 지금 설정과 다를 때만 이번 경기만 색으로
+    @Test func kickoffCancelRestoresWholeSetupWithColorsAsOverride() {
+        let draft = MatchSetup()
+        let played = MatchSetup(rules: RuleSet(periodLength: 1800, halfTimeLength: 600), homeName: "청구", awayName: "영덕",
+                                homeColor: .navy, awayColor: .maroon)
+        let restored = KickoffCancel.restore(setup: played, draft: draft)
+        // draft에는 색만 빼고 경기 setup 그대로
+        #expect(restored.draft.homeName == "청구")
+        #expect(restored.draft.awayName == "영덕")
+        #expect(restored.draft.rules == played.rules)
+        #expect(TeamColors(setup: restored.draft) == TeamColors(setup: draft))
+        // 색은 이번 경기만 색으로, 합치면 버린 경기 setup과 같다
+        #expect(restored.colorOverride == TeamColors(setup: played))
+        #expect(restored.colorOverride!.applied(to: restored.draft) == played)
+
+        // 색이 같으면 이번 경기만 색은 없다
+        let sameColors = TeamColors(setup: draft).applied(to: played)
+        let plain = KickoffCancel.restore(setup: sameColors, draft: draft)
+        #expect(plain.colorOverride == nil)
+        #expect(plain.draft == sameColors)
+    }
 }
