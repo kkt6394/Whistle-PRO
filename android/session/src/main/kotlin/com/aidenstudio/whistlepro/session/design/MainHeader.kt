@@ -13,10 +13,11 @@ sealed interface MainHeaderItem {
 /**
  * 상단 띠 순서. 띠가 좁아 긴 문구는 줄어들거나 잘리므로 놓치면 안 되는 ⚠를 맨 앞에 둔다.
  * 중단 시간은 띠에 두지 않고 큰 시계 아래 줄에 둔다.
+ * [periodShort]: 기간 이름이 띠에 안 들어갈 때 대신 쓸 짧은 이름 (Wear 위 띠 전용, 2026-11-06 — 애플 띠는 글자를 줄여 넣어 이 값이 없다)
  */
 object MainHeader {
-    fun items(period: String?, warning: Boolean): List<MainHeaderItem> = buildList {
+    fun items(period: String?, warning: Boolean, periodShort: String? = null): List<MainHeaderItem> = buildList {
         if (warning) add(MainHeaderItem.Warning)
-        if (period != null) add(MainHeaderItem.Period(period))
+        if (period != null) add(MainHeaderItem.Period(period, short = periodShort))
     }
 }

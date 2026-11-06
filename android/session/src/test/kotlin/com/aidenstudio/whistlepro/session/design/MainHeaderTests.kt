@@ -17,4 +17,12 @@ class MainHeaderTests {
         assertEquals(listOf(MainHeaderItem.Period("전반")), MainHeader.items(period = "전반", warning = false))
         assertEquals(listOf(MainHeaderItem.Warning), MainHeader.items(period = null, warning = true))
     }
+
+    /** Wear 위 띠: 기간 이름이 안 들어갈 때 쓸 짧은 이름을 함께 넘긴다 (pt-BR "1º tempo" → "1ºT", 2026-11-06) */
+    @Test fun periodCarriesShortName() {
+        assertEquals(
+            listOf(MainHeaderItem.Period("1º tempo", short = "1ºT")),
+            MainHeader.items(period = "1º tempo", warning = false, periodShort = "1ºT"),
+        )
+    }
 }
