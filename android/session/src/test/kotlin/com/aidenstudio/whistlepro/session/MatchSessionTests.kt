@@ -207,4 +207,28 @@ class KickoffUndoTests {
         q.send(CommandKind.StartPeriod)
         assertFalse(q.canCancelKickoff, "2쿼터")
     }
+
+    /** Ruling 11·12: 취소하면 버린 경기 setup 전체(이름·규칙·기간)가 설정(draft)으로, 팀 색은 지금 설정과 다를 때만 이번 경기만 색으로 */
+    @Test fun kickoffCancelRestoresWholeSetupWithColorsAsOverride() {
+        val draft = MatchSetup()
+        val played = MatchSetup(
+            rules = com.aidenstudio.whistlepro.core.RuleSet(periodLength = 1800, halfTimeLength = 600), homeName = "청구", awayName = "영덕",
+            homeColor = TeamColor.NAVY, awayColor = TeamColor.MAROON,
+        )
+        val restored = KickoffCancel.restore(played, draft)
+        // draft에는 색만 빼고 경기 setup 그대로
+        assertEquals("청구", restored.draft.homeName)
+        assertEquals("영덕", restored.draft.awayName)
+        assertEquals(played.rules, restored.draft.rules)
+        assertEquals(TeamColors.from(draft), TeamColors.from(restored.draft))
+        // 색은 이번 경기만 색으로, 합치면 버린 경기 setup과 같다
+        assertEquals(TeamColors.from(played), restored.colorOverride)
+        assertEquals(played, restored.colorOverride!!.applied(restored.draft))
+
+        // 색이 같으면 이번 경기만 색은 없다
+        val sameColors = TeamColors.from(draft).applied(played)
+        val plain = KickoffCancel.restore(sameColors, draft)
+        assertNull(plain.colorOverride)
+        assertEquals(sameColors, plain.draft)
+    }
 }
