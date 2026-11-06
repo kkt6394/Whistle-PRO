@@ -3,7 +3,7 @@ import RefereeCore
 @testable import RefereeSession
 
 struct HapticPatternTests {
-    private let kinds: [AlertKind] = [.warningBeforeEnd, .periodEnd, .breakEndingSoon, .breakEnd, .sinBinEnd]
+    private let kinds: [AlertKind] = [.warningBeforeEnd, .periodEnd, .breakEndingSoon, .breakEnd, .sinBinEnd, .secondSinBinEnd]
 
     @Test func everyAlertHasDistinctPattern() {
         #expect(Set(kinds.map(\.hapticPattern)).count == kinds.count)

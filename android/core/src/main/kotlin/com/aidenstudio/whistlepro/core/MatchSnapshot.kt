@@ -30,6 +30,7 @@ data class MatchSnapshot(
     val substitutions: TeamPair<Int>,
     val events: List<Event>,
     val sinBins: List<SinBin>,
+    val barred: List<Barred>,
     val warnings: List<String>,
     val nextAlert: Alert?,
     val ignored: List<String>,
@@ -43,6 +44,8 @@ data class MatchSnapshot(
         val numberIn: Long?,
         val matchSecond: Long,
         val warnings: List<String>,
+        /** 두 번째 일시 퇴장 (true일 때만 JSON 키) */
+        val secondSinBin: Boolean = false,
     ) {
         fun toJson(): JsonObject = buildJsonObject {
             put("id", JsonPrimitive(id))
@@ -53,15 +56,26 @@ data class MatchSnapshot(
             putIfPresent("numberIn", numberIn)
             put("matchSecond", JsonPrimitive(matchSecond))
             put("warnings", JsonArray(warnings.map(::JsonPrimitive)))
+            if (secondSinBin) put("secondSinBin", JsonPrimitive(true))
         }
     }
 
-    data class SinBin(val eventId: String, val team: Team, val number: Long?, val remaining: Long) {
+    /** second: 두 번째 일시 퇴장 (true일 때만 JSON 키) */
+    data class SinBin(val eventId: String, val team: Team, val number: Long?, val remaining: Long, val second: Boolean = false) {
         fun toJson(): JsonObject = buildJsonObject {
             put("eventId", JsonPrimitive(eventId))
             put("team", JsonPrimitive(team.code))
             putIfPresent("number", number)
             put("remaining", JsonPrimitive(remaining))
+            if (second) put("second", JsonPrimitive(true))
+        }
+    }
+
+    data class Barred(val team: Team, val number: Long, val filled: Boolean) {
+        fun toJson(): JsonObject = buildJsonObject {
+            put("team", JsonPrimitive(team.code))
+            put("number", JsonPrimitive(number))
+            put("filled", JsonPrimitive(filled))
         }
     }
 
@@ -92,6 +106,7 @@ data class MatchSnapshot(
         put("substitutions", substitutions.toJson())
         put("events", JsonArray(events.map { it.toJson() }))
         put("sinBins", JsonArray(sinBins.map { it.toJson() }))
+        put("barred", JsonArray(barred.map { it.toJson() }))
         put("warnings", JsonArray(warnings.map(::JsonPrimitive)))
         nextAlert?.let { put("nextAlert", it.toJson()) }
         put("ignored", JsonArray(ignored.map(::JsonPrimitive)))
@@ -141,6 +156,7 @@ private fun snapshotEvent(resolved: ResolvedEvent): MatchSnapshot.Event {
         numberIn = numberIn,
         matchSecond = resolved.event.time.matchSecond,
         warnings = resolved.warnings.map { it.code },
+        secondSinBin = resolved.isSecondSinBin,
     )
 }
 
@@ -171,7 +187,8 @@ fun MatchState.snapshot(now: Double, warningBeforeEnd: Long, breakWarningBeforeE
         playersOnField = playersOnField(now),
         substitutions = substitutionCounts,
         events = resolvedEvents.map(::snapshotEvent),
-        sinBins = activeSinBins(now).map { MatchSnapshot.SinBin(it.eventId, it.team, it.number, it.remaining) },
+        sinBins = activeSinBins(now).map { MatchSnapshot.SinBin(it.eventId, it.team, it.number, it.remaining, it.isSecond) },
+        barred = barredPlayers(now).map { MatchSnapshot.Barred(it.team, it.number, it.filled) },
         warnings = matchWarnings(now).map { it.code },
         nextAlert = nextAlert(now, warningBeforeEnd, breakWarningBeforeEnd)?.let { MatchSnapshot.Alert(it.kind.code, it.at) },
         ignored = ignoredCommandIds,

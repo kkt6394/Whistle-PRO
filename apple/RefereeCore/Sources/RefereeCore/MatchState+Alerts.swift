@@ -1,5 +1,7 @@
 public enum AlertKind: String, Sendable {
     case warningBeforeEnd, periodEnd, breakEndingSoon, breakEnd, sinBinEnd
+    /// 두 번째 일시 퇴장이 끝남 (그 선수는 출전 금지, 교체로 채울 수 있음)
+    case secondSinBinEnd
 }
 
 public struct MatchAlert: Equatable, Sendable {
@@ -21,7 +23,9 @@ extension MatchState {
                 result.append(MatchAlert(kind: .warningBeforeEnd, at: end - Double(warningBeforeEnd)))
             }
             result.append(MatchAlert(kind: .periodEnd, at: end))
-            result += activeSinBins(at: now).map { MatchAlert(kind: .sinBinEnd, at: now + $0.remainingSeconds) }
+            result += activeSinBins(at: now).map {
+                MatchAlert(kind: $0.isSecond ? .secondSinBinEnd : .sinBinEnd, at: now + $0.remainingSeconds)
+            }
         case .interval(let after):
             guard let end = periods.last?.endedAt else { break }
             let length = intervalLength(after: after)

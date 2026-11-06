@@ -1,0 +1,69 @@
+{
+  "name": "일시퇴장 IFAB: 겹친 일시퇴장 무시, 두 번째 뒤 출전 금지·교체로 채우기, 교체로 나간 선수 레드는 인원 유지, 전반 끝을 넘기는 두 번째 일시퇴장은 휴식 중 줄지 않음",
+  "config": { "sinBin": true, "sinBinLength": 600, "minimumPlayers": 7 },
+  "commands": [
+    { "type": "startPeriod", "t": 0 },
+    { "type": "recordCard", "t": 100, "team": "home", "number": 7, "kind": "sinBin" },
+    { "type": "recordCard", "t": 200, "team": "home", "number": 7, "kind": "sinBin" },
+    { "type": "recordCard", "t": 1000, "team": "home", "number": 7, "kind": "sinBin" },
+    { "type": "recordSubstitution", "t": 1200, "team": "home", "numberOut": 7, "numberIn": 12 },
+    { "type": "recordSubstitution", "t": 1500, "team": "away", "numberOut": 9, "numberIn": 14 },
+    { "type": "recordCard", "t": 1550, "team": "away", "number": 9, "kind": "red" },
+    { "type": "recordCard", "t": 1700, "team": "home", "number": 4, "kind": "sinBin" },
+    { "type": "recordCard", "t": 2600, "team": "home", "number": 4, "kind": "sinBin" },
+    { "type": "endPeriod", "t": 2700 },
+    { "type": "startPeriod", "t": 3600 },
+    { "type": "recordCard", "t": 3700, "team": "home", "number": 3, "kind": "sinBin" },
+    { "type": "recordCard", "t": 4400, "team": "home", "number": 3, "kind": "sinBin" },
+    { "type": "recordCard", "t": 5000, "team": "away", "kind": "sinBin" },
+    { "type": "recordCard", "t": 5000, "team": "away", "kind": "sinBin" },
+    { "type": "deleteEvent", "t": 5100, "eventId": "#1" },
+    { "type": "deleteEvent", "t": 5110, "eventId": "#2" }
+  ],
+  "expect": [
+    { "at": 300, "playersOnField": [10, 11], "barred": [],
+      "sinBins": [ { "eventId": "#1", "team": "home", "number": 7, "remaining": 400 } ],
+      "events": [
+        { "id": "#1", "type": "sinBin", "team": "home", "number": 7, "matchSecond": 100, "warnings": [] },
+        { "id": "#2", "type": "sinBin", "team": "home", "number": 7, "matchSecond": 200, "warnings": ["overlappingSinBin"] }
+      ] },
+    { "at": 900, "playersOnField": [11, 11], "sinBins": [], "barred": [] },
+    { "at": 1300, "playersOnField": [10, 11], "barred": [],
+      "sinBins": [ { "eventId": "#3", "team": "home", "number": 7, "remaining": 300, "second": true } ],
+      "nextAlert": { "kind": "secondSinBinEnd", "at": 1600 },
+      "events": [
+        { "id": "#1", "type": "sinBin", "team": "home", "number": 7, "matchSecond": 100, "warnings": [] },
+        { "id": "#2", "type": "sinBin", "team": "home", "number": 7, "matchSecond": 200, "warnings": ["overlappingSinBin"] },
+        { "id": "#3", "type": "sinBin", "team": "home", "number": 7, "matchSecond": 1000, "warnings": [], "secondSinBin": true },
+        { "id": "#4", "type": "substitution", "team": "home", "numberOut": 7, "numberIn": 12, "matchSecond": 1200, "warnings": [] }
+      ] },
+    { "at": 1650, "playersOnField": [11, 11], "sinBins": [], "warnings": [],
+      "barred": [ { "team": "home", "number": 7, "filled": true } ],
+      "events": [
+        { "id": "#1", "type": "sinBin", "team": "home", "number": 7, "matchSecond": 100, "warnings": [] },
+        { "id": "#2", "type": "sinBin", "team": "home", "number": 7, "matchSecond": 200, "warnings": ["overlappingSinBin"] },
+        { "id": "#3", "type": "sinBin", "team": "home", "number": 7, "matchSecond": 1000, "warnings": [], "secondSinBin": true },
+        { "id": "#4", "type": "substitution", "team": "home", "numberOut": 7, "numberIn": 12, "matchSecond": 1200, "warnings": [] },
+        { "id": "#5", "type": "substitution", "team": "away", "numberOut": 9, "numberIn": 14, "matchSecond": 1500, "warnings": [] },
+        { "id": "#6", "type": "red", "team": "away", "number": 9, "matchSecond": 1550, "warnings": ["playerOffPitch"] }
+      ] },
+    { "at": 2650, "playersOnField": [10, 11],
+      "sinBins": [ { "eventId": "#8", "team": "home", "number": 4, "remaining": 550, "second": true } ] },
+    { "at": 3000, "phase": "interval", "playersOnField": [10, 11],
+      "sinBins": [ { "eventId": "#8", "team": "home", "number": 4, "remaining": 500, "second": true } ] },
+    { "at": 3650, "playersOnField": [10, 11],
+      "sinBins": [ { "eventId": "#8", "team": "home", "number": 4, "remaining": 450, "second": true } ],
+      "nextAlert": { "kind": "secondSinBinEnd", "at": 4100 } },
+    { "at": 4150, "playersOnField": [9, 11],
+      "barred": [ { "team": "home", "number": 7, "filled": true }, { "team": "home", "number": 4, "filled": false } ],
+      "sinBins": [ { "eventId": "#11", "team": "home", "number": 3, "remaining": 150 } ] },
+    { "at": 4500, "playersOnField": [9, 11],
+      "sinBins": [ { "eventId": "#12", "team": "home", "number": 3, "remaining": 500, "second": true } ],
+      "nextAlert": { "kind": "secondSinBinEnd", "at": 5000 } },
+    { "at": 5050, "playersOnField": [9, 9],
+      "barred": [ { "team": "home", "number": 7, "filled": true }, { "team": "home", "number": 4, "filled": false }, { "team": "home", "number": 3, "filled": false } ],
+      "sinBins": [ { "eventId": "#13", "team": "away", "remaining": 550 }, { "eventId": "#14", "team": "away", "remaining": 550 } ] },
+    { "at": 5150, "playersOnField": [9, 9],
+      "barred": [ { "team": "home", "number": 4, "filled": false }, { "team": "home", "number": 3, "filled": false } ] }
+  ]
+}

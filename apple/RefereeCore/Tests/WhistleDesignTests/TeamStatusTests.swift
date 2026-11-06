@@ -57,4 +57,36 @@ struct TeamStatusTests {
         let s = TeamStatus(shortHanded: true, sinBins: [bin(.away, 4, 45), bin(.away, 8, 300)])
         #expect(s.lines(1) == [.sinBin(s.sinBins[0], total: 2)])
     }
+
+    /// 출전 금지 줄 (Ruling 8): 교체로 채우기 전까지 일시 퇴장 줄 뒤에 "#7 출전 금지", 채우면 사라진다
+    @Test func teamStatusShowsUnfilledBarredLine() {
+        let rules = RuleSet(sinBin: true, sinBinLength: 600)
+        func state(_ extra: [(CommandKind, Double)]) -> MatchState {
+            let commands: [(CommandKind, Double)] = [
+                (.startPeriod, 0),
+                (.recordEvent(.card(team: .home, number: 7, kind: .sinBin)), 100),
+                (.recordEvent(.card(team: .home, number: 7, kind: .sinBin)), 800),
+            ] + extra
+            return MatchEngine.reduce(rules: rules, commands: commands.map { Command(timestamp: $0.1, kind: $0.0) })
+        }
+        func home(_ s: MatchState, _ now: Double) -> TeamStatus {
+            let d = MatchDisplay(state: s, now: now, clockDisplay: .elapsed)
+            return TeamStatus.split(shortHanded: d.shortHandedTeams, sinBins: d.sinBins, barred: d.barred).home
+        }
+        // 두 번째 일시 퇴장 중: 출전 금지 줄 없음
+        #expect(home(state([]), 1000).barred.isEmpty)
+        // 끝난 뒤 채우기 전: 출전 금지 줄
+        let before = home(state([]), 1500)
+        #expect(before.barred == [7])
+        #expect(before.lines(2) == [.barred(number: 7, total: nil)])
+        // 다른 일시 퇴장이 있으면 그 뒤
+        let both = home(state([(.recordEvent(.card(team: .home, number: 9, kind: .sinBin)), 1450)]), 1500)
+        #expect(both.lines(2).map { if case .barred = $0 { "b" } else { "s" } } == ["s", "b"])
+        #expect(both.lines(1).count == 1)
+        if case .sinBin = both.lines(1)[0] {} else { Issue.record("한 줄이면 일시 퇴장이 먼저") }
+        // 교체로 채우면 사라진다
+        let filled = home(state([(.recordEvent(.substitution(team: .home, numberOut: 7, numberIn: 12)), 1500)]), 1600)
+        #expect(filled.barred.isEmpty)
+        #expect(filled.lines(2).isEmpty)
+    }
 }
