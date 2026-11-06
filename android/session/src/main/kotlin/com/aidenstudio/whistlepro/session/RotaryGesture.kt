@@ -35,9 +35,19 @@ data class RotaryGestureConfig(
         fun clampCommandDegrees(d: Int): Int =
             min(max(d, COMMAND_DEGREE_OPTIONS.first()), COMMAND_DEGREE_OPTIONS.last())
 
-        /** 도 단위 기준으로 설정을 만든다 */
-        fun ofDegrees(d: Int): RotaryGestureConfig =
-            RotaryGestureConfig(commandTurn = clampCommandDegrees(d) / 360.0)
+        /**
+         * 딸깍 칸이 있는 물리 베젤(갤럭시 워치 클래식 `detent_bezel`)에서 "멈춤"으로 볼 간격(초).
+         * 2026-11-07 워치6 클래식 실측: 천천히 한 칸씩 돌리면 칸 사이가 0.4~0.8초(가끔 1.2초)라, 크라운 기준 0.4초로는
+         * 획이 매번 처음부터 시작돼 아무리 돌려도 입력이 안 됐다. 크라운은 연속 값이라 0.4초 그대로
+         */
+        const val DETENT_IDLE_RESET = 1.3
+
+        /** 도 단위 기준으로 설정을 만든다. [detented] = 딸깍 칸이 있는 물리 베젤 */
+        fun ofDegrees(d: Int, detented: Boolean = false): RotaryGestureConfig {
+            val config = RotaryGestureConfig(commandTurn = clampCommandDegrees(d) / 360.0)
+            if (detented) config.idleReset = DETENT_IDLE_RESET
+            return config
+        }
 
         /** 기준 각도가 기본보다 어떤지: 설정 줄에 "54도 · 기본"처럼 붙인다 */
         fun commandFeel(degrees: Int): CommandFeel = when {
