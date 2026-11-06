@@ -130,6 +130,12 @@ public struct CrownGestureDetector: Sendable {
         return event
     }
 
+    /// 기다리던 입력과 진행 중인 획을 버린다. 실행 뒤 흡수 시간은 그대로 둔다 — [킥오프 취소]로 대기 화면에 돌아왔을 때
+    /// 킥오프를 넘긴 회전이 다시 킥오프로 잡히지 않게 (2026-11-06, 안드로이드 dropBackKeys와 같은 뜻)
+    public mutating func discardPending() {
+        resetTracking()
+    }
+
     private mutating func resetTracking() {
         direction = 0
         segmentSize = 0

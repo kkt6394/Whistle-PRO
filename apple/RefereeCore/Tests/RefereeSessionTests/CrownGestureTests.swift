@@ -161,4 +161,22 @@ struct CrownGestureTests {
         #expect(CrownGestureConfig.commandFeel(degrees: 60) == .dull)
         #expect(CrownGestureConfig.commandFeel(degrees: 180) == .dull)
     }
+
+    /// [킥오프 취소] 뒤: 기다리던 입력은 버리고(flush해도 안 나옴) 실행 뒤 흡수 시간은 그대로 (2026-11-06)
+    @Test func discardPendingDropsWaitingInputKeepsCooldown() {
+        var detector = CrownGestureDetector()
+        // 3/4바퀴 넘겨 바로 실행 → 0.6초 흡수
+        for (d, t) in steps(0.2, count: 4) { _ = detector.feed(delta: d, at: t) }
+        // 흡수 시간 안의 회전은 무시
+        detector.discardPending()
+        #expect(detector.feed(delta: 0.6, at: 0.2) == nil)
+        #expect(!detector.hasPending)
+
+        var waiting = CrownGestureDetector()
+        for (d, t) in steps(0.1, count: 5) { _ = waiting.feed(delta: d, at: t) }
+        #expect(waiting.hasPending)
+        waiting.discardPending()
+        #expect(!waiting.hasPending)
+        #expect(waiting.flush(at: 1) == nil)
+    }
 }

@@ -6,6 +6,9 @@ public protocol MatchLogStore: Sendable {
     func saveActive(_ record: MatchRecord) throws
     /// 경기(와 같은 경기의 운동 기록)를 보관함으로 옮기고 진행 중 기록을 지운다.
     func finishActive(_ record: MatchRecord) throws
+    /// 진행 중 경기와 그 운동 기록을 보관하지 않고 지운다 ([킥오프 취소], 2026-11-06). 보관함(폰 전송 대기)·지난 경기에는 아무것도 남지 않는다.
+    /// 지울 것이 없어도 실패하지 않는다
+    func discardActive() throws
     /// 보관된 경기 (오래된 순)
     func archived() throws -> [MatchRecord]
 
@@ -73,6 +76,20 @@ public struct FileMatchLogStore: MatchLogStore {
         for active in [activeURL, activeWorkoutURL] where FileManager.default.fileExists(atPath: active.path) {
             try FileManager.default.removeItem(at: active)
         }
+    }
+
+    public func discardActive() throws {
+        for active in [activeURL, activeWorkoutURL] where FileManager.default.fileExists(atPath: active.path) {
+            try FileManager.default.removeItem(at: active)
+        }
+    }
+
+    /// 진행 중 운동 파일이 그 경기 것일 때만 지운다. 취소 직전에 시작한 백그라운드 운동 저장이 `discardActive()` 뒤에 끝나
+    /// 파일을 되살린 경우를 치운다 — 그사이 킥오프한 새 경기의 운동 파일은 남긴다 (2026-11-06 킥오프 취소)
+    public func discardActiveWorkout(_ matchID: UUID) throws {
+        guard (try? loadActiveWorkout())?.matchID == matchID,
+              FileManager.default.fileExists(atPath: activeWorkoutURL.path) else { return }
+        try FileManager.default.removeItem(at: activeWorkoutURL)
     }
 
     /// 워치에서 다시 볼 최근 경기 (최근 순). 폰이 받았다고 확인해도 남는다.

@@ -146,4 +146,54 @@ struct KickoffUndoTests {
         #expect(s.state.phase.isPeriod)
         #expect(!s.canUndo)
     }
+
+    private func makeSession(_ setup: MatchSetup = MatchSetup()) -> (MatchSession, MemoryStore, FakeClock) {
+        let store = MemoryStore()
+        let clock = FakeClock()
+        return (MatchSession.start(setup: setup, store: store, now: { clock.t }), store, clock)
+    }
+
+    /// [킥오프 취소]는 첫 기간(전반)이 진행 중일 때만: 기간을 끝냈거나 그 뒤(하프타임·후반·종료)는 안 된다 (2026-11-06)
+    @Test func canCancelKickoffOnlyInFirstPeriod() {
+        let (s, _, clock) = makeSession()
+        #expect(!s.canCancelKickoff, "킥오프 전")
+        clock.t = 1000
+        s.send(.setKickoffTeam(.away))
+        s.send(.startPeriod)
+        #expect(s.canCancelKickoff, "킥오프 직후")
+        s.send(.toggleStoppage)
+        s.send(.recordEvent(.goal(team: .home, number: 9, ownGoal: false)))
+        #expect(s.canCancelKickoff, "전반 중 기록이 있어도")
+        clock.t = 3700
+        s.send(.endPeriod)
+        #expect(!s.canCancelKickoff, "하프타임")
+        #expect(s.undo())
+        #expect(s.canCancelKickoff, "전반 종료를 되돌리면 다시 전반")
+        s.send(.endPeriod)
+        clock.t = 4600
+        s.send(.startPeriod)
+        #expect(!s.canCancelKickoff, "후반")
+        s.send(.abandonMatch(reason: "비"))
+        #expect(s.isFinished)
+        #expect(!s.canCancelKickoff, "종료")
+    }
+
+    /// 전반에 바로 중단한 경기도 끝난 경기라 취소할 수 없다. 쿼터제도 첫 쿼터만
+    @Test func canCancelKickoffNotAfterAbandonAndOnlyFirstQuarter() {
+        let (s, _, clock) = makeSession()
+        clock.t = 10
+        s.send(.startPeriod)
+        s.send(.abandonMatch(reason: "비"))
+        #expect(!s.canCancelKickoff)
+
+        let (q, _, qc) = makeSession(MatchSetup(rules: RuleSet(periodCount: 4, periodLength: 600, quarterBreakLength: 60)))
+        qc.t = 10
+        q.send(.startPeriod)
+        #expect(q.canCancelKickoff)
+        qc.t = 700
+        q.send(.endPeriod)
+        qc.t = 800
+        q.send(.startPeriod)
+        #expect(!q.canCancelKickoff, "2쿼터")
+    }
 }

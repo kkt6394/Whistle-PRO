@@ -29,6 +29,11 @@ final class MemoryStore: MatchLogStore, @unchecked Sendable {
         activeWorkout = nil
     }
 
+    func discardActive() throws {
+        active = nil
+        activeWorkout = nil
+    }
+
     func archived() throws -> [MatchRecord] { finished }
 
     func saveActiveWorkout(_ log: WorkoutLog) throws {
