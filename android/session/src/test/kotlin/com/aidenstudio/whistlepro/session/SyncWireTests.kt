@@ -88,4 +88,48 @@ class SyncWireTests {
         assertEquals(emptyMap(), SyncWire.decode(byteArrayOf(0xC3.toByte(), 0x28)))
         assertEquals(emptyMap(), SyncWire.decode(ByteArray(0)))
     }
+
+    // ---- 워치 물리 입력 상태 (2026-11-06 Task 11: 워치 → 폰 결제 화면)
+
+    private val galaxy = WatchInputStatus(
+        model = "SM-R965N",
+        detectable = listOf(InputChannel.BACK_KEY, InputChannel.ROTARY, InputChannel.STEM),
+        confirmed = listOf(InputChannel.BACK_KEY, InputChannel.ROTARY),
+        unavailable = listOf(InputChannel.BACK_KEY),
+        rotaryIsBezel = true,
+    )
+
+    @Test fun inputStatusRoundTrip() {
+        assertEquals(galaxy, WatchInputStatus.fromMap(roundTrip(galaxy.toMap())))
+        val none = WatchInputStatus("Pixel Watch", emptyList(), emptyList(), emptyList(), rotaryIsBezel = false)
+        assertEquals(none, WatchInputStatus.fromMap(roundTrip(none.toMap())))
+        assertEquals("/whistlepro/input-status", SyncPaths.INPUT_STATUS)
+    }
+
+    /** 다음 버전의 모르는 통로 이름은 버리고 나머지는 읽는다. 기종 이름이 없으면 상태가 아니다 */
+    @Test fun inputStatusIgnoresUnknownChannel() {
+        val map = galaxy.toMap() + mapOf(
+            "detectable" to listOf("ROTARY", "LASER"),
+            "confirmed" to listOf("TOUCHPAD"),
+            "future" to "무시",
+        )
+        val read = WatchInputStatus.fromMap(roundTrip(map))
+        assertEquals(listOf(InputChannel.ROTARY), read?.detectable)
+        assertEquals(emptyList(), read?.confirmed)
+        assertEquals(listOf(InputChannel.BACK_KEY), read?.unavailable)
+        assertNull(WatchInputStatus.fromMap(roundTrip(galaxy.toMap() - "model")))
+        assertNull(WatchInputStatus.fromMap(emptyMap()))
+    }
+
+    /** 폰 결제 화면·워치 PRO 안내 카드: 지금 쓸 수 있는 확인 통로만, 모두 막혔으면 확인 전 문구, 잡히는 통로가 없으면 지원 안 함 */
+    @Test fun inputCardFromStatus() {
+        assertEquals(WatchInputCard.Usable("SM-R965N", listOf(InputChannel.ROTARY), rotaryIsBezel = true), galaxy.card)
+        assertEquals(WatchInputCard.CheckFirst, galaxy.copy(confirmed = emptyList(), unavailable = emptyList()).card)
+        assertEquals(WatchInputCard.CheckFirst, galaxy.copy(confirmed = listOf(InputChannel.BACK_KEY)).card)
+        assertEquals(WatchInputCard.Unsupported, WatchInputStatus("X", emptyList(), emptyList(), emptyList(), false).card)
+        assertEquals(
+            WatchInputCard.Usable("SM-R965N", listOf(InputChannel.BACK_KEY, InputChannel.STEM), rotaryIsBezel = true),
+            galaxy.copy(confirmed = listOf(InputChannel.STEM, InputChannel.BACK_KEY), unavailable = emptyList()).card,
+        )
+    }
 }

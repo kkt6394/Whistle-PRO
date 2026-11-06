@@ -59,6 +59,15 @@ class FakeWatchLink : WatchLink {
         contextRequestsCancelled++
     }
 
+    /** 올린 물리 입력 상태 (폰이 읽는 그대로) */
+    val inputStatuses = mutableListOf<WatchInputStatus>()
+    var failInputStatus = false
+
+    override suspend fun putInputStatus(status: WatchInputStatus) {
+        if (failInputStatus) throw IOException("상태 올리기 실패")
+        inputStatuses += WatchInputStatus.fromMap(overWire(status.toMap()))!!
+    }
+
     fun sentIDs(): List<UUID> = puts.map { it.first }
 }
 

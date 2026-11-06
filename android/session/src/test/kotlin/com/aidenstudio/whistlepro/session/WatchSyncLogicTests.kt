@@ -364,4 +364,22 @@ class WatchSyncLogicTests {
         sync.requestContext()
         assertTrue(link.asked.isEmpty())
     }
+
+    /** 워치 물리 입력 상태: 바뀔 때만 올리고, 올리기에 실패하면 다음 기회([flushInputStatus])에 다시 (2026-11-06 Task 11) */
+    @Test fun sendsInputStatusOnlyWhenChanged() = runTest {
+        val first = WatchInputStatus("SM-R965N", listOf(InputChannel.BACK_KEY), emptyList(), emptyList(), rotaryIsBezel = false)
+        sync.sendInputStatus(first)
+        assertEquals(listOf(first), link.inputStatuses)
+        sync.sendInputStatus(first)
+        assertEquals(1, link.inputStatuses.size, "같은 상태를 또 올렸다")
+        val confirmed = first.copy(confirmed = listOf(InputChannel.BACK_KEY))
+        link.failInputStatus = true
+        sync.sendInputStatus(confirmed)
+        assertEquals(1, link.inputStatuses.size)
+        link.failInputStatus = false
+        sync.flushInputStatus()
+        assertEquals(listOf(first, confirmed), link.inputStatuses)
+        sync.flushInputStatus()
+        assertEquals(2, link.inputStatuses.size)
+    }
 }

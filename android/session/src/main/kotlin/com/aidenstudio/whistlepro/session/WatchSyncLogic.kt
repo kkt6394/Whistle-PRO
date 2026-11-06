@@ -32,6 +32,9 @@ interface WatchLink {
 
     /** 남겨 둔 컨텍스트 요청을 거둔다 (없으면 아무것도 안 함) */
     suspend fun cancelContextRequest()
+
+    /** 물리 입력 상태 DataItem([SyncPaths.INPUT_STATUS])을 덮어쓴다. 연결이 없어도 나중에 동기화된다. 실패하면 예외 */
+    suspend fun putInputStatus(status: WatchInputStatus)
 }
 
 /** 폰에서 받은 프리셋·구독 상태 (없는 쪽은 null). 앱이 저장·화면 반영을 한다. */
@@ -98,6 +101,33 @@ class WatchSyncLogic(
 
     init {
         refreshPendingCount()
+    }
+
+    // ---- 물리 입력 상태 (2026-11-06 Task 11): 워치 상태가 바뀔 때(확인됨 추가·막힘·감지 변화)와 앱 시작 때 폰으로
+
+    /** 보낼 최신 상태 */
+    private var latestInputStatus: WatchInputStatus? = null
+    /** 마지막으로 올리기에 성공한 상태 (같으면 다시 올리지 않는다) */
+    private var sentInputStatus: WatchInputStatus? = null
+
+    /** 상태를 기억하고 바뀌었으면 올린다. 실패하면 [flushInputStatus] 때(화면이 다시 보일 때) 다시 */
+    suspend fun sendInputStatus(status: WatchInputStatus) {
+        latestInputStatus = status
+        flushInputStatus()
+    }
+
+    /** 아직 올리지 못한 최신 상태가 있으면 올린다. 실패는 삼킨다 (다음 기회에 다시) */
+    suspend fun flushInputStatus() {
+        val status = latestInputStatus ?: return
+        if (status == sentInputStatus) return
+        try {
+            link.putInputStatus(status)
+            sentInputStatus = status
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // 다음 sendInputStatus·flushInputStatus에서 다시
+        }
     }
 
     /**
