@@ -117,9 +117,10 @@ object SyncWire {
 /**
  * 워치의 물리 입력 상태 (워치 → 폰, [SyncPaths.INPUT_STATUS]). 결제는 폰에서만 하므로 사기 전에 "내 워치에서 버튼·회전이 되는지"를
  * 폰 결제 화면이 보여 주려고 보낸다 (2026-11-06 Task 11).
- * [model]은 워치의 `Build.MODEL` 그대로, [detectable]은 감지되는 통로, [confirmed]는 세 동작 확인을 마친 통로(감지되는 것만),
- * [unavailable]은 지금 막힌 통로(설정이 바뀜), [rotaryIsBezel]은 회전 통로를 "베젤"로 부를지(아니면 "크라운") — 폰도 같은 이름을 쓰게.
- * 목록은 늘 InputChannel 순서. 모르는 통로 이름은 읽을 때 버린다 (다음 버전 호환)
+ * [model]은 워치 표시 이름(설정의 기기 이름, 없으면 `Build.MODEL` — 워치 `DeviceInputs.displayName`, 빌 수 있음),
+ * [detectable]은 감지되는 통로, [confirmed]는 세 동작 확인을 마친 통로(감지되는 것만), [unavailable]은 지금 막힌 통로(설정이 바뀜),
+ * [rotaryIsBezel]은 회전 통로를 "베젤"로 부를지(아니면 "크라운") — 폰도 같은 이름을 쓰게.
+ * 실을 때 목록 순서는 상관없다(카드는 [DISPLAY_ORDER]로 다시 고른다). 모르는 통로 이름은 읽을 때 버린다 (다음 버전 호환)
  */
 data class WatchInputStatus(
     val model: String,
@@ -178,7 +179,7 @@ data class WatchInputStatus(
 
 /** 폰 결제 화면 카드·워치 PRO 안내 줄이 보일 것 */
 sealed interface WatchInputCard {
-    /** 지금 쓸 수 있는 확인된 통로가 있다 ([WatchInputStatus.DISPLAY_ORDER] 순서): "내 워치(model)" + "통로들으로 조작할 수 있어요" */
+    /** 지금 쓸 수 있는 확인된 통로가 있다 ([WatchInputStatus.DISPLAY_ORDER] 순서): 폰 "내 워치(model)" + "통로들으로 워치를 조작할 수 있어요" */
     data class Usable(val model: String, val channels: List<InputChannel>, val rotaryIsBezel: Boolean) : WatchInputCard
     /** 잡히는 통로는 있는데 쓸 수 있게 확인된 것이 없다: "워치에서 물리 입력 확인을 먼저 해 보세요" */
     data object CheckFirst : WatchInputCard
