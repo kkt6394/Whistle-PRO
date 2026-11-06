@@ -32,6 +32,21 @@ public struct MatchPreset: Codable, Equatable, Sendable, Identifiable {
         setup: MatchSetup())
 }
 
+/// 폰에서 온 프리셋 목록으로 워치의 고른 프리셋을 다시 맞추는 판단 (경기 밖에서만 부른다).
+/// 고른 프리셋 내용이 실제로 바뀌었으면 그 값으로, 지워졌으면 FIFA 표준으로, 그대로면 아무것도 안 한다(워치에서 바꾼 시간을 덮지 않는다).
+/// 폰 목록 도착·[새 경기]·[킥오프 취소] 뒤에 같은 규칙을 쓴다 (2026-11-06 최종 검토 M-2, 안드로이드 AppModel.reconcilePreset)
+public enum PresetReconcile: Equatable, Sendable {
+    case keep
+    case apply(MatchPreset)
+    case fifa
+
+    public static func decide(selectedID: UUID, presets: [MatchPreset], applied: MatchSetup?) -> PresetReconcile {
+        guard selectedID != MatchPreset.fifaStandard.id else { return .keep }
+        guard let preset = presets.first(where: { $0.id == selectedID }) else { return .fifa }
+        return preset.setup == applied ? .keep : .apply(preset)
+    }
+}
+
 /// 프리셋 목록 파일. 없거나 읽을 수 없으면 빈 목록.
 public struct PresetStore: Sendable {
     public let fileURL: URL

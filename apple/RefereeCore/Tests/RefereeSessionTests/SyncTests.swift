@@ -317,4 +317,20 @@ struct MatchSummaryTests {
         try library.delete(id: record.id)
         #expect(try library.summaries().isEmpty)
     }
+
+    /// 최종 검토 M-2: 폰 목록·[새 경기]·[킥오프 취소] 뒤 고른 프리셋 다시 맞추기 (안드로이드 reconcilePreset과 같은 규칙)
+    @Test func presetReconcileDecides() {
+        let league = MatchPreset(id: UUID(), name: "주말 리그",
+                                 setup: MatchSetup(rules: RuleSet(periodLength: 1500, halfTimeLength: 300), homeName: "FC 서울숲"))
+        var changed = league
+        changed.setup.homeName = "새 이름"
+        // FIFA 표준을 고른 경우는 폰 목록과 상관없다
+        #expect(PresetReconcile.decide(selectedID: MatchPreset.fifaStandard.id, presets: [], applied: nil) == .keep)
+        // 내용이 그대로면 워치에서 바꾼 값(되살린 설정 포함)을 덮지 않는다
+        #expect(PresetReconcile.decide(selectedID: league.id, presets: [league], applied: league.setup) == .keep)
+        // 경기 중 폰에서 바뀌었으면 새 값으로
+        #expect(PresetReconcile.decide(selectedID: league.id, presets: [changed], applied: league.setup) == .apply(changed))
+        // 지워졌으면 FIFA 표준으로
+        #expect(PresetReconcile.decide(selectedID: league.id, presets: [], applied: league.setup) == .fifa)
+    }
 }

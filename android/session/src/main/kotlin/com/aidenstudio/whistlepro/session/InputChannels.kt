@@ -76,6 +76,18 @@ fun channelStatus(
     return if (channel in confirmed.channels) ChannelStatus.Confirmed else ChannelStatus.Unconfirmed
 }
 
+/**
+ * 확인 단계 화면에 "터치 베젤이 꺼져 있어요" + [베젤 설정 열기]를 미리 보일지 (2026-11-06 최종 검토 I-3, 시안 3차 ②).
+ * 갤럭시 비클래식(워치4~8·울트라)은 터치 베젤이 기본으로 꺼져 있어, 회전 확인을 고르고 돌려도 신호가 안 와 1/3에서 이유 없이 멈춘다.
+ * 실제 제조사가 삼성이고([DeviceInputFacts.samsungMaker], 디버그 강제 없음), 이 기기에 물리 베젤 장치가 없고(지금 읽은 장치 이름),
+ * 예전에 물리 베젤로 확인한 적도 없으며, `setting_touch_bezel_on`이 0으로 읽힐 때만 참.
+ * 회전 장치 이름을 아직 모르는(확인 전) 첫 확인도 같은 규칙: 장치 목록에 detent_bezel이 없으면 "물리 베젤 아님"으로 본다.
+ * 설정을 못 읽으면(null) 보이지 않는다. 안내일 뿐 확인됨은 만들어 주지 않는다 (세 동작이 실제로 들어와야 확인됨)
+ */
+fun touchBezelOffHint(facts: DeviceInputFacts, confirmed: ConfirmedChannels): Boolean =
+    facts.samsungMaker && facts.hasRotaryDevice && facts.touchBezelOn == 0 &&
+        !isPhysicalBezel(facts.rotaryDeviceName) && !isPhysicalBezel(confirmed.rotaryDeviceName)
+
 /** 경기 전 선택. userPicked가 참이면 사용자가 직접 고른 것이라 자동으로 바꾸지 않는다. */
 data class ChoiceState(val choice: PhysicalInputChoice, val userPicked: Boolean)
 
@@ -113,4 +125,23 @@ class ConfirmationProgress(val channel: InputChannel) {
     private companion object {
         val ORDER = listOf(PhysicalInput.PRIMARY, PhysicalInput.SECONDARY, PhysicalInput.UNDO)
     }
+}
+
+/**
+ * 킥오프 대기 화면에 "물리 입력 꺼짐 · 확인하면 켜져요" + [물리 입력 확인]을 보일지 (2026-11-06 최종 검토 I-1, 시안 3차 ① A, 설계 5-2 "처음 값").
+ * PRO인지는 부르는 쪽이 본다. 이 워치에서 잡히는 통로가 있고, 지금 켜진 통로가 없고([active] null), 고른 통로가 막혀
+ * 노란 줄을 보이는 중도 아니며([blocked] 거짓), 다음 둘 중 하나일 때 참:
+ * - 잡히는 통로 중 확인된 것이 하나도 없다 (1.4.0에서 올라온 갤럭시 PRO처럼, 고른 값과 상관없이)
+ * - 아직 한 번도 직접 고르지 않았다 (확인을 마치면 그 통로가 자동으로 골라진다 — [afterConfirmed])
+ * 확인된 통로가 있는데 사용자가 직접 '끄기'를 골랐으면 거짓 (일부러 끈 것)
+ */
+fun showsInputCheckPrompt(
+    state: ChoiceState,
+    detectable: List<InputChannel>,
+    confirmed: Set<InputChannel>,
+    active: InputChannel?,
+    blocked: Boolean,
+): Boolean {
+    if (detectable.isEmpty() || active != null || blocked) return false
+    return detectable.none { it in confirmed } || !state.userPicked
 }

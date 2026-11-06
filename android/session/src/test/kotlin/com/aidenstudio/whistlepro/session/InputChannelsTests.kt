@@ -119,4 +119,43 @@ class InputChannelsTests {
         assertEquals(0, p.step)
         assertFalse(p.done)
     }
+
+    /** 최종 검토 I-3: 갤럭시 비클래식에서 터치 베젤이 꺼져 있으면 확인 전에도 안내. 물리 베젤·삼성 아님·못 읽음은 안내 없음 */
+    @Test
+    fun touchBezelOffHintOnlyOnGalaxyWithoutPhysicalBezel() {
+        val galaxy = DeviceInputFacts(true, 1, 0, true, false, rotaryDeviceName = null, samsungMaker = true)
+        // 장치 이름을 아직 모르는 첫 확인: 물리 베젤이 목록에 없으면 안내
+        assertTrue(touchBezelOffHint(galaxy, confirmed()))
+        assertTrue(touchBezelOffHint(galaxy.copy(rotaryDeviceName = "sec_touch_bezel"), confirmed()))
+        // 터치 베젤이 켜지면 사라진다, 못 읽으면 보이지 않는다
+        assertFalse(touchBezelOffHint(galaxy.copy(touchBezelOn = 1), confirmed()))
+        assertFalse(touchBezelOffHint(galaxy.copy(touchBezelOn = null), confirmed()))
+        // 물리 베젤(클래식): 지금 읽은 장치든 예전 확인 장치든 절대 안 보인다
+        assertFalse(touchBezelOffHint(galaxy.copy(rotaryDeviceName = "detent_bezel"), confirmed()))
+        assertFalse(touchBezelOffHint(galaxy, confirmed(InputChannel.ROTARY, name = "detent_bezel")))
+        // 실제 삼성이 아니면(디버그 강제 isSamsung만 참) 안 보인다, 회전 장치가 없어도 안 보인다
+        assertFalse(touchBezelOffHint(galaxy.copy(samsungMaker = false), confirmed()))
+        assertFalse(touchBezelOffHint(galaxy.copy(hasRotaryDevice = false), confirmed()))
+    }
+
+    /** 최종 검토 I-1: 대기 화면 [물리 입력 확인] 안내 조건 (설계 5-2 "처음 값") */
+    @Test
+    fun inputCheckPromptRules() {
+        val all = listOf(InputChannel.BACK_KEY, InputChannel.ROTARY)
+        val fresh = ChoiceState(PhysicalInputChoice.OFF, userPicked = false)
+        val pickedOff = ChoiceState(PhysicalInputChoice.OFF, userPicked = true)
+        // 확인한 통로가 없다: 고른 적이 없든, 끄기를 골랐든 안내 (확인해야 켤 수 있다)
+        assertTrue(showsInputCheckPrompt(fresh, all, emptySet(), active = null, blocked = false))
+        assertTrue(showsInputCheckPrompt(pickedOff, all, emptySet(), active = null, blocked = false))
+        // 확인됐지만 잡히지 않는 통로뿐이면 확인한 것이 없는 것
+        assertTrue(showsInputCheckPrompt(pickedOff, all, setOf(InputChannel.STEM), active = null, blocked = false))
+        // 확인한 통로가 있는데 일부러 끄기를 골랐으면 안내하지 않는다
+        assertFalse(showsInputCheckPrompt(pickedOff, all, setOf(InputChannel.ROTARY), active = null, blocked = false))
+        // 확인했고 아직 고른 적이 없는데 꺼져 있으면 안내 (확인하면 자동으로 골라진다)
+        assertTrue(showsInputCheckPrompt(fresh, all, setOf(InputChannel.ROTARY), active = null, blocked = false))
+        // 켜져 있거나, 막힘 노란 줄을 보이는 중이거나, 잡히는 통로가 없으면 안내하지 않는다
+        assertFalse(showsInputCheckPrompt(fresh, all, setOf(InputChannel.ROTARY), active = InputChannel.ROTARY, blocked = false))
+        assertFalse(showsInputCheckPrompt(fresh, all, setOf(InputChannel.BACK_KEY), active = null, blocked = true))
+        assertFalse(showsInputCheckPrompt(fresh, emptyList(), emptySet(), active = null, blocked = false))
+    }
 }
