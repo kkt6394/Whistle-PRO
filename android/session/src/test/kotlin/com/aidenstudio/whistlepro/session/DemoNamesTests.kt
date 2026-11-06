@@ -8,10 +8,17 @@ import kotlin.test.assertTrue
 class DemoNamesTests {
     @Test fun rostersCoverDemoEventNumbers() {
         for (names in listOf(DemoNames.ko, DemoNames.en)) {
-            assertEquals(listOf(1L, 4L, 5L, 7L, 9L, 10L, 14L, 17L), names.homeRoster.map { it.number })
-            assertEquals(listOf(4L, 11L), names.awayRoster.map { it.number })
-            assertTrue(names.homeRoster.take(6).all { it.starter == true })
-            assertTrue(names.homeRoster.takeLast(2).all { it.starter == null })
+            val home = names.homeRoster.associateBy { it.number }
+            val away = names.awayRoster.associateBy { it.number }
+            // 데모 이벤트가 쓰는 번호: 홈 선발 1·4·5·7·9·10, 후보 14·17 / 원정 선발 4·11
+            assertTrue(listOf(1L, 4L, 5L, 7L, 9L, 10L).all { home[it]?.starter == true })
+            assertTrue(listOf(14L, 17L).all { home[it] != null && home[it]?.starter == null })
+            assertTrue(listOf(4L, 11L).all { away[it]?.starter == true })
+            // 실제 경기처럼 선발 11명씩, 번호 겹침 없음
+            assertEquals(11, names.homeRoster.count { it.starter == true })
+            assertEquals(11, names.awayRoster.count { it.starter == true })
+            assertEquals(16, home.size)
+            assertEquals(16, away.size)
         }
     }
 
