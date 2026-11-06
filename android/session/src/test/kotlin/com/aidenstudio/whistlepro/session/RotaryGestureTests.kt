@@ -178,20 +178,24 @@ class RotaryGestureTests {
         assertNull(e.flush(0.7))
     }
 
-    /** 2026-11-07 워치6 클래식 실측: 베젤 한 바퀴 24칸, 앱 환산 30단위 → 한 칸 = 1/30바퀴(12°). 천천히 돌리면 칸 사이 0.4~0.8초 */
+    /** 2026-11-07 워치6 클래식 실측: 베젤 한 바퀴 24칸 → 한 칸 = 1/24바퀴(15°). 천천히 돌리면 칸 사이 0.4~0.8초 */
     private fun slowClicks(count: Int, gap: Double, sign: Double = 1.0) =
-        (0 until count).map { i -> sign / 30.0 to (1.0 + i * gap) }
+        (0 until count).map { i -> sign / 24.0 to (1.0 + i * gap) }
 
     @Test
     fun slowDetentBezelFiresWithDetentConfig() {
         val d = RotaryGestureDetector(RotaryGestureConfig.ofDegrees(54, detented = true))
-        val events = slowClicks(5, 0.6).map { (x, t) -> d.feed(x, t) }
+        // 기본 54° = 3.6칸 → 3칸(45°)으로는 안 되고 4칸(60°)째에 들어간다
+        val three = RotaryGestureDetector(RotaryGestureConfig.ofDegrees(54, detented = true))
+        slowClicks(3, 0.6).forEach { (x, t) -> three.feed(x, t) }
+        assertNull(three.flush(1.0 + 2 * 0.6 + 0.2))
+        val events = slowClicks(4, 0.6).map { (x, t) -> d.feed(x, t) }
         assertTrue(events.all { it == null }, "획이 끝나기 전에는 실행하지 않는다")
-        assertEquals(PhysicalInput.PRIMARY, d.flush(1.0 + 4 * 0.6 + 0.2)?.input)
+        assertEquals(PhysicalInput.PRIMARY, d.flush(1.0 + 3 * 0.6 + 0.2)?.input)
         // 반시계도 같다
         val d2 = RotaryGestureDetector(RotaryGestureConfig.ofDegrees(54, detented = true))
-        slowClicks(5, 0.7, -1.0).forEach { (x, t) -> d2.feed(x, t) }
-        assertEquals(PhysicalInput.SECONDARY, d2.flush(1.0 + 4 * 0.7 + 0.2)?.input)
+        slowClicks(4, 0.7, -1.0).forEach { (x, t) -> d2.feed(x, t) }
+        assertEquals(PhysicalInput.SECONDARY, d2.flush(1.0 + 3 * 0.7 + 0.2)?.input)
     }
 
     @Test
