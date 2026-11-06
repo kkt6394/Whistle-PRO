@@ -85,11 +85,23 @@ class InputChannelsTests {
     @Test
     fun firstConfirmedIsAutoSelectedUntilUserPicks() {
         assertEquals(ChoiceState(PhysicalInputChoice.ROTARY, false),
-            ChoiceState(PhysicalInputChoice.OFF, false).afterConfirmed(InputChannel.ROTARY))
+            ChoiceState(PhysicalInputChoice.OFF, false).afterConfirmed(InputChannel.ROTARY, emptySet()))
         assertEquals(ChoiceState(PhysicalInputChoice.OFF, true),
-            ChoiceState(PhysicalInputChoice.OFF, true).afterConfirmed(InputChannel.ROTARY))
+            ChoiceState(PhysicalInputChoice.OFF, true).afterConfirmed(InputChannel.ROTARY, emptySet()))
+        // 이미 확인된 회전이 골라져 있으면 나중에 확인한 버튼으로 바꾸지 않는다
         assertEquals(ChoiceState(PhysicalInputChoice.ROTARY, false),
-            ChoiceState(PhysicalInputChoice.ROTARY, false).afterConfirmed(InputChannel.BACK_KEY))
+            ChoiceState(PhysicalInputChoice.ROTARY, false).afterConfirmed(InputChannel.BACK_KEY, setOf(InputChannel.ROTARY)))
+    }
+
+    @Test
+    fun unconfirmedLeftoverChoiceIsReplacedByFirstConfirmed() {
+        // 2026-11-06 재검토 N-1: 안 고른 채 미확인 통로(1.4.0의 갤럭시 자동 뒤로가기 등)가 남아 있으면,
+        // 다른 통로를 확인했을 때 그 통로로 바뀌어야 한다 — 아니면 확인을 마쳐도 물리 입력이 꺼진 채 안내가 다시 뜬다
+        assertEquals(ChoiceState(PhysicalInputChoice.STEM, false),
+            ChoiceState(PhysicalInputChoice.BACK_KEY, false).afterConfirmed(InputChannel.STEM, emptySet()))
+        // 직접 고른 값은 미확인이어도 건드리지 않는다
+        assertEquals(ChoiceState(PhysicalInputChoice.BACK_KEY, true),
+            ChoiceState(PhysicalInputChoice.BACK_KEY, true).afterConfirmed(InputChannel.STEM, emptySet()))
     }
 
     @Test

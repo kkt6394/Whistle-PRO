@@ -91,9 +91,16 @@ fun touchBezelOffHint(facts: DeviceInputFacts, confirmed: ConfirmedChannels): Bo
 /** 경기 전 선택. userPicked가 참이면 사용자가 직접 고른 것이라 자동으로 바꾸지 않는다. */
 data class ChoiceState(val choice: PhysicalInputChoice, val userPicked: Boolean)
 
-/** 통로 하나가 새로 확인되면, 사용자가 안 골랐고 아직 꺼져 있을 때만 그 통로를 자동 선택 */
-fun ChoiceState.afterConfirmed(channel: InputChannel): ChoiceState =
-    if (!userPicked && choice == PhysicalInputChoice.OFF) copy(choice = channel.asChoice()) else this
+/**
+ * 통로 하나가 새로 확인되면, 사용자가 안 골랐고 지금 고른 값이 쓸 수 있는 통로가 아닐 때(꺼짐, 또는 [before]에 없는
+ * 미확인 통로 — 1.4.0에서 "갤럭시면 뒤로가기 버튼"으로 올라온 값 등) 그 통로를 자동 선택.
+ * [before]는 이번 확인 전의 확인된 통로들. 이미 확인된 통로가 골라져 있으면 그대로 둔다.
+ */
+fun ChoiceState.afterConfirmed(channel: InputChannel, before: Set<InputChannel>): ChoiceState {
+    if (userPicked) return this
+    val current = InputChannel.entries.firstOrNull { it.asChoice() == choice }
+    return if (current == null || current !in before) copy(choice = channel.asChoice()) else this
+}
 
 /** 고른 통로가 Confirmed일 때만 그 통로, 아니면 null */
 fun activeChannel(
