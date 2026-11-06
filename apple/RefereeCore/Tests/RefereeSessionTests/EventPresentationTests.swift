@@ -50,6 +50,32 @@ struct EventPresentationTests {
         #expect(s.feedback(forEvent: "missing") == .none)
     }
 
+    @Test func barredPlayerReturnedWarningIsShownButOtherSinBinWarningsStayHidden() {
+        let rules = RuleSet(returnSubstitutions: true, sinBin: true, sinBinLength: 600)
+        let commands = [
+            Command(id: "s", timestamp: 0, kind: .startPeriod),
+            Command(id: "b1", timestamp: 100, kind: .recordEvent(.card(team: .home, number: 7, kind: .sinBin))),
+            Command(id: "b2", timestamp: 800, kind: .recordEvent(.card(team: .home, number: 7, kind: .sinBin))),
+            Command(id: "out", timestamp: 1500, kind: .recordEvent(.substitution(team: .home, numberOut: 7, numberIn: 12))),
+            Command(id: "back", timestamp: 1600, kind: .recordEvent(.substitution(team: .home, numberOut: 12, numberIn: 7))),
+            // 출전 금지 선수의 또 다른 일시 퇴장 → overlappingSinBin (숨김)
+            Command(id: "ov", timestamp: 1650, kind: .recordEvent(.card(team: .home, number: 7, kind: .sinBin))),
+            // 교체로 나간 선수의 일시 퇴장 → playerOffPitch (숨김)
+            Command(id: "p1", timestamp: 1700, kind: .recordEvent(.substitution(team: .away, numberOut: 5, numberIn: 12))),
+            Command(id: "off", timestamp: 1710, kind: .recordEvent(.card(team: .away, number: 5, kind: .sinBin))),
+        ]
+        let s = MatchEngine.reduce(rules: rules, commands: commands)
+        #expect(s.feedback(forEvent: "back") == .warning(.barredPlayerReturned, eventID: "back"))
+        #expect(s.eventRows.first { $0.id == "back" }?.warnings == [.barredPlayerReturned])
+        #expect(s.feedback(forEvent: "out") == .none)
+        #expect(s.resolvedEvents.first { $0.event.id == "ov" }?.warnings == [.overlappingSinBin])
+        #expect(s.resolvedEvents.first { $0.event.id == "off" }?.warnings == [.playerOffPitch])
+        for id in ["ov", "off"] {
+            #expect(s.feedback(forEvent: id) == .none)
+            #expect(s.eventRows.first { $0.id == id }?.warnings == [])
+        }
+    }
+
     @Test func sinBinBadgesAndShortHandedTeams() {
         let rules = RuleSet(playersPerTeam: 7, minimumPlayers: 6, sinBin: true)
         let s = makeState(rules, [(.startPeriod, 0),

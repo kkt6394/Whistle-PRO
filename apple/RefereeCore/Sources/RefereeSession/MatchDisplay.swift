@@ -8,6 +8,8 @@ public struct SinBinBadge: Equatable, Sendable {
     public var remaining: String
     /// 남은 시간(초). 가장 먼저 끝나는 일시 퇴장을 고를 때 쓴다.
     public var seconds: Int
+    /// 두 번째 일시 퇴장 (끝나면 출전 금지)
+    public var second: Bool = false
 }
 
 public struct ShootoutDisplay: Equatable, Sendable {
@@ -91,6 +93,8 @@ public struct MatchDisplay: Equatable, Sendable {
     public var sinBins: [SinBinBadge]
     /// 최소 인원 미만인 팀
     public var shortHandedTeams: [Team]
+    /// 두 번째 일시 퇴장을 마쳐 출전 금지인데 아직 교체로 채우지 않은 선수 (팀 칸 "#7 출전 금지" 줄, IFAB 지침)
+    public var barred: [BarredPlayer] = []
     /// 승부차기 중이거나 승부차기가 있었던 경기
     public var shootout: ShootoutDisplay?
     /// 기간 진행 중일 때 경과·규정 길이
@@ -175,8 +179,9 @@ public struct MatchDisplay: Equatable, Sendable {
         score = state.score
         kickoffTeam = state.kickoffTeam
         sinBins = state.activeSinBins(at: now).map {
-            SinBinBadge(team: $0.team, number: $0.number, remaining: Self.formatShort($0.remaining), seconds: $0.remaining)
+            SinBinBadge(team: $0.team, number: $0.number, remaining: Self.formatShort($0.remaining), seconds: $0.remaining, second: $0.isSecond)
         }
+        barred = state.barredPlayers(at: now).filter { !$0.filled }
         shortHandedTeams = state.matchWarnings(at: now).map {
             switch $0 {
             case .belowMinimumPlayers(let team): team

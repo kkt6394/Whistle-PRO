@@ -4,10 +4,16 @@ import Testing
 @Suite struct DemoNamesTests {
     @Test func rostersCoverDemoEventNumbers() {
         for names in [DemoNames.ko, DemoNames.en] {
-            #expect(names.homeRoster.map(\.number) == [1, 4, 5, 7, 9, 10, 14, 17])
-            #expect(names.awayRoster.map(\.number) == [4, 11])
-            #expect(names.homeRoster.prefix(6).allSatisfy { $0.starter == true })
-            #expect(names.homeRoster.suffix(2).allSatisfy { $0.starter == nil })
+            let home = Dictionary(uniqueKeysWithValues: names.homeRoster.map { ($0.number, $0) })
+            let away = Dictionary(uniqueKeysWithValues: names.awayRoster.map { ($0.number, $0) })
+            // 데모 이벤트가 쓰는 번호: 홈 선발 1·4·5·7·9·10, 후보 14·17 / 원정 선발 4·11
+            #expect([1, 4, 5, 7, 9, 10].allSatisfy { home[$0]?.starter == true })
+            #expect([14, 17].allSatisfy { home[$0] != nil && home[$0]?.starter == nil })
+            #expect([4, 11].allSatisfy { away[$0]?.starter == true })
+            // 실제 경기처럼 선발 11명씩
+            #expect(names.homeRoster.filter { $0.starter == true }.count == 11)
+            #expect(names.awayRoster.filter { $0.starter == true }.count == 11)
+            #expect(Roster.validate(names.homeRoster).isEmpty && Roster.validate(names.awayRoster).isEmpty)
         }
     }
     @Test func fromArguments() {

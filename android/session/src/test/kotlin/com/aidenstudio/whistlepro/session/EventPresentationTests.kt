@@ -10,6 +10,7 @@ import com.aidenstudio.whistlepro.core.ResolvedEventKind
 import com.aidenstudio.whistlepro.core.RuleSet
 import com.aidenstudio.whistlepro.core.Team
 import com.aidenstudio.whistlepro.core.TeamPair
+import com.aidenstudio.whistlepro.core.resolvedEvents
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -86,6 +87,32 @@ class EventPresentationTests {
         assertEquals(RecordFeedback.SecondYellow("y2"), s.feedback(forEvent = "y2"))
         assertEquals(RecordFeedback.Warning(EventWarning.PLAYER_ALREADY_SENT_OFF, "r"), s.feedback(forEvent = "r"))
         assertEquals(RecordFeedback.None, s.feedback(forEvent = "missing"))
+    }
+
+    @Test fun barredPlayerReturnedWarningIsShownButOtherSinBinWarningsStayHidden() {
+        val rules = RuleSet(returnSubstitutions = true, sinBin = true, sinBinLength = 600)
+        fun card(id: String, team: Team, n: Long, at: Double) =
+            Command(id, at, event(EventPayload.Card(team, n, CardKind.SIN_BIN)))
+        fun sub(id: String, team: Team, out: Long, into: Long, at: Double) =
+            Command(id, at, event(EventPayload.Substitution(team, out, into)))
+        val s = MatchEngine.reduce(rules, listOf(
+            Command("s", 0.0, start),
+            card("b1", Team.HOME, 7, 100.0), card("b2", Team.HOME, 7, 800.0),
+            sub("out", Team.HOME, 7, 12, 1500.0), sub("back", Team.HOME, 12, 7, 1600.0),
+            // 출전 금지 선수의 또 다른 일시 퇴장 -> OVERLAPPING_SIN_BIN (숨김)
+            card("ov", Team.HOME, 7, 1650.0),
+            // 교체로 나간 선수의 일시 퇴장 -> PLAYER_OFF_PITCH (숨김)
+            sub("p1", Team.AWAY, 5, 12, 1700.0), card("off", Team.AWAY, 5, 1710.0),
+        ))
+        assertEquals(RecordFeedback.Warning(EventWarning.BARRED_PLAYER_RETURNED, "back"), s.feedback(forEvent = "back"))
+        assertEquals(listOf(EventWarning.BARRED_PLAYER_RETURNED), s.eventRows.first { it.id == "back" }.warnings)
+        assertEquals(RecordFeedback.None, s.feedback(forEvent = "out"))
+        assertEquals(listOf(EventWarning.OVERLAPPING_SIN_BIN), s.resolvedEvents.first { it.event.id == "ov" }.warnings)
+        assertEquals(listOf(EventWarning.PLAYER_OFF_PITCH), s.resolvedEvents.first { it.event.id == "off" }.warnings)
+        for (id in listOf("ov", "off")) {
+            assertEquals(RecordFeedback.None, s.feedback(forEvent = id))
+            assertEquals(emptyList(), s.eventRows.first { it.id == id }.warnings)
+        }
     }
 
     @Test fun sinBinBadgesAndShortHandedTeams() {

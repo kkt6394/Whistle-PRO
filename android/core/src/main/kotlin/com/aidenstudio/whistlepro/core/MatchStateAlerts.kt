@@ -3,6 +3,8 @@ package com.aidenstudio.whistlepro.core
 enum class AlertKind(val code: String) {
     WARNING_BEFORE_END("warningBeforeEnd"), PERIOD_END("periodEnd"),
     BREAK_ENDING_SOON("breakEndingSoon"), BREAK_END("breakEnd"), SIN_BIN_END("sinBinEnd"),
+    /** 두 번째 일시 퇴장이 끝남 (그 선수는 출전 금지, 교체로 채울 수 있음) */
+    SECOND_SIN_BIN_END("secondSinBinEnd"),
 }
 
 data class MatchAlert(val kind: AlertKind, val at: Double)
@@ -21,7 +23,9 @@ fun MatchState.alerts(now: Double, warningBeforeEnd: Long, breakWarningBeforeEnd
                 result += MatchAlert(AlertKind.WARNING_BEFORE_END, end - warningBeforeEnd)
             }
             result += MatchAlert(AlertKind.PERIOD_END, end)
-            result += activeSinBins(now).map { MatchAlert(AlertKind.SIN_BIN_END, now + it.remainingSeconds) }
+            result += activeSinBins(now).map {
+                MatchAlert(if (it.isSecond) AlertKind.SECOND_SIN_BIN_END else AlertKind.SIN_BIN_END, now + it.remainingSeconds)
+            }
         }
         is Phase.Interval -> periods.lastOrNull()?.endedAt?.let { end ->
             val length = intervalLength(phase.after)

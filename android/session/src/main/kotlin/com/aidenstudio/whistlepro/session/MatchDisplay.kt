@@ -1,5 +1,6 @@
 package com.aidenstudio.whistlepro.session
 
+import com.aidenstudio.whistlepro.core.BarredPlayer
 import com.aidenstudio.whistlepro.core.EventPayload
 import com.aidenstudio.whistlepro.core.MatchState
 import com.aidenstudio.whistlepro.core.MatchWarning
@@ -8,6 +9,7 @@ import com.aidenstudio.whistlepro.core.Phase
 import com.aidenstudio.whistlepro.core.Team
 import com.aidenstudio.whistlepro.core.TeamPair
 import com.aidenstudio.whistlepro.core.activeSinBins
+import com.aidenstudio.whistlepro.core.barredPlayers
 import com.aidenstudio.whistlepro.core.clock
 import com.aidenstudio.whistlepro.core.currentPeriodLabel
 import com.aidenstudio.whistlepro.core.intervalLength
@@ -27,6 +29,8 @@ data class SinBinBadge(
     val remaining: String,
     /** 남은 시간(초). 가장 먼저 끝나는 일시 퇴장을 고를 때 쓴다. */
     val seconds: Long,
+    /** 두 번째 일시 퇴장 (끝나면 출전 금지) */
+    val second: Boolean = false,
 )
 
 data class ShootoutDisplay(
@@ -102,6 +106,8 @@ data class MatchDisplay(
     val intervalKind: IntervalKind? = null,
     /** 휴식 시계 상태 (색·테두리) */
     val intervalTone: IntervalClockTone? = null,
+    /** 두 번째 일시 퇴장을 마쳐 출전 금지인데 아직 교체로 채우지 않은 선수 (팀 칸 "#7 출전 금지" 줄, IFAB 지침) */
+    val barred: List<BarredPlayer> = emptyList(),
 ) {
     enum class Screen { NOT_STARTED, PERIOD, INTERVAL, PRE_EXTRA_TIME, PENALTIES, FINISHED }
 
@@ -164,8 +170,9 @@ data class MatchDisplay(
                 intervalClock = interval?.clock,
                 score = state.score,
                 kickoffTeam = state.kickoffTeam,
-                sinBins = state.activeSinBins(now).map { SinBinBadge(it.team, it.number, formatShort(it.remaining), it.remaining) },
+                sinBins = state.activeSinBins(now).map { SinBinBadge(it.team, it.number, formatShort(it.remaining), it.remaining, it.isSecond) },
                 shortHandedTeams = state.matchWarnings(now).map { (it as MatchWarning.BelowMinimumPlayers).team },
+                barred = state.barredPlayers(now).filter { !it.filled },
                 shootout = shootout,
                 periodProgress = if (reading != null && phase is Phase.Period) {
                     ClockProgress(reading.elapsed, reading.elapsed - reading.addedTime + reading.remaining)

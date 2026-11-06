@@ -23,4 +23,6 @@ val AlertKind.hapticPattern: HapticPattern
         AlertKind.BREAK_ENDING_SOON -> HapticPattern(HapticTone.RETRY, 1, 0.0)
         AlertKind.BREAK_END -> HapticPattern(HapticTone.NOTIFICATION, 2, 0.8)
         AlertKind.SIN_BIN_END -> HapticPattern(HapticTone.RETRY, 2, 0.6)
+        // 두 번째 일시 퇴장 끝(출전 금지 시작): 같은 계열로 한 번 더 길게
+        AlertKind.SECOND_SIN_BIN_END -> HapticPattern(HapticTone.RETRY, 3, 0.6)
     }

@@ -7,6 +7,7 @@ import com.aidenstudio.whistlepro.core.ResolvedEventKind
 import com.aidenstudio.whistlepro.core.RuleSet
 import com.aidenstudio.whistlepro.core.Team
 import com.aidenstudio.whistlepro.core.TeamPair
+import com.aidenstudio.whistlepro.core.barredPlayers
 import com.aidenstudio.whistlepro.core.resolvedEvents
 import com.aidenstudio.whistlepro.core.score
 import com.aidenstudio.whistlepro.core.shootout
@@ -30,6 +31,10 @@ data class ReportLine(
     val scoreAfter: TeamPair<Int>? = null,
     /** 이 줄을 만든 이벤트 ID (카드 사유를 이 값으로 찾는다) */
     val eventId: String = "",
+    /** 두 번째 일시 퇴장 */
+    val secondSinBin: Boolean = false,
+    /** 두 번째 일시 퇴장을 마쳐 실제로 출전 금지가 된 선수 (두 번째 중 퇴장당했으면 false) */
+    val barred: Boolean = false,
 ) {
     /** 이 줄이 속하는 열. `team`은 기록한 팀이라 자책골은 자책한 팀이다 → 득점한 팀(상대)의 열. */
     val columnTeam: Team get() = if (kind == ResolvedEventKind.OWN_GOAL) team.opponent else team
@@ -149,8 +154,10 @@ class MatchReport(bundle: MatchBundle, note: MatchNote? = null, referee: String?
             ResolvedEventKind.GOAL, ResolvedEventKind.OWN_GOAL, ResolvedEventKind.YELLOW, ResolvedEventKind.SECOND_YELLOW,
             ResolvedEventKind.RED, ResolvedEventKind.SIN_BIN, ResolvedEventKind.SUBSTITUTION)
         var running = TeamPair(0, 0)
+        val secondSinBinIds = state.resolvedEvents.filter { it.isSecondSinBin }.map { it.event.id }.toSet()
+        val barredIds = state.barredPlayers(end).map { it.eventId }.toSet()
         val all = rows.filter { it.kind in timelineKinds }.map { row ->
-            var line = ReportLine(row.minute, row.team, row.kind, row.detail, eventId = row.id)
+            var line = ReportLine(row.minute, row.team, row.kind, row.detail, eventId = row.id, secondSinBin = row.id in secondSinBinIds, barred = row.id in barredIds)
             val index = state.periods.indexOfFirst { it.ref == row.time.period }
             if (index >= 0) {
                 val second = if (row.time.duringPlay) row.time.matchSecond - state.periods[index].offset else playedSeconds[index]
