@@ -7,6 +7,7 @@ import com.aidenstudio.whistlepro.core.MatchAlert
 import com.aidenstudio.whistlepro.core.MatchEngine
 import com.aidenstudio.whistlepro.core.MatchSnapshot
 import com.aidenstudio.whistlepro.core.MatchState
+import com.aidenstudio.whistlepro.core.PeriodRef
 import com.aidenstudio.whistlepro.core.Phase
 import com.aidenstudio.whistlepro.core.apply
 import com.aidenstudio.whistlepro.core.nextAlert
@@ -50,6 +51,17 @@ class MatchSession(
             val kickoff = effective.indexOfFirst { it.kind == CommandKind.StartPeriod }
             if (kickoff < 0) return effective.isNotEmpty()
             return effective.size > kickoff + 1
+        }
+
+    /**
+     * [킥오프 취소]를 보일지: 첫 기간(전반, 쿼터제면 1쿼터)이 진행 중이고 아직 한 번도 끝내지 않았을 때만 (2026-11-06).
+     * 하프타임·후반·연장·승부차기·종료(전반 중 경기 중단 포함)면 거짓. 전반 종료를 실행 취소해 전반으로 돌아오면 다시 참.
+     * 첫 킥오프는 [canUndo]로 되돌리지 않는다 — 실수로 누른 킥오프는 이것으로 경기 자체를 없던 일로 한다
+     */
+    val canCancelKickoff: Boolean
+        get() {
+            val phase = state.phase as? Phase.Period ?: return false
+            return phase.ref == PeriodRef(PeriodRef.Kind.REGULAR, 1) && state.periods.size == 1
         }
 
     /**

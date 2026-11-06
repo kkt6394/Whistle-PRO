@@ -34,6 +34,11 @@ class MemoryStore : MatchLogStore {
         activeWorkout = null
     }
 
+    override fun discardActive() {
+        active = null
+        activeWorkout = null
+    }
+
     override fun archived() = finished.toList()
 
     override fun saveActiveWorkout(log: WorkoutLog) {

@@ -230,4 +230,36 @@ class MatchLogStoreTests {
         }
         assertEquals(FileMatchLogStore.HISTORY_LIMIT, store.history().size)
     }
+
+    /** [킥오프 취소]: 진행 중 경기·운동 파일을 지우고 보관함·지난 경기에는 아무것도 남기지 않는다 (2026-11-06) */
+    @Test fun discardActiveRemovesActiveAndWorkoutFiles() {
+        val dir = tempDirectory()
+        val store = FileMatchLogStore(dir)
+        val r = record()
+        store.saveActive(r)
+        store.saveActiveWorkout(WorkoutLog(r.id))
+        store.discardActive()
+        assertNull(store.loadActive())
+        assertNull(store.loadActiveWorkout())
+        assertFalse(File(dir, "active.json").exists())
+        assertFalse(File(dir, "workout-active.json").exists())
+        assertTrue(store.archived().isEmpty())
+        assertTrue(store.archivedIDs().isEmpty())
+        assertTrue(store.history().isEmpty())
+        // 지울 것이 없어도 실패하지 않는다
+        store.discardActive()
+    }
+
+    /** 늦게 끝난 운동 저장이 취소한 경기의 운동 파일을 다시 쓰면 그 경기 것만 지운다 (새 경기의 운동은 남긴다) */
+    @Test fun discardActiveWorkoutOnlyForThatMatch() {
+        val store = FileMatchLogStore(tempDirectory())
+        val cancelled = UUID.randomUUID()
+        val next = UUID.randomUUID()
+        store.saveActiveWorkout(WorkoutLog(next))
+        store.discardActiveWorkout(cancelled)
+        assertEquals(next, store.loadActiveWorkout()?.matchID)
+        store.saveActiveWorkout(WorkoutLog(cancelled))
+        store.discardActiveWorkout(cancelled)
+        assertNull(store.loadActiveWorkout())
+    }
 }
