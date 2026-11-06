@@ -131,5 +131,11 @@ class SyncWireTests {
             WatchInputCard.Usable("SM-R965N", listOf(InputChannel.BACK_KEY, InputChannel.STEM), rotaryIsBezel = true),
             galaxy.copy(confirmed = listOf(InputChannel.STEM, InputChannel.BACK_KEY), unavailable = emptyList()).card,
         )
+        // 나열 순서는 회전 → 뒤로가기 버튼 → 옆 버튼 (시안 순서, Ruling 14)
+        assertEquals(
+            listOf(InputChannel.ROTARY, InputChannel.BACK_KEY, InputChannel.STEM),
+            (galaxy.copy(confirmed = listOf(InputChannel.BACK_KEY, InputChannel.STEM, InputChannel.ROTARY), unavailable = emptyList()).card
+                as WatchInputCard.Usable).channels,
+        )
     }
 }

@@ -139,7 +139,7 @@ data class WatchInputStatus(
     /** 결제 화면·PRO 안내 카드 */
     val card: WatchInputCard
         get() {
-            val usable = InputChannel.entries.filter { it in confirmed && it !in unavailable }
+            val usable = DISPLAY_ORDER.filter { it in confirmed && it !in unavailable }
             return when {
                 usable.isNotEmpty() -> WatchInputCard.Usable(model, usable, rotaryIsBezel)
                 detectable.isEmpty() -> WatchInputCard.Unsupported
@@ -154,6 +154,9 @@ data class WatchInputStatus(
         const val CONFIRMED_KEY = "confirmed"
         const val UNAVAILABLE_KEY = "unavailable"
         const val ROTARY_IS_BEZEL_KEY = "rotaryIsBezel"
+
+        /** 카드에 나열하는 순서: 회전 → 뒤로가기 버튼 → 옆 버튼 (시안 2차 ⑤, Ruling 14) */
+        val DISPLAY_ORDER = listOf(InputChannel.ROTARY, InputChannel.BACK_KEY, InputChannel.STEM)
 
         /** 기종 이름이 없으면 null (상태가 아님). 모르는 통로 이름·키는 버린다 */
         fun fromMap(map: Map<String, Any?>): WatchInputStatus? {
@@ -175,7 +178,7 @@ data class WatchInputStatus(
 
 /** 폰 결제 화면 카드·워치 PRO 안내 줄이 보일 것 */
 sealed interface WatchInputCard {
-    /** 지금 쓸 수 있는 확인된 통로가 있다: "내 워치(model): 통로들로 조작할 수 있어요" */
+    /** 지금 쓸 수 있는 확인된 통로가 있다 ([WatchInputStatus.DISPLAY_ORDER] 순서): "내 워치(model)" + "통로들으로 조작할 수 있어요" */
     data class Usable(val model: String, val channels: List<InputChannel>, val rotaryIsBezel: Boolean) : WatchInputCard
     /** 잡히는 통로는 있는데 쓸 수 있게 확인된 것이 없다: "워치에서 물리 입력 확인을 먼저 해 보세요" */
     data object CheckFirst : WatchInputCard
