@@ -18,7 +18,7 @@ public enum PhysicalInput: Sendable, Equatable {
 /// 물리 입력이 일으키는 동작
 public enum PhysicalAction: Sendable, Equatable {
     case kickoff, pause, resume, openGoal, goal(Team), cancelGoal, endPeriod, startPeriod,
-         shootoutFirstTeam(Team), shootoutKick(scored: Bool), undo, none
+         shootoutFirstTeam(Team), shootoutKick(scored: Bool), setKickoffTeam(Team), undo, none
 
     /// 동작마다 다른 진동. 경고 알림 패턴과 겹치지 않는다. none은 진동 없음.
     public var hapticPattern: HapticPattern? {
@@ -27,9 +27,9 @@ public enum PhysicalAction: Sendable, Equatable {
         case .pause: HapticPattern(tone: .stop, repeats: 2, interval: 0.3)
         case .resume: HapticPattern(tone: .start, repeats: 2, interval: 0.3)
         case .openGoal: HapticPattern(tone: .notification, repeats: 1, interval: 0)
-        case .goal(.home), .shootoutFirstTeam(.home), .shootoutKick(scored: true):
+        case .goal(.home), .shootoutFirstTeam(.home), .setKickoffTeam(.home), .shootoutKick(scored: true):
             HapticPattern(tone: .success, repeats: 1, interval: 0)
-        case .goal(.away), .shootoutFirstTeam(.away):
+        case .goal(.away), .shootoutFirstTeam(.away), .setKickoffTeam(.away):
             HapticPattern(tone: .success, repeats: 2, interval: 0.3)
         case .shootoutKick(scored: false): HapticPattern(tone: .stop, repeats: 2, interval: 0.3)
         case .endPeriod: HapticPattern(tone: .stop, repeats: 3, interval: 0.3)
@@ -43,18 +43,22 @@ public enum PhysicalAction: Sendable, Equatable {
 public enum PhysicalContext: Sendable, Equatable {
     /// 킥오프 대기 화면 (경기 표시 없음)
     case ready
-    case match(screen: MatchDisplay.Screen, stoppageRunning: Bool, shootout: ShootoutDisplay?, goalOpen: Bool)
+    /// needsKickoffTeam: 연장 대기인데 선축(연장 전 동전 던지기, IFAB Law 8)이 아직 없음 (2026-11-07)
+    case match(
+        screen: MatchDisplay.Screen, stoppageRunning: Bool, shootout: ShootoutDisplay?, goalOpen: Bool,
+        needsKickoffTeam: Bool = false)
 
     public init(display: MatchDisplay, goalOpen: Bool) {
         self = .match(
             screen: display.screen, stoppageRunning: display.stoppageRunning,
-            shootout: display.shootout, goalOpen: goalOpen)
+            shootout: display.shootout, goalOpen: goalOpen,
+            needsKickoffTeam: display.screen == .preExtraTime && display.kickoffTeam == nil)
     }
 }
 
 /// 상태 + 입력 → 동작. 골 선택 중(goalOpen)은 기간 진행 중에만 의미가 있다.
 public func physicalAction(for input: PhysicalInput, in context: PhysicalContext) -> PhysicalAction {
-    guard case let .match(screen, stoppageRunning, shootout, goalOpen) = context else {
+    guard case let .match(screen, stoppageRunning, shootout, goalOpen, needsKickoffTeam) = context else {
         return input == .primary ? .kickoff : .none
     }
     switch screen {
@@ -74,6 +78,15 @@ public func physicalAction(for input: PhysicalInput, in context: PhysicalContext
         case .undo: return .undo
         }
     case .interval, .preExtraTime:
+        // 2026-11-07 연장 선축이 없으면 승부차기 먼저 찰 팀처럼 한 번=홈·두 번=원정으로 먼저 기록한다.
+        // 크라운으로 돌리다 선축 없이 연장이 시작되던 것. 휴식(정규 후반)은 킥오프 팀이 자동이라 그대로.
+        if screen == .preExtraTime && needsKickoffTeam {
+            switch input {
+            case .primary: return .setKickoffTeam(.home)
+            case .secondary: return .setKickoffTeam(.away)
+            case .undo: return .undo
+            }
+        }
         switch input {
         case .primary: return .startPeriod
         case .secondary: return .none

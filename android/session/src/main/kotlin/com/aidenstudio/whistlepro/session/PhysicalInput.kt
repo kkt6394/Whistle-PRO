@@ -29,6 +29,7 @@ sealed interface PhysicalAction {
     data object StartPeriod : PhysicalAction
     data class ShootoutFirstTeam(val team: Team) : PhysicalAction
     data class ShootoutKick(val scored: Boolean) : PhysicalAction
+    data class SetKickoffTeam(val team: Team) : PhysicalAction
     data object Undo : PhysicalAction
     data object None : PhysicalAction
 }
@@ -42,6 +43,7 @@ val PhysicalAction.hapticPattern: HapticPattern?
         PhysicalAction.OpenGoal -> HapticPattern(HapticTone.NOTIFICATION, 1, 0.0)
         is PhysicalAction.Goal -> homeAwayPattern(team)
         is PhysicalAction.ShootoutFirstTeam -> homeAwayPattern(team)
+        is PhysicalAction.SetKickoffTeam -> homeAwayPattern(team)
         is PhysicalAction.ShootoutKick ->
             if (scored) HapticPattern(HapticTone.SUCCESS, 1, 0.0) else HapticPattern(HapticTone.STOP, 2, 0.3)
         PhysicalAction.EndPeriod -> HapticPattern(HapticTone.STOP, 3, 0.3)
@@ -62,11 +64,16 @@ sealed interface PhysicalContext {
         val stoppageRunning: Boolean,
         val shootout: ShootoutDisplay?,
         val goalOpen: Boolean,
+        /** 연장 대기인데 선축(연장 전 동전 던지기, IFAB Law 8)이 아직 없음 (2026-11-07) */
+        val needsKickoffTeam: Boolean = false,
     ) : PhysicalContext
 
     companion object {
         operator fun invoke(display: MatchDisplay, goalOpen: Boolean): PhysicalContext =
-            Match(display.screen, display.stoppageRunning, display.shootout, goalOpen)
+            Match(
+                display.screen, display.stoppageRunning, display.shootout, goalOpen,
+                needsKickoffTeam = display.screen == MatchDisplay.Screen.PRE_EXTRA_TIME && display.kickoffTeam == null,
+            )
     }
 }
 
@@ -92,10 +99,14 @@ fun physicalAction(input: PhysicalInput, context: PhysicalContext): PhysicalActi
                 PhysicalInput.UNDO -> PhysicalAction.Undo
             }
         }
-        MatchDisplay.Screen.INTERVAL, MatchDisplay.Screen.PRE_EXTRA_TIME -> when (input) {
-            PhysicalInput.PRIMARY -> PhysicalAction.StartPeriod
-            PhysicalInput.SECONDARY -> PhysicalAction.None
-            PhysicalInput.UNDO -> PhysicalAction.Undo
+        // 2026-11-07 연장 선축이 없으면 승부차기 먼저 찰 팀처럼 한 번=홈·두 번=원정으로 먼저 기록한다.
+        // 크라운으로 돌리다 선축 없이 연장이 시작되던 것. 휴식(정규 후반)은 킥오프 팀이 자동이라 그대로.
+        MatchDisplay.Screen.INTERVAL, MatchDisplay.Screen.PRE_EXTRA_TIME -> when {
+            undo -> PhysicalAction.Undo
+            context.screen == MatchDisplay.Screen.PRE_EXTRA_TIME && context.needsKickoffTeam ->
+                PhysicalAction.SetKickoffTeam(if (primary) Team.HOME else Team.AWAY)
+            primary -> PhysicalAction.StartPeriod
+            else -> PhysicalAction.None
         }
         MatchDisplay.Screen.PENALTIES -> when {
             undo -> PhysicalAction.Undo
