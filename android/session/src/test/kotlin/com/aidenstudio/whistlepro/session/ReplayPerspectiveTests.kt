@@ -19,6 +19,6 @@ class ReplayPerspectiveTests {
         val perspective = ReplayPerspective(pitch, 390.0, 600.0)
         val c = perspective.point(pitch.center)
         assertTrue(abs(c.x - 195) < 1e-9)
-        assertTrue(abs(c.y - 600 * 0.44) < 1e-9)
+        assertTrue(abs(c.y - 600 * 0.487) < 1e-9)
     }
 }

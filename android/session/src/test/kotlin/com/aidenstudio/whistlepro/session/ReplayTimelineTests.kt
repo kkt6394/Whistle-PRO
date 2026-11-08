@@ -1,6 +1,9 @@
 package com.aidenstudio.whistlepro.session
 
 import com.aidenstudio.whistlepro.core.CommandKind
+import com.aidenstudio.whistlepro.core.EventPayload
+import com.aidenstudio.whistlepro.core.Team
+import com.aidenstudio.whistlepro.core.TeamPair
 import com.aidenstudio.whistlepro.core.MatchState
 import com.aidenstudio.whistlepro.core.RuleSet
 import java.util.UUID
@@ -115,8 +118,50 @@ class ReplayTimelineTests {
     @Test fun holdFramesRepeatLast() {
         val (log, state) = regular()
         val timeline = timeline(log, state)
+        val last = timeline.frame(449).copy(fade = 0.0)
+        for (i in 405..449) assertEquals(last, timeline.frame(i).copy(fade = 0.0))
+    }
+
+    /** 끝 붙잡기 처음 0.5초(15프레임) 동안 점·꼬리가 사라지고, 그 뒤는 히트맵만 */
+    @Test fun holdFadesOutDot() {
+        val (log, state) = regular()
+        val timeline = timeline(log, state)
+        assertEquals(1.0, timeline.frame(404).fade)
+        assertTrue(timeline.frame(412).fade > 0 && timeline.frame(412).fade < 1)
+        assertEquals(0.0, timeline.frame(419).fade)
+        assertEquals(0.0, timeline.frame(449).fade)
+    }
+
+    /** 점수는 골 프레임부터 오르고, 골 표시는 1.5초(45프레임) 동안 뜬다. 자책골은 상대 득점 (아이폰과 같은 값) */
+    @Test fun scoreAndGoalFlash() {
+        val log = makeLog(listOf(0.0 to 2700.0, 3600.0 to 6300.0))
+        val state = makeState(
+            listOf(
+                CommandKind.StartPeriod to 0.0, CommandKind.RecordEvent(EventPayload.Goal(Team.HOME, 9, false)) to 600.0,
+                CommandKind.EndPeriod to 2700.0, CommandKind.StartPeriod to 3600.0,
+                CommandKind.RecordEvent(EventPayload.Goal(Team.HOME, 4, true)) to 5000.0, CommandKind.EndPeriod to 6300.0,
+            ),
+        )
+        val timeline = timeline(log, state)
+        assertEquals(TeamPair(0, 0), timeline.frame(44).score)
+        assertNull(timeline.frame(44).goal)
+        val first = timeline.frame(45)
+        assertEquals(TeamPair(1, 0), first.score)
+        assertEquals(ReplayGoal(Team.HOME, "11'", 0.0), first.goal)
+        assertNotNull(timeline.frame(89).goal)
+        assertNull(timeline.frame(90).goal)
         val last = timeline.frame(449)
-        for (i in 405..449) assertEquals(last, timeline.frame(i))
+        assertEquals(TeamPair(1, 1), last.score)
+        assertNull(last.goal)
+        val own = (0 until 450).first { timeline.frame(it).score.away == 1 }
+        assertEquals(Team.AWAY, timeline.frame(own).goal?.team)
+    }
+
+    @Test fun periodLabels() {
+        val (log, state) = regular()
+        val timeline = timeline(log, state)
+        assertEquals("1H", timeline.frame(0).periodLabel)
+        assertEquals("2H", timeline.frame(449).periodLabel)
     }
 
     @Test fun distanceNeverDecreases() {
@@ -132,7 +177,7 @@ class ReplayTimelineTests {
         }
     }
 
-    @Test fun tailStaysInPeriodAndFiveMinutes() {
+    @Test fun tailStaysInPeriodAndNinetySeconds() {
         val (log, state) = regular()
         val timeline = timeline(log, state)
         val timeOf = timeline.points.associate { GeoPoint(it.latitude, it.longitude) to it.t }
@@ -144,7 +189,7 @@ class ReplayTimelineTests {
         assertTrue(times(first.tail).all { it > 2700 })
         for (i in 0 until 450) {
             val frame = timeline.frame(i)
-            assertTrue(times(frame.tail).all { it >= frame.t - 300 })
+            assertTrue(times(frame.tail).all { it >= frame.t - 90 })
         }
     }
 

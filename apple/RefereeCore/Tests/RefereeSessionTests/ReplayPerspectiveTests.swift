@@ -18,6 +18,6 @@ struct ReplayPerspectiveTests {
         let perspective = ReplayPerspective(pitch: pitch, width: 390, height: 600)
         let c = perspective.point(pitch.center)
         #expect(abs(c.x - 195) < 1e-9)
-        #expect(abs(c.y - 600 * 0.44) < 1e-9)
+        #expect(abs(c.y - 600 * 0.487) < 1e-9)
     }
 }

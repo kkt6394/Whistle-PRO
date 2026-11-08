@@ -7,7 +7,8 @@ public struct ReplayPerspective {
     /// 경기장 둘레 여백 (m)
     static let margin = 14.0
     static let tilt = 0.62
-    static let centerY = 0.44
+    /// 위 로고·점수 띠(약 530px까지) 아래로 내렸다 (critique 11-08, 0.44 → 0.487 = 90px)
+    static let centerY = 0.487
 
     public let pitch: Pitch
     public let width: Double

@@ -95,8 +95,53 @@ struct ReplayTimelineTests {
     @Test func holdFramesRepeatLast() throws {
         let (log, state) = regular()
         let timeline = try timeline(log, state)
+        var last = timeline.frame(449)
+        last.fade = 0
+        for i in 405...449 {
+            var frame = timeline.frame(i)
+            frame.fade = 0
+            #expect(frame == last)
+        }
+    }
+
+    /// 끝 붙잡기 처음 0.5초(15프레임) 동안 점·꼬리가 사라지고, 그 뒤는 히트맵만
+    @Test func holdFadesOutDot() throws {
+        let (log, state) = regular()
+        let timeline = try timeline(log, state)
+        #expect(timeline.frame(404).fade == 1)
+        #expect(timeline.frame(412).fade > 0 && timeline.frame(412).fade < 1)
+        #expect(timeline.frame(419).fade == 0)
+        #expect(timeline.frame(449).fade == 0)
+    }
+
+    /// 점수는 골 프레임부터 오르고, 골 표시는 1.5초(45프레임) 동안 뜬다. 자책골은 상대 득점
+    @Test func scoreAndGoalFlash() throws {
+        let log = makeLog(periods: [(0, 2700), (3600, 6300)])
+        let state = makeState([(.startPeriod, 0), (.recordEvent(.goal(team: .home, number: 9, ownGoal: false)), 600),
+                               (.endPeriod, 2700), (.startPeriod, 3600),
+                               (.recordEvent(.goal(team: .home, number: 4, ownGoal: true)), 5000), (.endPeriod, 6300)])
+        let timeline = try timeline(log, state)
+        // 600초 / 5400초 × 404 = 44.9 → 45번 프레임
+        #expect(timeline.frame(44).score == TeamPair(home: 0, away: 0))
+        #expect(timeline.frame(44).goal == nil)
+        let first = timeline.frame(45)
+        #expect(first.score == TeamPair(home: 1, away: 0))
+        #expect(first.goal == ReplayGoal(team: .home, minute: "11'", age: 0))
+        #expect(timeline.frame(89).goal != nil)
+        #expect(timeline.frame(90).goal == nil)
         let last = timeline.frame(449)
-        for i in 405...449 { #expect(timeline.frame(i) == last) }
+        #expect(last.score == TeamPair(home: 1, away: 1))
+        #expect(last.goal == nil)
+        // 후반 자책골: 원정 득점
+        let own = (0..<450).first { timeline.frame($0).score.away == 1 }!
+        #expect(timeline.frame(own).goal?.team == .away)
+    }
+
+    @Test func periodLabels() throws {
+        let (log, state) = regular()
+        let timeline = try timeline(log, state)
+        #expect(timeline.frame(0).periodLabel == "1H")
+        #expect(timeline.frame(449).periodLabel == "2H")
     }
 
     @Test func distanceNeverDecreases() throws {
@@ -112,7 +157,7 @@ struct ReplayTimelineTests {
         }
     }
 
-    @Test func tailStaysInPeriodAndFiveMinutes() throws {
+    @Test func tailStaysInPeriodAndNinetySeconds() throws {
         let (log, state) = regular()
         let timeline = try timeline(log, state)
         let timeOf = Dictionary(uniqueKeysWithValues: timeline.points.map { (GeoPoint(latitude: $0.latitude, longitude: $0.longitude), $0.t) })
@@ -124,7 +169,7 @@ struct ReplayTimelineTests {
         #expect(times(first.tail).allSatisfy { $0 > 2700 })
         for i in 0..<450 {
             let frame = timeline.frame(i)
-            #expect(times(frame.tail).allSatisfy { $0 >= frame.t - 300 })
+            #expect(times(frame.tail).allSatisfy { $0 >= frame.t - 90 })
         }
     }
 

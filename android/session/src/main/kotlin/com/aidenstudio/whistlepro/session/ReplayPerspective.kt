@@ -25,6 +25,7 @@ class ReplayPerspective(val pitch: Pitch, val width: Double, val height: Double)
         /** 경기장 둘레 여백 (m) */
         const val MARGIN = 14.0
         const val TILT = 0.62
-        const val CENTER_Y = 0.44
+        /** 위 로고·점수 띠(약 530px까지) 아래로 내렸다 (critique 11-08, 0.44 → 0.487 = 90px) */
+        const val CENTER_Y = 0.487
     }
 }

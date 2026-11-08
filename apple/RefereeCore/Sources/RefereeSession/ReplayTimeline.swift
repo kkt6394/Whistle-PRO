@@ -21,6 +21,22 @@ public struct ReplayFrame: Equatable {
     public var elapsed: Double
     public var sprints: Int
     public var averageHeartRate: Int?
+    /// 그 순간까지의 점수 (정규·연장, 자책골은 상대 득점)
+    public var score: TeamPair<Int>
+    /// 방금 들어간 골 (골 뒤 `ReplayTimeline.goalSeconds` 동안). 없으면 nil
+    public var goal: ReplayGoal?
+    /// 지금 기간 라벨 (1H·2H, Q1~Q4, ET1·ET2)
+    public var periodLabel: String
+}
+
+/// 영상에 잠깐 띄우는 골 표시
+public struct ReplayGoal: Equatable, Sendable {
+    /// 득점한 팀 (자책골이면 상대 팀)
+    public var team: Team
+    /// "78'", "45+2'"
+    public var minute: String
+    /// 골 뒤 지난 영상 시간 (초, 0부터)
+    public var age: Double
 }
 
 /// 경기 기간만 이어 붙인 15초 영상의 시간축. 하프타임은 건너뛰고 승부차기는 기간이 아니라 들어가지 않는다.
@@ -29,8 +45,13 @@ public struct ReplayTimeline: Sendable {
     public static let duration = 15.0
     /// 끝 장면을 붙잡아 두는 시간 (초)
     public static let hold = 1.5
-    public static let tailSeconds = 300.0
+    /// 꼬리 길이 (경기 초). 5분은 영상 0.8초에 몰려 GPS 잔떨림이 흰 덩어리로 보였다 (critique 11-08)
+    public static let tailSeconds = 90.0
     public static let fadeSeconds = 0.25
+    /// 끝 붙잡기 처음 이만큼(초) 점·꼬리가 사라진다: 마지막 장면은 히트맵 한 장
+    public static let holdFadeSeconds = 0.5
+    /// 골 표시를 띄우는 영상 시간 (초)
+    public static let goalSeconds = 1.5
     public static let minimumPoints = 10
     /// 꼬리를 이을 수 있는 가장 빠른 이동 (m/s): 전력 질주(약 10 m/s)보다 조금 빠르게
     public static let maximumTailSpeed = WorkoutAnalysis.maximumSpeed
@@ -54,16 +75,36 @@ public struct ReplayTimeline: Sendable {
     private let lastMovingFrame: Int
     private let snapshots: [WorkoutStats]
     private let finalStats: WorkoutStats
+    /// 골마다 처음 보이는 프레임 번호, 시간순
+    private let goals: [(frame: Int, team: Team, minute: String)]
+    private let periodLabels: [String]
 
     public static func make(log: WorkoutLog, state: MatchState, now: Double) -> ReplayTimeline? {
         let periods = state.periods.map { Period(start: $0.startedAt, end: $0.endedAt ?? now) }.filter { $0.length > 0 }
         guard !periods.isEmpty else { return nil }
         let points = WorkoutAnalysis.usableRoute(log.route).filter { p in periods.contains { p.t >= $0.start && p.t <= $0.end } }
         guard points.count >= minimumPoints else { return nil }
-        return ReplayTimeline(log: log, periods: periods, points: points)
+        let records = state.periods.filter { ($0.endedAt ?? now) - $0.startedAt > 0 }
+        let labels = records.map { $0.ref.label(periodCount: state.rules.periodCount) }
+        let goals: [(t: Double, team: Team, minute: String)] = state.events.compactMap { event in
+            guard case .goal(let team, _, let ownGoal) = event.payload else { return nil }
+            return (event.timestamp, ownGoal ? team.opponent : team, minuteText(state.minute(for: event.time)))
+        }
+        return ReplayTimeline(log: log, periods: periods, points: points, labels: labels, goals: goals)
     }
 
-    private init(log: WorkoutLog, periods: [Period], points: [RoutePoint]) {
+    /// "23'", "45+2'", 기간 밖이면 기간 라벨
+    static func minuteText(_ minute: EventMinute) -> String {
+        switch minute {
+        case .regular(let m): "\(m)'"
+        case .added(let base, let extra): "\(base)+\(extra)'"
+        case .afterPeriod(let label): label
+        case .shootout: "PK"
+        }
+    }
+
+    private init(log: WorkoutLog, periods: [Period], points: [RoutePoint], labels: [String],
+                 goals: [(t: Double, team: Team, minute: String)]) {
         self.log = log
         self.periods = periods
         self.points = points
@@ -78,6 +119,17 @@ public struct ReplayTimeline: Sendable {
             let (t, _, _) = ReplayTimeline.locate(frame: index, periods: periods, lastMovingFrame: moving, totalLength: total)
             return ReplayTimeline.stats(log, periods: periods, upTo: t)
         }
+        periodLabels = labels
+        // 골 시각 → 누적 경기 초 → 프레임. 휴식 중 기록은 앞 기간 끝, 첫 킥오프 전은 0
+        self.goals = goals.map { goal in
+            var elapsed = 0.0
+            for period in periods {
+                if goal.t < period.start { break }
+                elapsed += min(goal.t, period.end) - period.start
+            }
+            let frame = Int((elapsed / total * Double(moving)).rounded(.up))
+            return (min(frame, moving), goal.team, goal.minute)
+        }.sorted { $0.frame < $1.frame }
     }
 
     /// 프레임의 경기 시각·기간 번호·누적 경기 초
@@ -105,10 +157,18 @@ public struct ReplayTimeline: Sendable {
         let (t, period, elapsed) = ReplayTimeline.locate(frame: index, periods: periods, lastMovingFrame: lastMovingFrame, totalLength: totalLength)
         let stats = index >= lastMovingFrame ? finalStats : snapshots[index / ReplayTimeline.statsStep]
         let (position, tail) = route(at: t, in: periods[period])
+        var score = TeamPair(home: 0, away: 0)
+        var goal: ReplayGoal?
+        for g in goals where g.frame <= index {
+            score[g.team] += 1
+            let age = Double(index - g.frame) / Double(ReplayTimeline.fps)
+            if age < ReplayTimeline.goalSeconds { goal = ReplayGoal(team: g.team, minute: g.minute, age: age) }
+        }
         return ReplayFrame(
             t: t, period: period, position: position, tail: position == nil ? [] : tail,
             heatCount: count(through: t), fade: fade(index), distance: stats.distance,
-            elapsed: elapsed, sprints: stats.sprints, averageHeartRate: stats.averageHeartRate)
+            elapsed: elapsed, sprints: stats.sprints, averageHeartRate: stats.averageHeartRate,
+            score: score, goal: goal, periodLabel: period < periodLabels.count ? periodLabels[period] : "")
     }
 
     /// 크기는 `max(길이, 100)`×`max(폭, 64)` m. 심판 이동 범위는 실제 경기장보다 작아서 그대로 쓰면 작게 그려진다.
@@ -158,6 +218,10 @@ public struct ReplayTimeline: Sendable {
 
     /// 기간 경계(첫 시작·마지막 끝 제외)까지의 영상 시간 거리 / fadeSeconds, 1로 자른다.
     private func fade(_ index: Int) -> Double {
+        if index > lastMovingFrame {
+            let held = Double(index - lastMovingFrame) / Double(ReplayTimeline.fps)
+            return max(0, 1 - held / ReplayTimeline.holdFadeSeconds)
+        }
         let videoTime = Double(min(index, lastMovingFrame)) / Double(ReplayTimeline.fps)
         let videoLength = Double(lastMovingFrame) / Double(ReplayTimeline.fps)
         var before = 0.0
