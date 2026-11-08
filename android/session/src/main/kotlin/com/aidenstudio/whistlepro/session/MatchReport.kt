@@ -108,6 +108,8 @@ class MatchReport(bundle: MatchBundle, note: MatchNote? = null, referee: String?
     val sectionsFromMatch: Boolean
     /** 이벤트 ID → 카드 사유 (경기 메모) */
     val cardReasons: Map<String, CardReason>
+    /** 페널티킥으로 표시한 골의 이벤트 ID (경기 메모) */
+    val penaltyGoals: Set<String>
     /** 기간 순서대로: 그 기간 이벤트 → 끝난 기간의 끝 점수, 승부차기는 맨 끝 */
     val timelineRows: List<TimelineRow>
 
@@ -117,6 +119,7 @@ class MatchReport(bundle: MatchBundle, note: MatchNote? = null, referee: String?
         sections = note?.reportSections ?: setup.reportSections ?: ReportSections.STANDARD
         sectionsFromMatch = note?.reportSections != null
         cardReasons = note?.cardReasons ?: emptyMap()
+        penaltyGoals = note?.penaltyGoals ?: emptySet()
         val state = MatchEngine.reduce(setup.rules, bundle.record.commands)
         val end = state.periods.lastOrNull()?.let { it.endedAt ?: it.startedAt } ?: bundle.record.createdAt
 
@@ -263,6 +266,9 @@ class MatchReport(bundle: MatchBundle, note: MatchNote? = null, referee: String?
     val showsSinBinTable: Boolean get() = rules.sinBin || sinBins.isNotEmpty()
 
     fun cautionReason(line: ReportLine): CardReason? = cardReasons[line.eventId]
+
+    /** 페널티킥 골 (자책골은 페널티킥일 수 없다) */
+    fun isPenalty(line: ReportLine): Boolean = line.kind == ResolvedEventKind.GOAL && line.eventId in penaltyGoals
 
     /** 경고 누적 퇴장은 사유가 정해져 있고, 레드는 메모 값을 쓴다 */
     fun sendOffReason(line: ReportLine): CardReason? = when (line.kind) {

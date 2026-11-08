@@ -25,6 +25,8 @@ class MatchNote(
     assistant1: String? = null,
     assistant2: String? = null,
     fourthOfficial: String? = null,
+    /** 페널티킥으로 넣은 골의 이벤트 ID (경기 뒤 폰에서 표시, 독일 심판 카드의 E/S 칸 — 11-09). 비면 JSON에서 키를 생략한다 */
+    val penaltyGoals: Set<String> = emptySet(),
 ) {
     /** 기타 보고 사항 (여러 줄). 아래 다섯 칸은 공백을 다듬어 비면 null로 둔다 */
     val otherReport: String? = clean(otherReport)
@@ -34,7 +36,7 @@ class MatchNote(
     val fourthOfficial: String? = clean(fourthOfficial)
 
     val isEmpty: Boolean
-        get() = competition == null && venue == null && colors == null && reportSections == null && cardReasons.isEmpty() &&
+        get() = competition == null && venue == null && colors == null && reportSections == null && cardReasons.isEmpty() && penaltyGoals.isEmpty() &&
             otherReport == null && matchNumber == null && assistant1 == null && assistant2 == null && fourthOfficial == null
 
     fun copy(
@@ -42,12 +44,14 @@ class MatchNote(
         reportSections: ReportSections? = this.reportSections, cardReasons: Map<String, CardReason> = this.cardReasons,
         otherReport: String? = this.otherReport, matchNumber: String? = this.matchNumber,
         assistant1: String? = this.assistant1, assistant2: String? = this.assistant2,
-        fourthOfficial: String? = this.fourthOfficial,
+        fourthOfficial: String? = this.fourthOfficial, penaltyGoals: Set<String> = this.penaltyGoals,
     ) = MatchNote(
-        competition, venue, colors, reportSections, cardReasons, otherReport, matchNumber, assistant1, assistant2, fourthOfficial)
+        competition, venue, colors, reportSections, cardReasons, otherReport, matchNumber, assistant1, assistant2, fourthOfficial,
+        penaltyGoals)
 
     private fun fields(): List<Any?> = listOf(
-        competition, venue, colors, reportSections, cardReasons, otherReport, matchNumber, assistant1, assistant2, fourthOfficial)
+        competition, venue, colors, reportSections, cardReasons, otherReport, matchNumber, assistant1, assistant2, fourthOfficial,
+        penaltyGoals)
 
     override fun equals(other: Any?): Boolean = other is MatchNote && fields() == other.fields()
     override fun hashCode(): Int = fields().hashCode()
@@ -61,6 +65,7 @@ class MatchNote(
         if (cardReasons.isNotEmpty()) {
             put("cardReasons", buildJsonObject { cardReasons.forEach { (id, reason) -> put(id, JsonPrimitive(reason.key)) } })
         }
+        if (penaltyGoals.isNotEmpty()) put("penaltyGoals", JsonArray(penaltyGoals.sorted().map(::JsonPrimitive)))
         otherReport?.let { put("otherReport", JsonPrimitive(it)) }
         matchNumber?.let { put("matchNumber", JsonPrimitive(it)) }
         assistant1?.let { put("assistant1", JsonPrimitive(it)) }
@@ -75,7 +80,7 @@ class MatchNote(
         /**
          * 경기 정보 편집기에서 고른 값으로 만든 노트. 고른 네 색이 기록의 색과 같으면 덮어쓰지 않는다 (colors null).
          * 두 번째 색이 주 색과 같으면 없는 것으로 정리한 뒤 비교한다 (Swift `MatchNote.edited`).
-         * `keeping`을 주면 그 노트의 카드 사유·보고서 구성·기타 보고 사항은 그대로 가져오고,
+         * `keeping`을 주면 그 노트의 카드 사유·페널티킥 골·보고서 구성·기타 보고 사항은 그대로 가져오고,
          * 경기번호·심판진은 따로 주지 않으면 `keeping`의 값을 쓴다
          */
         fun edited(
@@ -87,7 +92,8 @@ class MatchNote(
             return MatchNote(
                 competition, venue, picked.takeIf { it != recorded.normalized() },
                 keeping?.reportSections, keeping?.cardReasons ?: emptyMap(),
-                keeping?.otherReport, matchNumber, assistant1, assistant2, fourthOfficial)
+                keeping?.otherReport, matchNumber, assistant1, assistant2, fourthOfficial,
+                keeping?.penaltyGoals ?: emptySet())
         }
 
         fun fromJson(json: JsonObject) = MatchNote(
@@ -101,6 +107,8 @@ class MatchNote(
             }.toMap(),
             json.optionalString("otherReport"), json.optionalString("matchNumber"),
             json.optionalString("assistant1"), json.optionalString("assistant2"), json.optionalString("fourthOfficial"),
+            ((json["penaltyGoals"] as? JsonArray) ?: JsonArray(emptyList()))
+                .mapNotNull { (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content }.toSet(),
         )
     }
 }

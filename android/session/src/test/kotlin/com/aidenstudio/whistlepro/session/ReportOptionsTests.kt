@@ -113,6 +113,32 @@ class ReportOptionsTests {
         assertEquals(listOf("c4"), partial.missingReasons.map { it.eventId })
     }
 
+    @Test fun penaltyGoalsRoundTripAndKept() {
+        val note = MatchNote(penaltyGoals = setOf("c2", "c1"))
+        assertFalse(note.isEmpty)
+        val json = note.toJson()
+        assertEquals("[\"c1\",\"c2\"]", json["penaltyGoals"].toString())
+        assertEquals(note, MatchNote.fromJson(json))
+        assertFalse(MatchNote(competition = "A").toJson().containsKey("penaltyGoals"))
+        val recorded = TeamColors.from(MatchSetup())
+        assertEquals(setOf("c1", "c2"), MatchNote.edited("B", null, recorded, recorded, keeping = note).penaltyGoals)
+    }
+
+    /** 표시한 골만 페널티킥, 자책골은 ID가 들어 있어도 아니다 */
+    @Test fun penaltyGoalOnlyForGoals() {
+        val commands = listOf(
+            CommandKind.StartPeriod to 0.0,
+            CommandKind.RecordEvent(EventPayload.Goal(Team.HOME, 9, false)) to 600.0,
+            CommandKind.RecordEvent(EventPayload.Goal(Team.AWAY, 11, false)) to 900.0,
+            CommandKind.RecordEvent(EventPayload.Goal(Team.AWAY, 4, true)) to 1200.0,
+        )
+        val r = report(commands, note = MatchNote(penaltyGoals = setOf("c2", "c3")))
+        assertEquals(listOf("c1", "c2", "c3"), r.goals.map { it.eventId })
+        assertEquals(listOf(false, true, false), r.goals.map(r::isPenalty))
+        val plain = report(commands)
+        assertFalse(plain.goals.any(plain::isPenalty))
+    }
+
     @Test fun sendOffReasonFromNoteForRed() {
         val commands = listOf(CommandKind.StartPeriod to 0.0, card(Team.HOME, 3, CardKind.RED) to 600.0)
         val r = report(commands, note = MatchNote(cardReasons = mapOf("c1" to CardReason.SEND_OFF_VIOLENT)))
