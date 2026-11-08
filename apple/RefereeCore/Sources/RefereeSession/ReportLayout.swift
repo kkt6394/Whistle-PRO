@@ -47,17 +47,22 @@ extension MatchReport {
 public enum SNSCardLayout {
     public static let width = 360.0
     public static let height = 640.0
-    /// 경기장 칸 위·아래 (pt). 위는 스토리가 덮는 84pt + 로고·날짜, 아래는 팀 줄 위
+    /// 경기장 칸 위·아래 (pt). 위는 스토리가 덮는 84pt + 로고·날짜, 아래는 팀 줄 위 (골 두 줄 자리까지 비운다)
     public static let boxTop = 152.0
-    public static let boxBottom = 415.0
-    /// 골 한 줄에 넣는 최대 개수 (넘으면 앞 4개 + "+N")
-    public static let maximumGoals = 5
+    public static let boxBottom = 405.0
+    /// 골 한 줄에 4개까지, 5개부터 두 줄(사용자 결정 11-09), 두 줄에 8개까지 (넘으면 7개 + "+N")
+    public static let goalsPerRow = 4
+    public static let maximumGoals = 8
 
-    /// 골·자책골 줄만, 시간순. 많으면 앞 (최대-1)개와 나머지 개수
-    public static func goals(_ lines: [ReportLine]) -> (shown: [ReportLine], more: Int) {
+    /// 골·자책골 줄만, 시간순으로 한 줄 또는 두 줄. 두 줄이면 위 줄이 같거나 하나 많다 (5개 → 3 + 2). 넘치면 나머지 개수
+    public static func goalRows(_ lines: [ReportLine]) -> (rows: [[ReportLine]], more: Int) {
         let goals = lines.filter { $0.kind == .goal || $0.kind == .ownGoal }
-        guard goals.count > maximumGoals else { return (goals, 0) }
-        return (Array(goals.prefix(maximumGoals - 1)), goals.count - (maximumGoals - 1))
+        let shown = goals.count > maximumGoals ? Array(goals.prefix(maximumGoals - 1)) : goals
+        let more = goals.count - shown.count
+        let total = shown.count + (more > 0 ? 1 : 0)
+        guard total > goalsPerRow else { return (shown.isEmpty ? [] : [shown], more) }
+        let first = (total + 1) / 2
+        return ([Array(shown.prefix(first)), Array(shown.dropFirst(first))], more)
     }
 
     /// 위성 사진에서 경기장(+골라인 쪽 여백)이 들어갈 세로 띠와 가운데 (화면 높이 비율)

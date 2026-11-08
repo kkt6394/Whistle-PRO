@@ -43,17 +43,22 @@ val MatchReport.columnRows: List<ReportColumnRow>
 object SNSCardLayout {
     const val WIDTH = 360.0
     const val HEIGHT = 640.0
-    /** 경기장 칸 위·아래 (pt). 위는 스토리가 덮는 84pt + 로고·날짜, 아래는 팀 줄 위 */
+    /** 경기장 칸 위·아래 (pt). 위는 스토리가 덮는 84pt + 로고·날짜, 아래는 팀 줄 위 (골 두 줄 자리까지 비운다) */
     const val BOX_TOP = 152.0
-    const val BOX_BOTTOM = 415.0
-    /** 골 한 줄에 넣는 최대 개수 (넘으면 앞 4개 + "+N") */
-    const val MAXIMUM_GOALS = 5
+    const val BOX_BOTTOM = 405.0
+    /** 골 한 줄에 4개까지, 5개부터 두 줄(사용자 결정 11-09), 두 줄에 8개까지 (넘으면 7개 + "+N") */
+    const val GOALS_PER_ROW = 4
+    const val MAXIMUM_GOALS = 8
 
-    /** 골·자책골 줄만, 시간순. 많으면 앞 (최대-1)개와 나머지 개수 */
-    fun goals(lines: List<ReportLine>): Pair<List<ReportLine>, Int> {
+    /** 골·자책골 줄만, 시간순으로 한 줄 또는 두 줄. 두 줄이면 위 줄이 같거나 하나 많다 (5개 → 3 + 2). 넘치면 나머지 개수 */
+    fun goalRows(lines: List<ReportLine>): Pair<List<List<ReportLine>>, Int> {
         val goals = lines.filter { it.kind == ResolvedEventKind.GOAL || it.kind == ResolvedEventKind.OWN_GOAL }
-        if (goals.size <= MAXIMUM_GOALS) return goals to 0
-        return goals.take(MAXIMUM_GOALS - 1) to (goals.size - (MAXIMUM_GOALS - 1))
+        val shown = if (goals.size > MAXIMUM_GOALS) goals.take(MAXIMUM_GOALS - 1) else goals
+        val more = goals.size - shown.size
+        val total = shown.size + if (more > 0) 1 else 0
+        if (total <= GOALS_PER_ROW) return (if (shown.isEmpty()) emptyList() else listOf(shown)) to more
+        val first = (total + 1) / 2
+        return listOf(shown.take(first), shown.drop(first)) to more
     }
 
     /** 위성 사진에서 경기장(+골라인 쪽 여백)이 들어갈 세로 띠와 가운데 (화면 높이 비율) */

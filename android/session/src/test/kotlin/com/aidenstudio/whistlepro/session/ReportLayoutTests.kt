@@ -78,16 +78,21 @@ class ReportLayoutTests {
         assertTrue(report(listOf(CommandKind.StartPeriod to 0.0, CommandKind.EndPeriod to 2700.0)).columnRows.isEmpty())
     }
 
-    /** 골 한 줄: 골·자책골만, 5개까지 다, 넘으면 앞 4개 + 나머지 개수 (아이폰과 같은 값) */
-    @Test fun cardGoalsKeepOnlyGoals() {
+    /** 골 줄: 골·자책골만, 4개까지 한 줄, 5개부터 두 줄(위가 같거나 하나 많게), 8개 넘으면 7개 + 나머지 개수 (아이폰과 같은 값) */
+    @Test fun cardGoalRows() {
         val goal = ReportLine(EventMinute.Regular(1), Team.HOME, ResolvedEventKind.GOAL, "#1")
         val yellow = ReportLine(EventMinute.Regular(2), Team.AWAY, ResolvedEventKind.YELLOW, "#4")
         val own = ReportLine(EventMinute.Regular(3), Team.AWAY, ResolvedEventKind.OWN_GOAL, "#5")
-        assertEquals(listOf(ResolvedEventKind.GOAL, ResolvedEventKind.OWN_GOAL), SNSCardLayout.goals(listOf(goal, yellow, own)).first.map { it.kind })
-        val five = List(5) { goal }
-        assertTrue(SNSCardLayout.goals(five).first.size == 5 && SNSCardLayout.goals(five).second == 0)
-        val seven = five + listOf(own, goal)
-        assertTrue(SNSCardLayout.goals(seven).first.size == 4 && SNSCardLayout.goals(seven).second == 3)
+        assertEquals(
+            listOf(listOf(ResolvedEventKind.GOAL, ResolvedEventKind.OWN_GOAL)),
+            SNSCardLayout.goalRows(listOf(goal, yellow, own)).first.map { row -> row.map { it.kind } },
+        )
+        assertTrue(SNSCardLayout.goalRows(listOf(yellow)).first.isEmpty())
+        fun counts(n: Int) = SNSCardLayout.goalRows(List(n) { goal }).let { (rows, more) -> rows.map { it.size } to more }
+        assertEquals(listOf(4) to 0, counts(4))
+        assertEquals(listOf(3, 2) to 0, counts(5))
+        assertEquals(listOf(4, 4) to 0, counts(8))
+        assertEquals(listOf(4, 3) to 4, counts(11))
     }
 
     /** 일반 지도 바탕: 히트맵 범위가 길쭉하든 넓적하든 카드 칸(152~415pt) 안에, 칸 가운데에 */

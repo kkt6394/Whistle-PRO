@@ -37,6 +37,8 @@ public struct ReplayGoal: Equatable, Sendable {
     public var minute: String
     /// 골 뒤 지난 영상 시간 (초, 0부터)
     public var age: Double
+    /// 골을 기록한 순간의 심판 위치 (그 자리에 표시를 고정한다 — 점을 따라가지 않게, 사용자 11-09). GPS가 없으면 nil
+    public var position: GeoPoint?
 }
 
 /// 경기 기간만 이어 붙인 15초 영상의 시간축. 하프타임은 건너뛰고 승부차기는 기간이 아니라 들어가지 않는다.
@@ -76,7 +78,7 @@ public struct ReplayTimeline: Sendable {
     private let snapshots: [WorkoutStats]
     private let finalStats: WorkoutStats
     /// 골마다 처음 보이는 프레임 번호, 시간순
-    private let goals: [(frame: Int, team: Team, minute: String)]
+    private var goals: [(frame: Int, team: Team, minute: String, position: GeoPoint?)]
     private let periodLabels: [String]
 
     public static func make(log: WorkoutLog, state: MatchState, now: Double) -> ReplayTimeline? {
@@ -128,8 +130,13 @@ public struct ReplayTimeline: Sendable {
                 elapsed += min(goal.t, period.end) - period.start
             }
             let frame = Int((elapsed / total * Double(moving)).rounded(.up))
-            return (min(frame, moving), goal.team, goal.minute)
+            return (min(frame, moving), goal.team, goal.minute, nil as GeoPoint?)
         }.sorted { $0.frame < $1.frame }
+        // 골 프레임의 심판 위치 (기록한 순간의 자리)
+        for i in self.goals.indices {
+            let at = ReplayTimeline.locate(frame: self.goals[i].frame, periods: periods, lastMovingFrame: moving, totalLength: total)
+            self.goals[i].position = route(at: at.t, in: periods[at.period]).0
+        }
     }
 
     /// 프레임의 경기 시각·기간 번호·누적 경기 초
@@ -162,7 +169,7 @@ public struct ReplayTimeline: Sendable {
         for g in goals where g.frame <= index {
             score[g.team] += 1
             let age = Double(index - g.frame) / Double(ReplayTimeline.fps)
-            if age < ReplayTimeline.goalSeconds { goal = ReplayGoal(team: g.team, minute: g.minute, age: age) }
+            if age < ReplayTimeline.goalSeconds { goal = ReplayGoal(team: g.team, minute: g.minute, age: age, position: g.position) }
         }
         return ReplayFrame(
             t: t, period: period, position: position, tail: position == nil ? [] : tail,

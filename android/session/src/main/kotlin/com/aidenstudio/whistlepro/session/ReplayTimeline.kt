@@ -45,6 +45,8 @@ data class ReplayGoal(
     val minute: String,
     /** 골 뒤 지난 영상 시간 (초, 0부터) */
     val age: Double,
+    /** 골을 기록한 순간의 심판 위치 (그 자리에 표시를 고정한다 — 점을 따라가지 않게, 사용자 11-09). GPS가 없으면 null */
+    val position: GeoPoint? = null,
 )
 
 /** 경기 기간만 이어 붙인 15초 영상의 시간축. 하프타임은 건너뛰고 승부차기는 기간이 아니라 들어가지 않는다. */
@@ -57,7 +59,7 @@ class ReplayTimeline private constructor(
     goalTimes: List<GoalTime>,
 ) {
     private class GoalTime(val t: Double, val team: Team, val minute: String)
-    private class GoalFrame(val frame: Int, val team: Team, val minute: String)
+    private class GoalFrame(val frame: Int, val team: Team, val minute: String, var position: GeoPoint? = null)
     private class Period(val start: Double, val end: Double) {
         val length get() = end - start
     }
@@ -84,6 +86,11 @@ class ReplayTimeline private constructor(
             val frame = kotlin.math.ceil(elapsed / totalLength * lastMovingFrame).toInt()
             GoalFrame(min(frame, lastMovingFrame), goal.team, goal.minute)
         }.sortedBy { it.frame }
+        // 골 프레임의 심판 위치 (기록한 순간의 자리)
+        for (goal in goals) {
+            val at = locate(goal.frame)
+            goal.position = route(at.t, periods[at.period]).first
+        }
     }
 
     /** 프레임의 경기 시각·기간 번호·누적 경기 초 */
@@ -118,7 +125,7 @@ class ReplayTimeline private constructor(
             if (g.frame > index) break
             if (g.team == Team.HOME) home++ else away++
             val age = (index - g.frame).toDouble() / FPS
-            if (age < GOAL_SECONDS) goal = ReplayGoal(g.team, g.minute, age)
+            if (age < GOAL_SECONDS) goal = ReplayGoal(g.team, g.minute, age, g.position)
         }
         return ReplayFrame(
             t = at.t, period = at.period, position = position, tail = if (position == null) emptyList() else tail,

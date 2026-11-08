@@ -63,16 +63,21 @@ struct ReportLayoutTests {
         #expect(report([(.startPeriod, 0), (.endPeriod, 2700)]).columnRows.isEmpty)
     }
 
-    /// 골 한 줄: 골·자책골만, 5개까지 다, 넘으면 앞 4개 + 나머지 개수
-    @Test func cardGoalsKeepOnlyGoals() {
+    /// 골 줄: 골·자책골만, 4개까지 한 줄, 5개부터 두 줄(위가 같거나 하나 많게), 8개 넘으면 7개 + 나머지 개수
+    @Test func cardGoalRows() {
         let goal = ReportLine(minute: .regular(1), team: .home, kind: .goal, detail: "#1")
         let yellow = ReportLine(minute: .regular(2), team: .away, kind: .yellow, detail: "#4")
         let own = ReportLine(minute: .regular(3), team: .away, kind: .ownGoal, detail: "#5")
-        #expect(SNSCardLayout.goals([goal, yellow, own]).shown.map(\.kind) == [.goal, .ownGoal])
-        let five = Array(repeating: goal, count: 5)
-        #expect(SNSCardLayout.goals(five).shown.count == 5 && SNSCardLayout.goals(five).more == 0)
-        let seven = five + [own, goal]
-        #expect(SNSCardLayout.goals(seven).shown.count == 4 && SNSCardLayout.goals(seven).more == 3)
+        #expect(SNSCardLayout.goalRows([goal, yellow, own]).rows.map { $0.map(\.kind) } == [[.goal, .ownGoal]])
+        #expect(SNSCardLayout.goalRows([yellow]).rows.isEmpty)
+        func counts(_ n: Int) -> ([Int], Int) {
+            let split = SNSCardLayout.goalRows(Array(repeating: goal, count: n))
+            return (split.rows.map(\.count), split.more)
+        }
+        #expect(counts(4) == ([4], 0))
+        #expect(counts(5) == ([3, 2], 0))
+        #expect(counts(8) == ([4, 4], 0))
+        #expect(counts(11) == ([4, 3], 4))
     }
 
     /// 일반 지도 바탕: 히트맵 범위가 길쭉하든 넓적하든 카드 칸(152~415pt) 안에, 칸 가운데에
