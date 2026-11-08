@@ -63,10 +63,30 @@ struct ReportLayoutTests {
         #expect(report([(.startPeriod, 0), (.endPeriod, 2700)]).columnRows.isEmpty)
     }
 
-    @Test func chipsSplitAtEight() {
-        let eight = Array(repeating: ReportLine(minute: .regular(1), team: .home, kind: .goal, detail: "#1"), count: 8)
-        #expect(SNSCardChips.split(eight).shown.count == 8 && SNSCardChips.split(eight).more == 0)
-        let twelve = eight + eight.prefix(4)
-        #expect(SNSCardChips.split(twelve).shown.count == 7 && SNSCardChips.split(twelve).more == 5)
+    /// 골 한 줄: 골·자책골만, 5개까지 다, 넘으면 앞 4개 + 나머지 개수
+    @Test func cardGoalsKeepOnlyGoals() {
+        let goal = ReportLine(minute: .regular(1), team: .home, kind: .goal, detail: "#1")
+        let yellow = ReportLine(minute: .regular(2), team: .away, kind: .yellow, detail: "#4")
+        let own = ReportLine(minute: .regular(3), team: .away, kind: .ownGoal, detail: "#5")
+        #expect(SNSCardLayout.goals([goal, yellow, own]).shown.map(\.kind) == [.goal, .ownGoal])
+        let five = Array(repeating: goal, count: 5)
+        #expect(SNSCardLayout.goals(five).shown.count == 5 && SNSCardLayout.goals(five).more == 0)
+        let seven = five + [own, goal]
+        #expect(SNSCardLayout.goals(seven).shown.count == 4 && SNSCardLayout.goals(seven).more == 3)
+    }
+
+    /// 일반 지도 바탕: 히트맵 범위가 길쭉하든 넓적하든 카드 칸(152~415pt) 안에, 칸 가운데에
+    @Test func cardMapFrameKeepsHeatInsideBox() {
+        for (northSouth, eastWest) in [(110.0, 70.0), (40.0, 20.0), (60.0, 200.0), (300.0, 30.0)] {
+            let frame = SNSCardLayout.mapFrame(northSouthMeters: northSouth, eastWestMeters: eastWest)
+            // 히트맵 가운데의 화면 높이 = 카드 가운데 - 남쪽으로 옮긴 거리 / (m/pt)
+            let center = SNSCardLayout.height / 2 - frame.southShift / frame.metersPerPoint
+            let halfHeight = northSouth * 1.3 / 2 / frame.metersPerPoint
+            let halfWidth = eastWest * 1.3 / 2 / frame.metersPerPoint
+            #expect(abs(center - (SNSCardLayout.boxTop + SNSCardLayout.boxBottom) / 2) < 1e-9)
+            #expect(center - halfHeight >= SNSCardLayout.boxTop - 1e-9)
+            #expect(center + halfHeight <= SNSCardLayout.boxBottom + 1e-9)
+            #expect(halfWidth * 2 <= SNSCardLayout.width + 1e-9)
+        }
     }
 }

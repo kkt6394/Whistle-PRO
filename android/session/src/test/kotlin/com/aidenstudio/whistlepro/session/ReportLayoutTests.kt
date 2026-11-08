@@ -78,10 +78,29 @@ class ReportLayoutTests {
         assertTrue(report(listOf(CommandKind.StartPeriod to 0.0, CommandKind.EndPeriod to 2700.0)).columnRows.isEmpty())
     }
 
-    @Test fun chipsSplitAtEight() {
-        val eight = List(8) { ReportLine(EventMinute.Regular(1), Team.HOME, ResolvedEventKind.GOAL, "#1") }
-        assertTrue(SNSCardChips.split(eight).first.size == 8 && SNSCardChips.split(eight).second == 0)
-        val twelve = eight + eight.take(4)
-        assertTrue(SNSCardChips.split(twelve).first.size == 7 && SNSCardChips.split(twelve).second == 5)
+    /** 골 한 줄: 골·자책골만, 5개까지 다, 넘으면 앞 4개 + 나머지 개수 (아이폰과 같은 값) */
+    @Test fun cardGoalsKeepOnlyGoals() {
+        val goal = ReportLine(EventMinute.Regular(1), Team.HOME, ResolvedEventKind.GOAL, "#1")
+        val yellow = ReportLine(EventMinute.Regular(2), Team.AWAY, ResolvedEventKind.YELLOW, "#4")
+        val own = ReportLine(EventMinute.Regular(3), Team.AWAY, ResolvedEventKind.OWN_GOAL, "#5")
+        assertEquals(listOf(ResolvedEventKind.GOAL, ResolvedEventKind.OWN_GOAL), SNSCardLayout.goals(listOf(goal, yellow, own)).first.map { it.kind })
+        val five = List(5) { goal }
+        assertTrue(SNSCardLayout.goals(five).first.size == 5 && SNSCardLayout.goals(five).second == 0)
+        val seven = five + listOf(own, goal)
+        assertTrue(SNSCardLayout.goals(seven).first.size == 4 && SNSCardLayout.goals(seven).second == 3)
+    }
+
+    /** 일반 지도 바탕: 히트맵 범위가 길쭉하든 넓적하든 카드 칸(152~415pt) 안에, 칸 가운데에 */
+    @Test fun cardMapFrameKeepsHeatInsideBox() {
+        for ((northSouth, eastWest) in listOf(110.0 to 70.0, 40.0 to 20.0, 60.0 to 200.0, 300.0 to 30.0)) {
+            val (metersPerPoint, southShift) = SNSCardLayout.mapFrame(northSouth, eastWest)
+            val center = SNSCardLayout.HEIGHT / 2 - southShift / metersPerPoint
+            val halfHeight = northSouth * 1.3 / 2 / metersPerPoint
+            val halfWidth = eastWest * 1.3 / 2 / metersPerPoint
+            assertTrue(kotlin.math.abs(center - (SNSCardLayout.BOX_TOP + SNSCardLayout.BOX_BOTTOM) / 2) < 1e-9)
+            assertTrue(center - halfHeight >= SNSCardLayout.BOX_TOP - 1e-9)
+            assertTrue(center + halfHeight <= SNSCardLayout.BOX_BOTTOM + 1e-9)
+            assertTrue(halfWidth * 2 <= SNSCardLayout.WIDTH + 1e-9)
+        }
     }
 }

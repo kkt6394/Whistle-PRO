@@ -42,12 +42,34 @@ extension MatchReport {
     }
 }
 
-/// SNS 카드의 이벤트 칩: 8개까지 보이고 넘으면 7개 + "+N"
-public enum SNSCardChips {
-    public static let maximum = 8
+/// SNS 카드(360×640pt) 자리 (critique 11-09, 사용자 시안 B). 경기장·히트맵은 로고·날짜 아래와 팀 줄 위 사이 칸에만 들어가
+/// 경기장 크기·모양이 달라도 글자와 겹치지 않는다. 아래에는 팀 → 점수 → 골 한 줄 → 숫자 셋. 안드로이드 `SNSCardLayout`과 같은 값
+public enum SNSCardLayout {
+    public static let width = 360.0
+    public static let height = 640.0
+    /// 경기장 칸 위·아래 (pt). 위는 스토리가 덮는 84pt + 로고·날짜, 아래는 팀 줄 위
+    public static let boxTop = 152.0
+    public static let boxBottom = 415.0
+    /// 골 한 줄에 넣는 최대 개수 (넘으면 앞 4개 + "+N")
+    public static let maximumGoals = 5
 
-    public static func split(_ lines: [ReportLine]) -> (shown: [ReportLine], more: Int) {
-        guard lines.count > maximum else { return (lines, 0) }
-        return (Array(lines.prefix(maximum - 1)), lines.count - (maximum - 1))
+    /// 골·자책골 줄만, 시간순. 많으면 앞 (최대-1)개와 나머지 개수
+    public static func goals(_ lines: [ReportLine]) -> (shown: [ReportLine], more: Int) {
+        let goals = lines.filter { $0.kind == .goal || $0.kind == .ownGoal }
+        guard goals.count > maximumGoals else { return (goals, 0) }
+        return (Array(goals.prefix(maximumGoals - 1)), goals.count - (maximumGoals - 1))
+    }
+
+    /// 위성 사진에서 경기장(+골라인 쪽 여백)이 들어갈 세로 띠와 가운데 (화면 높이 비율)
+    public static var satelliteBand: Double { (boxBottom - boxTop) / height }
+    public static var satelliteCenterY: Double { (boxTop + boxBottom) / 2 / height }
+
+    /// 일반 지도 바탕: 히트맵 범위(남북·동서 m, 둘레 30%·최소 90 m)를 칸 안에 넣는 1pt당 m와,
+    /// 히트맵 가운데가 칸 가운데에 오도록 지도 가운데를 남쪽으로 옮길 거리(m)
+    public static func mapFrame(northSouthMeters: Double, eastWestMeters: Double) -> (metersPerPoint: Double, southShift: Double) {
+        let northSouth = max(northSouthMeters * 1.3, 90)
+        let eastWest = max(eastWestMeters * 1.3, 90)
+        let metersPerPoint = max(eastWest / width, northSouth / (boxBottom - boxTop))
+        return (metersPerPoint, (height / 2 - (boxTop + boxBottom) / 2) * metersPerPoint)
     }
 }
