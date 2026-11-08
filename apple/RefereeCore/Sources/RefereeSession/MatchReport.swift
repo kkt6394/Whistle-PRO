@@ -92,6 +92,8 @@ public struct MatchReport: Equatable, Sendable {
     public var sectionsFromMatch: Bool
     /// 이벤트 ID → 카드 사유 (경기 메모)
     public var cardReasons: [String: CardReason]
+    /// 페널티킥으로 표시한 골의 이벤트 ID (경기 메모)
+    public var penaltyGoals: Set<String>
     /// 기간 순서대로: 그 기간 이벤트 → 끝난 기간의 끝 점수, 승부차기는 맨 끝
     public var timelineRows: [TimelineRow]
 
@@ -101,6 +103,7 @@ public struct MatchReport: Equatable, Sendable {
         sections = note?.reportSections ?? setup.reportSections ?? .standard
         sectionsFromMatch = note?.reportSections != nil
         cardReasons = note?.cardReasons ?? [:]
+        penaltyGoals = note?.penaltyGoals ?? []
         let state = MatchEngine.reduce(rules: setup.rules, commands: bundle.record.commands)
         let end = state.periods.last.map { $0.endedAt ?? $0.startedAt } ?? bundle.record.createdAt
 
@@ -241,6 +244,9 @@ public struct MatchReport: Equatable, Sendable {
     public var showsSinBinTable: Bool { rules.sinBin || !sinBins.isEmpty }
 
     public func cautionReason(_ line: ReportLine) -> CardReason? { cardReasons[line.eventID] }
+
+    /// 페널티킥 골 (자책골은 페널티킥일 수 없다)
+    public func isPenalty(_ line: ReportLine) -> Bool { line.kind == .goal && penaltyGoals.contains(line.eventID) }
 
     /// 경고 누적 퇴장은 사유가 정해져 있고, 레드는 메모 값을 쓴다
     public func sendOffReason(_ line: ReportLine) -> CardReason? {

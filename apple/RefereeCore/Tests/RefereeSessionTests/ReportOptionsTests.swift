@@ -87,6 +87,31 @@ struct ReportOptionsTests {
         #expect(partial.missingReasons.map(\.eventID) == ["c4"])
     }
 
+    @Test func penaltyGoalsRoundTripAndKept() throws {
+        let note = MatchNote(penaltyGoals: ["c2", "c1"])
+        #expect(!note.isEmpty)
+        let json = String(decoding: try JSONEncoder().encode(note), as: UTF8.self)
+        #expect(json.contains(#""penaltyGoals":["c1","c2"]"#))
+        #expect(try JSONDecoder().decode(MatchNote.self, from: Data(json.utf8)) == note)
+        #expect(!String(decoding: try JSONEncoder().encode(MatchNote(competition: "A")), as: UTF8.self).contains("penaltyGoals"))
+        let recorded = TeamColors(setup: MatchSetup())
+        #expect(MatchNote.edited(competition: "B", venue: nil, colors: recorded, recorded: recorded, keeping: note).penaltyGoals == ["c1", "c2"])
+    }
+
+    /// 표시한 골만 페널티킥, 자책골은 ID가 들어 있어도 아니다
+    @Test func penaltyGoalOnlyForGoals() {
+        let commands: [(CommandKind, Double)] = [
+            (.startPeriod, 0),
+            (.recordEvent(.goal(team: .home, number: 9, ownGoal: false)), 600),
+            (.recordEvent(.goal(team: .away, number: 11, ownGoal: false)), 900),
+            (.recordEvent(.goal(team: .away, number: 4, ownGoal: true)), 1200),
+        ]
+        let r = report(commands, note: MatchNote(penaltyGoals: ["c2", "c3"]))
+        #expect(r.goals.map(\.eventID) == ["c1", "c2", "c3"])
+        #expect(r.goals.map(r.isPenalty) == [false, true, false])
+        #expect(!report(commands).goals.contains(where: report(commands).isPenalty))
+    }
+
     @Test func sendOffReasonFromNoteForRed() {
         let commands: [(CommandKind, Double)] = [
             (.startPeriod, 0), (.recordEvent(.card(team: .home, number: 3, kind: .red)), 600),

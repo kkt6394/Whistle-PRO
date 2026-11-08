@@ -10,6 +10,8 @@ public struct MatchNote: Codable, Equatable, Sendable {
     public var reportSections: ReportSections?
     /// 이벤트 ID → 카드 사유. 비면 JSON에서 키를 생략한다
     public var cardReasons: [String: CardReason]
+    /// 페널티킥으로 넣은 골의 이벤트 ID (경기 뒤 폰에서 표시, 독일 심판 카드의 E/S 칸 — 11-09). 비면 JSON에서 키를 생략한다
+    public var penaltyGoals: Set<String>
     /// 기타 보고 사항 (여러 줄). 아래 다섯 칸은 공백을 다듬어 비면 nil로 둔다
     public var otherReport: String? { didSet { otherReport = Self.clean(otherReport) } }
     public var matchNumber: String? { didSet { matchNumber = Self.clean(matchNumber) } }
@@ -19,6 +21,7 @@ public struct MatchNote: Codable, Equatable, Sendable {
 
     public init(competition: String? = nil, venue: String? = nil, colors: TeamColors? = nil,
                 reportSections: ReportSections? = nil, cardReasons: [String: CardReason] = [:],
+                penaltyGoals: Set<String> = [],
                 otherReport: String? = nil, matchNumber: String? = nil, assistant1: String? = nil,
                 assistant2: String? = nil, fourthOfficial: String? = nil) {
         self.competition = competition
@@ -26,6 +29,7 @@ public struct MatchNote: Codable, Equatable, Sendable {
         self.colors = colors
         self.reportSections = reportSections
         self.cardReasons = cardReasons
+        self.penaltyGoals = penaltyGoals
         self.otherReport = Self.clean(otherReport)
         self.matchNumber = Self.clean(matchNumber)
         self.assistant1 = Self.clean(assistant1)
@@ -40,12 +44,12 @@ public struct MatchNote: Codable, Equatable, Sendable {
     }
 
     public var isEmpty: Bool {
-        competition == nil && venue == nil && colors == nil && reportSections == nil && cardReasons.isEmpty
+        competition == nil && venue == nil && colors == nil && reportSections == nil && cardReasons.isEmpty && penaltyGoals.isEmpty
             && otherReport == nil && matchNumber == nil && assistant1 == nil && assistant2 == nil && fourthOfficial == nil
     }
 
     private enum CodingKeys: String, CodingKey {
-        case competition, venue, colors, reportSections, cardReasons
+        case competition, venue, colors, reportSections, cardReasons, penaltyGoals
         case otherReport, matchNumber, assistant1, assistant2, fourthOfficial
     }
 
@@ -59,6 +63,7 @@ public struct MatchNote: Codable, Equatable, Sendable {
             // 모르는 사유 값은 그 항목만 버린다 (Kotlin MatchNote.fromJson과 같다). 옛 값은 지금 값으로 읽는다
             cardReasons: (try c.decodeIfPresent([String: String].self, forKey: .cardReasons) ?? [:])
                 .compactMapValues { CardReason(storedValue: $0) },
+            penaltyGoals: Set(try c.decodeIfPresent([String].self, forKey: .penaltyGoals) ?? []),
             otherReport: try c.decodeIfPresent(String.self, forKey: .otherReport),
             matchNumber: try c.decodeIfPresent(String.self, forKey: .matchNumber),
             assistant1: try c.decodeIfPresent(String.self, forKey: .assistant1),
@@ -73,6 +78,7 @@ public struct MatchNote: Codable, Equatable, Sendable {
         try c.encodeIfPresent(colors, forKey: .colors)
         try c.encodeIfPresent(reportSections, forKey: .reportSections)
         if !cardReasons.isEmpty { try c.encode(cardReasons, forKey: .cardReasons) }
+        if !penaltyGoals.isEmpty { try c.encode(penaltyGoals.sorted(), forKey: .penaltyGoals) }
         try c.encodeIfPresent(otherReport, forKey: .otherReport)
         try c.encodeIfPresent(matchNumber, forKey: .matchNumber)
         try c.encodeIfPresent(assistant1, forKey: .assistant1)
@@ -82,7 +88,7 @@ public struct MatchNote: Codable, Equatable, Sendable {
 
     /// 경기 정보 편집기에서 고른 값으로 만든 노트. 고른 네 색이 기록의 색과 같으면 덮어쓰지 않는다 (colors nil).
     /// 두 번째 색이 주 색과 같으면 없는 것으로 정리한 뒤 비교한다
-    /// `keeping`을 주면 그 노트의 카드 사유·보고서 구성·기타 보고 사항·경기번호·심판진은 그대로 가져온다
+    /// `keeping`을 주면 그 노트의 카드 사유·페널티킥 골·보고서 구성·기타 보고 사항·경기번호·심판진은 그대로 가져온다
     public static func edited(competition: String?, venue: String?, colors: TeamColors, recorded: TeamColors,
                               keeping existing: MatchNote? = nil) -> MatchNote {
         edited(competition: competition, venue: venue, colors: colors, recorded: recorded,
@@ -98,7 +104,7 @@ public struct MatchNote: Codable, Equatable, Sendable {
         return MatchNote(competition: competition, venue: venue,
                          colors: picked.hexes == recorded.normalized.hexes ? nil : picked,
                          reportSections: existing?.reportSections, cardReasons: existing?.cardReasons ?? [:],
-                         otherReport: existing?.otherReport, matchNumber: matchNumber, assistant1: assistant1,
+                         penaltyGoals: existing?.penaltyGoals ?? [], otherReport: existing?.otherReport, matchNumber: matchNumber, assistant1: assistant1,
                          assistant2: assistant2, fourthOfficial: fourthOfficial)
     }
 }
