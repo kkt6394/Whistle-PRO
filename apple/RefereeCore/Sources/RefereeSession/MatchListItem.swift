@@ -79,10 +79,10 @@ public struct MonthSummary: Equatable, Sendable {
 
     /// 요약 카드의 거리 숫자 (km, 단위 없이). 10km 미만은 소수 한 자리("0.4", "9.8"), 이상은 정수.
     /// 정수로만 반올림하면 0.4km가 "0"으로 보였다 (디자인 개편 리뷰)
-    public static func distanceText(meters: Double) -> String {
+    public static func distanceText(meters: Double, locale: Locale = .current) -> String {
         let km = meters / 1000
         let tenths = (km * 10).rounded() / 10
-        return tenths < 10 ? String(format: "%.1f", tenths) : String(format: "%.0f", km.rounded())
+        return tenths < 10 ? NumberText.decimal(tenths, digits: 1, locale: locale) : String(format: "%.0f", km.rounded())
     }
 
     public static func of(_ summaries: [MatchSummary], now: Date, calendar: Calendar) -> MonthSummary {

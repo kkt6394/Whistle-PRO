@@ -71,10 +71,10 @@ data class MonthSummary(val matches: Int, val distance: Double, val cardsPerMatc
          * 요약 카드의 거리 숫자 (km, 단위 없이). 10km 미만은 소수 한 자리("0.4", "9.8"), 이상은 정수.
          * 정수로만 반올림하면 0.4km가 "0"으로 보였다 (디자인 개편 리뷰)
          */
-        fun distanceText(meters: Double): String {
+        fun distanceText(meters: Double, locale: Locale = Locale.getDefault()): String {
             val km = meters / 1000
             val tenths = Math.round(km * 10).toDouble() / 10
-            return if (tenths < 10) String.format(Locale.ROOT, "%.1f", tenths) else Math.round(km).toString()
+            return if (tenths < 10) NumberText.decimal(tenths, 1, locale) else Math.round(km).toString()
         }
 
         fun of(summaries: List<MatchSummary>, now: Instant, zone: ZoneId): MonthSummary {
