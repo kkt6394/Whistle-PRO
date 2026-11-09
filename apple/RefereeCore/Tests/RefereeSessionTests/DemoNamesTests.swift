@@ -3,7 +3,7 @@ import Testing
 
 @Suite struct DemoNamesTests {
     @Test func rostersCoverDemoEventNumbers() {
-        for names in [DemoNames.ko, DemoNames.en] {
+        for names in DemoNames.byLanguage.values {
             let home = Dictionary(uniqueKeysWithValues: names.homeRoster.map { ($0.number, $0) })
             let away = Dictionary(uniqueKeysWithValues: names.awayRoster.map { ($0.number, $0) })
             // 데모 이벤트가 쓰는 번호: 홈 선발 1·4·5·7·9·10, 후보 14·17 / 원정 선발 4·11
@@ -21,10 +21,17 @@ import Testing
         #expect(DemoNames.fromArguments(["-demoNames", "ko"])?.homeName == "FC 서울숲")
         #expect(DemoNames.fromArguments(["-demo", "detail"]) == nil)
         #expect(DemoNames.fromArguments(["-demoNames"]) == nil)
+        #expect(DemoNames.fromArguments(["-demoNames", "ja"])?.homeName == "FC 多摩川")
+        #expect(DemoNames.fromArguments(["-demoNames", "zh-Hans"])?.homeName == "滨江FC")
+        #expect(DemoNames.fromArguments(["-demoNames", "pt-BR"])?.homeName == "Ibirapuera FC")
+        #expect(DemoNames.fromArguments(["-demoNames", "xx"]) == nil)
     }
-    @Test func enHasNoHangul() {
-        let all = [DemoNames.en.homeName, DemoNames.en.awayName, DemoNames.en.presetName, DemoNames.en.competition, DemoNames.en.venue, DemoNames.en.referee]
-            + (DemoNames.en.homeRoster + DemoNames.en.awayRoster).map(\.name)
-        #expect(all.allSatisfy { $0.unicodeScalars.allSatisfy { !(0xAC00...0xD7A3).contains($0.value) } })
+    /// 한국어 벌 말고는 한글이 섞이지 않는다 (언어별 미리보기 영상에 한국 이름이 보이면 안 된다)
+    @Test func onlyKoreanHasHangul() {
+        #expect(DemoNames.byLanguage.count == 15)
+        for (language, n) in DemoNames.byLanguage where language != "ko" {
+            let all = [n.homeName, n.awayName, n.presetName, n.competition, n.venue, n.referee] + (n.homeRoster + n.awayRoster).map(\.name)
+            #expect(all.allSatisfy { $0.unicodeScalars.allSatisfy { !(0xAC00...0xD7A3).contains($0.value) } }, "\(language)")
+        }
     }
 }

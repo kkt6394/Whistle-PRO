@@ -7,7 +7,7 @@ import kotlin.test.assertTrue
 
 class DemoNamesTests {
     @Test fun rostersCoverDemoEventNumbers() {
-        for (names in listOf(DemoNames.ko, DemoNames.en)) {
+        for (names in DemoNames.byLanguage.values) {
             val home = names.homeRoster.associateBy { it.number }
             val away = names.awayRoster.associateBy { it.number }
             // 데모 이벤트가 쓰는 번호: 홈 선발 1·4·5·7·9·10, 후보 14·17 / 원정 선발 4·11
@@ -27,12 +27,20 @@ class DemoNamesTests {
         assertEquals("FC 서울숲", DemoNames.fromExtra("ko")?.homeName)
         assertNull(DemoNames.fromExtra("detail"))
         assertNull(DemoNames.fromExtra(null))
+        assertEquals("FC 多摩川", DemoNames.fromExtra("ja")?.homeName)
+        assertEquals("滨江FC", DemoNames.fromExtra("zh-Hans")?.homeName)
+        assertEquals("Ibirapuera FC", DemoNames.fromExtra("pt-BR")?.homeName)
+        assertNull(DemoNames.fromExtra("xx"))
     }
 
-    @Test fun enHasNoHangul() {
-        val en = DemoNames.en
-        val all = listOf(en.homeName, en.awayName, en.presetName, en.competition, en.venue, en.referee) +
-            (en.homeRoster + en.awayRoster).map { it.name }
-        assertTrue(all.all { s -> s.none { it.code in 0xAC00..0xD7A3 } })
+    /** 한국어 벌 말고는 한글이 섞이지 않는다 (언어별 미리보기 영상에 한국 이름이 보이면 안 된다) */
+    @Test fun onlyKoreanHasHangul() {
+        assertEquals(15, DemoNames.byLanguage.size)
+        for ((language, n) in DemoNames.byLanguage) {
+            if (language == "ko") continue
+            val all = listOf(n.homeName, n.awayName, n.presetName, n.competition, n.venue, n.referee) +
+                (n.homeRoster + n.awayRoster).map { it.name }
+            assertTrue(all.all { s -> s.none { it.code in 0xAC00..0xD7A3 } }, language)
+        }
     }
 }
