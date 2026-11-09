@@ -135,7 +135,7 @@ class DemoNames(
         )
 
         val es = DemoNames(
-            homeName = "Chapultepec FC", awayName = "Coyoacán United",
+            homeName = "Chapultepec FC", awayName = "Coyoacán FC",
             homeRoster = home(
                 listOf("García", "Hernández", "López", "Martínez", "González", "Pérez", "Rodríguez", "Sánchez", "Ramírez", "Torres", "Flores"),
                 bench = listOf("Rivera", "Gómez", "Díaz", "Cruz", "Morales"),
@@ -149,7 +149,7 @@ class DemoNames(
         )
 
         val de = DemoNames(
-            homeName = "FC Isarauen", awayName = "Englischer Garten 09",
+            homeName = "FC Isarauen", awayName = "SV Eisbach",
             homeRoster = home(
                 listOf("Müller", "Schmidt", "Schneider", "Fischer", "Weber", "Meyer", "Wagner", "Becker", "Schulz", "Hoffmann", "Koch"),
                 bench = listOf("Richter", "Klein", "Wolf", "Neumann", "Schwarz"),
@@ -163,7 +163,7 @@ class DemoNames(
         )
 
         val fr = DemoNames(
-            homeName = "FC Bords de Seine", awayName = "Montsouris United",
+            homeName = "FC Seine", awayName = "AS Montsouris",
             homeRoster = home(
                 listOf("Martin", "Bernard", "Dubois", "Thomas", "Robert", "Richard", "Petit", "Durand", "Leroy", "Moreau", "Simon"),
                 bench = listOf("Laurent", "Lefèvre", "Michel", "Garcia", "David"),
@@ -177,7 +177,7 @@ class DemoNames(
         )
 
         val it = DemoNames(
-            homeName = "FC Navigli", awayName = "Sempione United",
+            homeName = "FC Navigli", awayName = "AS Sempione",
             homeRoster = home(
                 listOf("Rossi", "Russo", "Ferrari", "Esposito", "Bianchi", "Romano", "Colombo", "Ricci", "Marino", "Greco", "Bruno"),
                 bench = listOf("Gallo", "Conti", "De Luca", "Mancini", "Costa"),
@@ -205,7 +205,7 @@ class DemoNames(
         )
 
         val pl = DemoNames(
-            homeName = "Wisła Bulwary FC", awayName = "Błonia United",
+            homeName = "KS Bulwary", awayName = "Błonia United",
             homeRoster = home(
                 listOf("Nowak", "Kowalski", "Wiśniewski", "Wójcik", "Kowalczyk", "Kamiński", "Lewandowski", "Zieliński", "Szymański", "Woźniak", "Dąbrowski"),
                 bench = listOf("Kozłowski", "Jankowski", "Mazur", "Kwiatkowski", "Krawczyk"),

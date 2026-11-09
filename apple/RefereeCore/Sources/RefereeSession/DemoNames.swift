@@ -93,7 +93,7 @@ public struct DemoNames: Sendable {
         competition: "Liga Amadora Paulista", venue: "Campo do Ibirapuera", referee: "R. Andrade")
 
     public static let es = DemoNames(
-        homeName: "Chapultepec FC", awayName: "Coyoacán United",
+        homeName: "Chapultepec FC", awayName: "Coyoacán FC",
         homeRoster: home(["García", "Hernández", "López", "Martínez", "González", "Pérez", "Rodríguez", "Sánchez", "Ramírez", "Torres", "Flores"],
                          bench: ["Rivera", "Gómez", "Díaz", "Cruz", "Morales"]),
         awayRoster: away(["Reyes", "Ortiz", "Gutiérrez", "Chávez", "Ruiz", "Mendoza", "Aguilar", "Vargas", "Castillo", "Jiménez", "Romero"],
@@ -102,7 +102,7 @@ public struct DemoNames: Sendable {
         competition: "Liga Amateur del Valle", venue: "Campo Chapultepec", referee: "J. Morales")
 
     public static let de = DemoNames(
-        homeName: "FC Isarauen", awayName: "Englischer Garten 09",
+        homeName: "FC Isarauen", awayName: "SV Eisbach",
         homeRoster: home(["Müller", "Schmidt", "Schneider", "Fischer", "Weber", "Meyer", "Wagner", "Becker", "Schulz", "Hoffmann", "Koch"],
                          bench: ["Richter", "Klein", "Wolf", "Neumann", "Schwarz"]),
         awayRoster: away(["Zimmermann", "Braun", "Krüger", "Hartmann", "Lange", "Werner", "Krause", "Lehmann", "Köhler", "Maier", "Huber"],
@@ -111,7 +111,7 @@ public struct DemoNames: Sendable {
         competition: "Kreisliga München", venue: "Sportplatz Isarauen", referee: "T. Bauer")
 
     public static let fr = DemoNames(
-        homeName: "FC Bords de Seine", awayName: "Montsouris United",
+        homeName: "FC Seine", awayName: "AS Montsouris",
         homeRoster: home(["Martin", "Bernard", "Dubois", "Thomas", "Robert", "Richard", "Petit", "Durand", "Leroy", "Moreau", "Simon"],
                          bench: ["Laurent", "Lefèvre", "Michel", "Garcia", "David"]),
         awayRoster: away(["Bertrand", "Roux", "Vincent", "Fournier", "Morel", "Girard", "André", "Mercier", "Dupont", "Lambert", "Bonnet"],
@@ -120,7 +120,7 @@ public struct DemoNames: Sendable {
         competition: "Ligue amateur de Paris", venue: "Stade des bords de Seine", referee: "L. Rousseau")
 
     public static let it = DemoNames(
-        homeName: "FC Navigli", awayName: "Sempione United",
+        homeName: "FC Navigli", awayName: "AS Sempione",
         homeRoster: home(["Rossi", "Russo", "Ferrari", "Esposito", "Bianchi", "Romano", "Colombo", "Ricci", "Marino", "Greco", "Bruno"],
                          bench: ["Gallo", "Conti", "De Luca", "Mancini", "Costa"]),
         awayRoster: away(["Giordano", "Rizzo", "Lombardi", "Moretti", "Barbieri", "Fontana", "Santoro", "Mariani", "Rinaldi", "Caruso", "Ferrara"],
@@ -138,7 +138,7 @@ public struct DemoNames: Sendable {
         competition: "Amateurcompetitie Amsterdam", venue: "Sportpark Amstelpark", referee: "R. de Wit")
 
     public static let pl = DemoNames(
-        homeName: "Wisła Bulwary FC", awayName: "Błonia United",
+        homeName: "KS Bulwary", awayName: "Błonia United",
         homeRoster: home(["Nowak", "Kowalski", "Wiśniewski", "Wójcik", "Kowalczyk", "Kamiński", "Lewandowski", "Zieliński", "Szymański", "Woźniak", "Dąbrowski"],
                          bench: ["Kozłowski", "Jankowski", "Mazur", "Kwiatkowski", "Krawczyk"]),
         awayRoster: away(["Piotrowski", "Grabowski", "Nowakowski", "Pawłowski", "Michalski", "Król", "Wieczorek", "Jabłoński", "Wróbel", "Majewski", "Olszewski"],
